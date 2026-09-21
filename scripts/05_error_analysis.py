@@ -3,8 +3,8 @@
 Studied here:
 
 * grating duty cycle error (4.1.1) -- changes complex order coefficients,
-* phase-shift step error delta (4.2 / the 4-step algorithm is much more
-  sensitive than 8-step),
+* phase-step scale calibration error and phase-position jitter (4.2), with
+  their fractional and degree units kept distinct,
 * shear-ratio error -- separated from the inverse grating-period error,
 * detector noise,
 * number of phase steps.
@@ -42,22 +42,20 @@ def section(title):
     print("\n" + "=" * 78 + f"\n{title}\n" + "=" * 78)
 
 
-def run(cfg, truth, *, n_steps=8, orders=None, fit_orders=None, delta_error_deg=0.0,
-        shear_rel_error=0.0, noise_db=None, seed=0):
+def run(cfg, truth, *, n_steps=8, orders=None, fit_orders=None,
+        step_scale_error_frac=0.0, shear_rel_error=0.0, noise_db=None, seed=0):
     fm = ForwardModel(cfg, orders) if orders is not None else ForwardModel(cfg)
     fm_fit = fm if fit_orders is None else ForwardModel(cfg, fit_orders)
-    def frames(direction, jitter=False):
+    def frames(direction):
         tx = 1.0 if direction == "x" else 0.0
         ty = 1.0 - tx
-        rng = np.random.default_rng(12345)
         out = []
         for k in range(n_steps):
             t = k / n_steps
-            if delta_error_deg:
-                if jitter:      # random step position error
-                    t = t + np.deg2rad(delta_error_deg) / (2 * np.pi) * rng.standard_normal()
-                else:           # mis-calibrated step size (linear drift)
-                    t = t * (1.0 + np.deg2rad(delta_error_deg) / (2 * np.pi))
+            if step_scale_error_frac:
+                # Fractional calibration error of the nominal phase increment:
+                # every step is multiplied by the same 1 + epsilon.
+                t = t * (1.0 + step_scale_error_frac)
             d = fm.phase_shift_deltas(tx * t, ty * t)
             out.append(fm.intensity(truth, deltas=d))
         return np.array(out)
@@ -87,7 +85,7 @@ def run(cfg, truth, *, n_steps=8, orders=None, fit_orders=None, delta_error_deg=
     return {int(j): float(v) for j, v in zip(fit.indices, fit.coeffs)}
 
 
-def run_jitter(cfg, truth, n_steps, ddeg):
+def run_jitter(cfg, truth, n_steps, jitter_std_deg):
     fm = ForwardModel(cfg)
     rng = np.random.default_rng(12345)
     out = []
@@ -96,7 +94,10 @@ def run_jitter(cfg, truth, n_steps, ddeg):
         ty = 1.0 - tx
         fr = []
         for k in range(n_steps):
-            t = k / n_steps + np.deg2rad(ddeg) / (2 * np.pi) * rng.standard_normal()
+            t = (
+                k / n_steps
+                + jitter_std_deg / 360.0 * rng.standard_normal()
+            )
             fr.append(fm.intensity(truth, deltas=fm.phase_shift_deltas(tx * t, ty * t)))
         out.append(np.array(fr))
     fit, _ = phase_shift_to_wavefront(fm, np.asarray(out[0]), np.asarray(out[1]), indices=INDICES)
@@ -206,21 +207,32 @@ print("  -> this is a relative sub-cell displacement, not a global grating shift
 REPORT["pattern_offset_y"] = placement_rows
 
 # --------------------------------------------------------------------------- #
-section("2. Phase-shift step error (4.2)")
+section("2. Phase-step scale error and phase-position jitter (4.2)")
 rows = []
-print("  step error | mis-calibrated step size      | random step jitter")
-print("     (deg)   |  4 steps       8 steps         |  4 steps       8 steps")
-for ddeg in (0.0, 0.5, 1.0, 2.0, 5.0):
-    e4 = maxerr(run(cfg, truth, n_steps=4, delta_error_deg=ddeg), truth)
-    e8 = maxerr(run(cfg, truth, n_steps=8, delta_error_deg=ddeg), truth)
-    j4 = maxerr(run(cfg, truth, n_steps=4, delta_error_deg=ddeg, orders=None), truth) if ddeg == 0 else         maxerr(run_jitter(cfg, truth, 4, ddeg), truth)
-    j8 = maxerr(run_jitter(cfg, truth, 8, ddeg), truth)
-    rows.append({"delta_deg": ddeg, "err_4step": e4, "err_8step": e8,
-                 "jitter_4step": j4, "jitter_8step": j8})
-    print(f"  {ddeg:6.1f}    | {e4:10.3e}  {e8:10.3e}     | {j4:10.3e}  {j8:10.3e}")
-print("  -> both algorithms respond to a step-size mis-calibration at first order")
-print("     (no advantage for more steps); random step jitter is comparable.")
-REPORT["delta_error"] = rows
+print("  scale error | mis-calibrated step size      | position jitter (same number)")
+print("      (%)     |  4 steps       8 steps         |  4 steps       8 steps (deg rms)")
+for value in (0.0, 0.5, 1.0, 2.0, 5.0):
+    scale_error = value / 100.0
+    e4 = maxerr(
+        run(cfg, truth, n_steps=4, step_scale_error_frac=scale_error), truth
+    )
+    e8 = maxerr(
+        run(cfg, truth, n_steps=8, step_scale_error_frac=scale_error), truth
+    )
+    j4 = maxerr(run_jitter(cfg, truth, 4, value), truth)
+    j8 = maxerr(run_jitter(cfg, truth, 8, value), truth)
+    rows.append({
+        "step_scale_error_pct": value,
+        "phase_position_jitter_std_deg": value,
+        "err_4step": e4,
+        "err_8step": e8,
+        "jitter_4step": j4,
+        "jitter_8step": j8,
+    })
+    print(f"  {value:6.1f}    | {e4:10.3e}  {e8:10.3e}     | {j4:10.3e}  {j8:10.3e}")
+print("  -> the left columns use a fractional step-scale error; the right columns")
+print("     use an absolute per-frame phase-position jitter in degrees rms.")
+REPORT["phase_shift_error"] = rows
 
 # --------------------------------------------------------------------------- #
 section("3. Shear-ratio error (distinct from inverse grating-period error)")
@@ -264,10 +276,10 @@ REPORT["steps"] = rows
 section("5. Figure")
 
 fig, axes = new_fig(2, 2, figsize=(11, 8.5))
-d = [r["delta_deg"] for r in REPORT["delta_error"]]
-axes[0, 0].loglog(np.array(d) + 1e-3, np.array([r["err_8step"] for r in REPORT["delta_error"]]) + 1e-16, "o-", label="8 step")
-axes[0, 0].loglog(np.array(d) + 1e-3, np.array([r["err_4step"] for r in REPORT["delta_error"]]) + 1e-16, "s-", label="4 step")
-axes[0, 0].set_xlabel("phase-shift step error (deg)"), axes[0, 0].set_ylabel("max |coeff error| (wave)")
+d = [r["step_scale_error_pct"] for r in REPORT["phase_shift_error"]]
+axes[0, 0].loglog(np.array(d) + 1e-3, np.array([r["err_8step"] for r in REPORT["phase_shift_error"]]) + 1e-16, "o-", label="8 step")
+axes[0, 0].loglog(np.array(d) + 1e-3, np.array([r["err_4step"] for r in REPORT["phase_shift_error"]]) + 1e-16, "s-", label="4 step")
+axes[0, 0].set_xlabel("phase-step scale error (%)"), axes[0, 0].set_ylabel("max |coeff error| (wave)")
 axes[0, 0].legend(), axes[0, 0].grid(alpha=0.3), axes[0, 0].set_title("step error (4.2)")
 
 sh = [r["shear_rel_error"] for r in REPORT["shear_error"]]

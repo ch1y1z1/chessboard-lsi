@@ -78,8 +78,77 @@ class DiffPhase:
 
     def __post_init__(self) -> None:
         self.difference_model = check_difference_model(self.difference_model)
+
+        required = {"x", "y"}
+        for name in ("dW", "phase", "mask"):
+            mapping = dict(getattr(self, name))
+            if set(mapping) != required:
+                raise ValueError(f"{name} must contain exactly the 'x' and 'y' directions")
+            setattr(self, name, mapping)
+
+        shapes: set[tuple[int, ...]] = set()
+        for direction in ("x", "y"):
+            mask = np.asarray(self.mask[direction])
+            if mask.dtype.kind != "b":
+                raise ValueError(f"mask[{direction!r}] must have boolean dtype")
+            if mask.ndim != 2 or mask.size == 0:
+                raise ValueError(
+                    f"mask[{direction!r}] must be a non-empty 2-D array, got {mask.shape}"
+                )
+            self.mask[direction] = mask
+            shapes.add(mask.shape)
+            for name in ("dW", "phase"):
+                value = np.asarray(getattr(self, name)[direction])
+                if np.iscomplexobj(value):
+                    raise ValueError(f"{name}[{direction!r}] must be real-valued")
+                value = np.asarray(value, dtype=float)
+                if value.shape != mask.shape:
+                    raise ValueError(
+                        f"{name}[{direction!r}] must have shape {mask.shape}, "
+                        f"got {value.shape}"
+                    )
+                if not np.all(np.isfinite(value[mask])):
+                    raise ValueError(
+                        f"{name}[{direction!r}] must be finite inside its mask"
+                    )
+                getattr(self, name)[direction] = value
+        if len(shapes) != 1:
+            raise ValueError(
+                f"x and y differential maps must have the same shape, got {sorted(shapes)}"
+            )
+        shape = next(iter(shapes))
+
+        for name in ("wrapped_phase", "modulation", "amplitude", "confidence"):
+            mapping = dict(getattr(self, name))
+            if mapping and set(mapping) != required:
+                raise ValueError(
+                    f"{name} must be empty or contain exactly the 'x' and 'y' directions"
+                )
+            for direction, raw in mapping.items():
+                value = np.asarray(raw)
+                if np.iscomplexobj(value):
+                    raise ValueError(f"{name}[{direction!r}] must be real-valued")
+                value = np.asarray(value, dtype=float)
+                if value.shape != shape:
+                    raise ValueError(
+                        f"{name}[{direction!r}] must have shape {shape}, got {value.shape}"
+                    )
+                mask = self.mask[direction]
+                if not np.all(np.isfinite(value[mask])):
+                    raise ValueError(
+                        f"{name}[{direction!r}] must be finite inside its mask"
+                    )
+                if name in ("modulation", "amplitude", "confidence") and np.any(
+                    value[mask] < 0.0
+                ):
+                    raise ValueError(
+                        f"{name}[{direction!r}] must be non-negative inside its mask"
+                    )
+                mapping[direction] = value
+            setattr(self, name, mapping)
+
         state = dict(self.grating_offset_removed)
-        if set(state) != {"x", "y"} or not all(
+        if set(state) != required or not all(
             isinstance(value, (bool, np.bool_)) for value in state.values()
         ):
             raise ValueError(
@@ -136,12 +205,12 @@ def _require_bool(value, name: str) -> bool:
     return bool(value)
 
 
-def _fourier_pair_orders(
+def _validate_pair_orders(
     fm: ForwardModel,
     direction: str,
     difference_model: str,
 ) -> tuple[tuple[int, int], tuple[int, int]]:
-    """Validate the zero/first-order beats represented by a Fourier model."""
+    """Validate the zero/first-order beats represented by a difference model."""
     positive = (1, 0) if direction == "x" else (0, 1)
     negative = (-positive[0], -positive[1])
     amplitudes = dict(zip(fm.indices, fm.amplitudes))
@@ -155,18 +224,18 @@ def _fourier_pair_orders(
 
     if abs(beat_plus) <= tol:
         raise ValueError(
-            f"the {direction} +f0 lobe needs non-zero (0, 0) and "
+            f"the {direction} differential signal needs non-zero (0, 0) and "
             f"{positive} diffraction orders"
         )
     if difference_model == "two_sided":
         if abs(beat_minus) <= tol:
             raise ValueError(
                 f"difference_model='two_sided' needs the symmetric {negative} "
-                f"order in the {direction} +f0 lobe"
+                f"order in the {direction} differential signal"
             )
         if not np.isclose(beat_plus, beat_minus, rtol=1e-10, atol=tol):
             raise ValueError(
-                f"the {direction} +f0 beat coefficients are asymmetric, so "
+                f"the {direction} beat coefficients are asymmetric, so "
                 "their summed phase is not an exact two-sided difference"
             )
     elif abs(beat_minus) > tol:
@@ -229,6 +298,11 @@ def demodulate_phase_shift(
     of the demodulated phase.  ``erode_px`` shrinks both shear regions by that
     many pixels before unwrapping, which rejects the boundary pixels where
     the demodulated phase is unreliable.
+
+    The returned data uses a two-sided difference model.  The zero and
+    symmetric ``+-1`` diffraction orders must therefore all be present and
+    their two beat coefficients must match; asymmetric custom order sets are
+    rejected instead of being silently divided by ``pi``.
     """
     cfg = fm.config
     frames_x = np.asarray(frames_x, dtype=float)
@@ -260,6 +334,8 @@ def demodulate_phase_shift(
                 f"{name} holds {len(d)} steps but {n_frames} frames were "
                 "supplied"
             )
+    for direction in ("x", "y"):
+        _validate_pair_orders(fm, direction, "two_sided")
     res_x = lsq_phase_shift(frames_x, deltas_x)
     res_y = lsq_phase_shift(frames_y, deltas_y)
 
@@ -380,7 +456,7 @@ def demodulate_fourier(
     check_difference_model(difference_model)
     check_unwrap_method(unwrap)
     remove_offset = _require_bool(remove_offset, "remove_offset")
-    positive, negative = _fourier_pair_orders(
+    positive, negative = _validate_pair_orders(
         fm, direction, difference_model
     )
     threshold_frac = _as_float(
@@ -396,7 +472,7 @@ def demodulate_fourier(
     lobe = demodulate_lobe(
         image, fm.config.grid, direction=direction,
         f0=fm.config.carrier_f0 if f0 is None else f0,
-        phase_offset=model_offset, **lobe_kwargs,
+        phase_offset=model_offset, window_radius=window_radius, **lobe_kwargs,
     )
     # Support of the isolated lobe, taken from the model so that a custom pupil
     # is honored.  A two-sided reading needs all three pupils; near an edge

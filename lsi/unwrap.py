@@ -140,6 +140,10 @@ def unwrap_masked_poisson(
         return np.full(phi.shape, np.nan)
     if not np.all(np.isfinite(phi[mask])):
         raise ValueError("phi must be finite inside mask")
+    if np.count_nonzero(mask) == 1:
+        out = np.full(phi.shape, np.nan)
+        out[mask] = 0.0
+        return out
 
     rho = _masked_divergence(phi, mask)
 

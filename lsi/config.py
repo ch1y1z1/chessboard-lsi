@@ -174,7 +174,7 @@ class SystemConfig:
         )
         if self.shear_ratio is not None:
             # zero is excluded as well as one: ``carrier_f0 = m / (2 s)``
-            # divides by it, and a zero shear has no overlap region at all.
+            # divides by it, and zero shear carries no differential information.
             object.__setattr__(
                 self,
                 "shear_ratio",

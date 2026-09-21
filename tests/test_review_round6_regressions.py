@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -143,6 +145,58 @@ def test_fourier_route_publishes_lobe_amplitude_as_confidence():
     for direction in ("x", "y"):
         assert diff.confidence[direction] is diff.amplitude[direction]
         assert np.max(diff.confidence[direction]) > 0.0
+
+
+def test_fourier_pipeline_forwards_window_radius(monkeypatch):
+    model = ForwardModel(
+        SystemConfig(period_um=30.0, grid=Grid(n=64, extent=1.1))
+    )
+    image = model.ft_mode_frame(ZernikeWavefront([0.1], [7]))
+    original = pipeline_module.demodulate_lobe
+    captured = {}
+
+    def recording_demodulate_lobe(*args, **kwargs):
+        captured["window_radius"] = kwargs.get("window_radius")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        pipeline_module, "demodulate_lobe", recording_demodulate_lobe
+    )
+    pipeline_module.demodulate_fourier(
+        model,
+        image,
+        direction="x",
+        method="lowpass",
+        window_radius=5.5,
+        erode_px=0,
+    )
+
+    assert captured["window_radius"] == pytest.approx(5.5)
+
+
+@pytest.mark.parametrize(
+    "changes,match",
+    [
+        ({"dW": {"x": np.zeros((8, 8))}}, "dW must contain exactly"),
+        (
+            {"mask": {
+                "x": np.ones((8, 8), dtype=int),
+                "y": np.ones((8, 8), dtype=bool),
+            }},
+            "boolean dtype",
+        ),
+        (
+            {"phase": {
+                "x": np.zeros((7, 8)),
+                "y": np.zeros((8, 8)),
+            }},
+            "must have shape",
+        ),
+    ],
+)
+def test_diff_phase_validates_array_contracts(changes, match):
+    with pytest.raises(ValueError, match=match):
+        replace(_simple_diff(), **changes)
 
 
 def test_reconstruct_rejects_disconnected_phase_gauges():

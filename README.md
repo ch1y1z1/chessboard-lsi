@@ -155,7 +155,10 @@ $\pm f_0s/2$ 为常量）。这样 $\pm1$ 级干涉项被搬到频谱 $\pm f_0$ 
    两者都做 **规范固定**（以种子像素的包裹相位为准），否则解包裹结果含 $2\pi$ 整数常量。
 4. **差分泽尔尼克最小二乘**（3.2.2）：以 $\Delta Z_j=Z_j(x+s,y)-Z_j(x-s,y)$（双边模型），解
    $\min_c\sum_{\mathrm{pxl}}w\left(\mathrm{d}W-\sum_j c_j\Delta Z_j\right)^{2}$。高层管线默认拟合
-   **Z2–Z16**，并以相移调制度作为置信度权重。
+   **Z2–Z16**，并以相移调制度作为置信度权重。`ZernikeFit.residual`、`rms_residual` 与
+   `max_abs_residual` 始终是单位为 wave 的物理 $\Delta W$ 残差；加权目标另存为
+   `weighted_residual`、`weighted_rms_residual` 和 `weighted_max_abs_residual`。
+   相移管线在解调前验证 0 级与两个对称一级的拍频系数，缺级次或幅相不对称时拒绝把数据声明为双边差分。
 
 **验证**：对 $W=Z_7$（1 波），重建的 12 项系数中除 $Z_7=1.000000$ 外全部 $<10^{-15}$（机器精度）。
 论文 表3-2 的结构（仅 $Z_7$ 非零，PV = 1.985、RMS = 0.354）与本实现一致：
@@ -219,6 +222,9 @@ $\pm f_0s/2$ 为常量）。这样 $\pm1$ 级干涉项被搬到频谱 $\pm f_0$ 
 全部拟合项的最大误差约 $5.2\times10^{-3}$ 波。剩余误差来自滤波偏置（解调窗在区域边缘把暗区混入，
 用 $\sigma$ 更小/带宽更窄可改善）。区域像素还需要按
 滤波核宽度做**内缩**（`erode_px`，默认 4 px），否则边缘偏置会显著污染 $Z_4/Z_5$。
+`window_radius` 由 pipeline 原样传入底层滤波器；脚本 03 的实际窗口扫描得到半径
+5.5 / 6.6 / 8.8 px 时 $\Delta W$ RMS 分别为 $1.81 / 2.06 / 6.29\times10^{-3}$ 波，
+对应 $Z_7=0.6032 / 0.6049 / 0.6045$，并写入输出 JSON。
 
 ---
 
@@ -235,7 +241,8 @@ $$c^{\ast}=\arg\min_c\sum_k\sum_i\left[I_k(i)-\left|\sum_m A_m\exp\left(i\left[2
 * **Marquardt 阻尼 + 自适应 $\lambda$**（gain ratio 判据）；阻尼步通过增广最小二乘
   $[J;\sqrt{\lambda D}]\,\Delta\approx[-r;0]$ 求解，不显式形成会把条件数平方的 $J^T J$；
   目标函数是最小二乘，没有鲁棒核；
-* **变量投影**：`fit_scale_background=True` 时用变量投影法消去 scale/background，缩减雅可比按
+* **变量投影**：`fit_scale_background=True` 时用变量投影法消去 scale/background；通过 SVD
+  求解 nuisance basis，避免形成 $A^TA$，并在 scale/background 不可分辨时明确报错；缩减雅可比按
   Golub–Pereyra 对投影算子逐列求导（`lsi.lm.reduced_scale_background`），与缩减残差的有限差分
  对照误差 $<10^{-8}$；返回的 `cond` 是 **Jacobian 自身**在**解处**的 2-范数条件数 `cond(J)`
  （与 `reconstruct` 报告 `cond(A_w)` 的约定一致；改报 `cond(J^T J)` 会把这个数字平方，
@@ -291,7 +298,7 @@ $96^{2}$ 网格），与解析差分逐点比较（比较用 `demodulate_phase_s
 | 占空比 0.40→0.60（§4.1.1） | 复级次系数按闭式连续变化：其中 $A(0,0)$ 项 0.5000→0.5200，而 $\lvert A(1,0)\rvert$ 项 0.2026→0.1833，四个 $\pm1$ 级合计效率 16.43 %→13.44 %（表4-1 的“效率下降”趋势一致）；在当前固定单元边缘的原点约定下，$\arg A(1,0)=\pi-2\pi(d-\frac{1}{2})$，对应与倾斜退化的方向常数。使用实际光栅先验时，全部非倾斜拟合模态误差 $\le 8.9\times10^{-16}$ 波；错误沿用 50 % 先验时误差进入倾斜项（$|d-0.5|=0.05$ 时约 0.68 波） |
 | 图形相对错位（§4.1.2、表4-2） | `bitmap_orders(offset_x/offset_y)` 只移动一块对角透明子单元，而非平移整片光栅；例如 Y 向错位会产生论文所述的 $(0,1)/(0,3)$ 奇次谐波，同时正交的 $(1,0)/(3,0)$ 仍消光。整片光栅平移另由 `origin_x/origin_y` 表示，只改变级次相位 |
 | 高级次串扰（即 $\pm2/\pm1$ 交叉级次，2.53 %） | 保留 $\lvert a\rvert,\lvert b\rvert\le 3$ 的全部谐波后，即使 50 % 占空比也有 $4.2\times10^{-2}$ 波偏差（一阶谐波解调不能区分 $(1,0)$ 与 $(1,\pm2)$ 的拍频）——这是“只用 4/5 束主级次”假设的代价；偏离 50 % 时还会出现半整数 detector orders，本例形状误差范围扩大到 $4.2\times10^{-2}\sim 2.3\times10^{-1}$ 波 |
-| 相移步长标定误差（§4.2）$0.5^\circ \to 5^\circ$ | 按全部拟合模态统计仍呈一阶敏感：如 $1^\circ$ 误差 → $3.8\times10^{-3}$ 波（4 步）/ $1.1\times10^{-3}$ 波（8 步）；随机抖动为 $8.1\times10^{-3}$ / $1.4\times10^{-2}$ 波 |
+| 相移误差（§4.2） | 明确拆成两种单位：步长比例标定误差 $\varepsilon_\mathrm{step}$（%）与逐帧相位位置随机抖动 $\sigma_\phi$（degree RMS）。$\varepsilon_\mathrm{step}=1\%$ 时全部拟合模态最大误差为 $1.34\times10^{-2}$ 波（4 步）/ $3.58\times10^{-3}$ 波（8 步）；$\sigma_\phi=1^\circ$ 时为 $8.07\times10^{-3}$ / $1.35\times10^{-2}$ 波 |
 | 重构所用剪切比相对误差 $\varepsilon_s$（§4.3） | 本脚本直接令 $s_\mathrm{fit}=s_\mathrm{true}(1+\varepsilon_s)$；$\varepsilon_s=1\,\%$ 时最大系数误差 $3.1\times10^{-3}$ 波、系数范数比 0.990099，主导尺度近似 $1/(1+\varepsilon_s)$。光栅周期误差是另一变量，二者满足 $\varepsilon_s=-\varepsilon_p/(1+\varepsilon_p)$；有限剪切和完整基底一般也允许模态耦合 |
 | 噪声（峰值 SNR 30 dB） | 按全部拟合模态统计，4/8/12 步误差 $2.8\times10^{-3}$ / $2.7\times10^{-3}$ / $1.9\times10^{-3}$ 波（5 个固定随机种子的均值） |
 

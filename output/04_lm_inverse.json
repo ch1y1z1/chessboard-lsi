@@ -13,11 +13,11 @@
     "max_err": 2.0570008049218388e-16
   },
   "lm_scale_background": {
-    "scale": 2.2999999999999936,
-    "background": 0.17000000000001014,
+    "scale": 2.3000000000000522,
+    "background": 0.17000000000001786,
     "max_error_all_modes": 3.6137759451548845e-14,
     "max_error_nonzero_truth_modes": 3.6137759451548845e-14,
-    "max_leakage_into_zero_modes": 3.5825813323935974e-14
+    "max_leakage_into_zero_modes": 3.5809378858787125e-14
   },
   "lm_noise": {
     "snr_db": [

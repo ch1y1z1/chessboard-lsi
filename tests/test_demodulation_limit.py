@@ -29,6 +29,7 @@ import pytest
 from lsi import unwrap as U
 from lsi.config import Grid, SystemConfig
 from lsi.forward import ForwardModel, ZernikeWavefront
+from lsi.phaseshift import lsq_phase_shift, shear_region_masks
 from lsi.pipeline import demodulate_phase_shift
 
 GRID = Grid(n=96, extent=1.10)
@@ -47,15 +48,24 @@ def _demodulate(fm, amp):
     x, y = GRID.coords()
     wf = ZernikeWavefront(np.array([amp]), np.array([7]))
     fx = fm.phase_shift_frames(wf, "x", 8)
-    fy = fm.phase_shift_frames(wf, "y", 8)
-    diff = demodulate_phase_shift(fm, fx, fy)
-    mask = diff.mask["x"]
+    if (0, 1) in fm.indices and (0, -1) in fm.indices:
+        fy = fm.phase_shift_frames(wf, "y", 8)
+        diff = demodulate_phase_shift(fm, fx, fy)
+        mask = diff.mask["x"]
+        phase = U.wrap(diff.phase["x"] - fm.demodulation_offset())
+    else:
+        # This is deliberately an x-only optical experiment used to isolate the
+        # orthogonal-order crosstalk.  It is not a valid full 2-D public
+        # pipeline input now that that API enforces symmetric pairs in both
+        # directions, so demodulate its one available direction directly.
+        result = lsq_phase_shift(fx)
+        mask = shear_region_masks(GRID, fm.s)["region_x"]
+        phase = U.wrap(result.phase - fm.demodulation_offset())
 
     n = fx.shape[0]
     z = (2.0 / n) * np.sum(
         fx * np.exp(-2j * np.pi * np.arange(n)[:, None, None] / n), axis=0
     )
-    phase = U.wrap(diff.phase["x"] - fm.demodulation_offset())
     dw_true = amp * wf.terms(x + fm.s, y)[0] - amp * wf.terms(x - fm.s, y)[0]
     return mask, phase, np.abs(z), dw_true
 

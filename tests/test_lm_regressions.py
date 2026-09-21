@@ -14,6 +14,7 @@ Covered former defects:
 """
 
 import numpy as np
+import pytest
 
 from lsi.lm import LMConfig, levenberg_marquardt, reduced_scale_background
 
@@ -90,17 +91,28 @@ def test_reduced_jacobian_matches_finite_differences():
     assert error_old > 10 * error_new
 
 
-def test_variable_projection_handles_a_rank_deficient_nuisance_basis():
+def test_variable_projection_rejects_a_rank_deficient_nuisance_basis():
     # a constant model makes the nuisance basis [m, 1] rank deficient: this
-    # must not raise, and the constant offset must still be removed
+    # cannot identify scale and background separately.
     meas = np.linspace(0.0, 1.0, 32)
     constant = np.full(32, 2.0)
-    f, j, a, b = reduced_scale_background(constant - meas, np.zeros((32, 1)), meas)
-    # a * 2 + b can only reproduce a constant, so the best affine fit is the
-    # mean of the measurement itself
-    assert np.allclose(f, meas.mean() - meas)
-    assert np.allclose(j, 0.0)
-    assert np.isfinite([a, b]).all()
+    with pytest.raises(ValueError, match="not separately identifiable"):
+        reduced_scale_background(
+            constant - meas, np.zeros((32, 1)), meas
+        )
+
+
+def test_variable_projection_remains_stable_for_a_nearly_constant_model():
+    t = np.linspace(-1.0, 1.0, 100)
+    model = 1.0 + 1e-8 * t
+    meas = 2.5 * model + 0.3
+    f, _, a, b = reduced_scale_background(
+        model - meas, np.zeros((100, 1)), meas
+    )
+
+    assert a == pytest.approx(2.5, rel=1e-7)
+    assert b == pytest.approx(0.3, rel=1e-6)
+    assert np.max(np.abs(f)) < 1e-12
 
 
 def test_lm_reports_solution_invariants():

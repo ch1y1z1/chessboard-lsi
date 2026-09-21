@@ -57,6 +57,19 @@ def test_pupil_shape_is_validated():
         ForwardModel(cfg, pupil=np.ones((64, 64, 2), dtype=bool))
 
 
+def test_boolean_pupil_is_copied_at_the_model_boundary():
+    cfg = _cfg()
+    pupil = np.ones(cfg.grid.shape, dtype=bool)
+    with pytest.warns(UserWarning, match="not an integer"):
+        model = ForwardModel(cfg, pupil=pupil)
+
+    pupil[:] = False
+    exposed = model.pupil_definition
+    exposed[:] = False
+
+    assert model.aperture().all()
+
+
 def test_float_pupil_is_thresholded():
     cfg = _cfg()
     soft = np.zeros((64, 64))

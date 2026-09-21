@@ -43,9 +43,14 @@ class ZernikeFit:
     indices: np.ndarray
     coeffs: np.ndarray            # fitted coefficients (waves), offsets excluded
     offsets: dict[str, float] = field(default_factory=dict)
+    # Physical differential-wavefront residual A c - b, in waves.
     residual: np.ndarray = field(default_factory=lambda: np.array([]))
+    # Objective residual sqrt(weight) * (A c - b).
+    weighted_residual: np.ndarray = field(default_factory=lambda: np.array([]))
     rms_residual: float = 0.0
     max_abs_residual: float = 0.0
+    weighted_rms_residual: float = 0.0
+    weighted_max_abs_residual: float = 0.0
     cond: float = np.nan
     rank: int = 0
     singular_values: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -133,6 +138,11 @@ def fit_differential_zernike(
     column (``dZx(j=2) = 2s`` is constant), so with ``fit_offsets=True`` the
     tilt coefficients become meaningless unless the beam amplitudes are
     genuinely unknown.
+
+    The returned ``residual`` and its RMS/max summaries are the physical
+    differential-wavefront error ``A @ solution - data`` in waves.
+    ``weighted_residual`` and its summaries retain the actual weighted
+    least-squares objective for optimizer diagnostics.
     """
     check_difference_model(difference_model)
     x = np.asarray(x, dtype=float)
@@ -226,15 +236,21 @@ def fit_differential_zernike(
         for tag, val in zip(tags, off_vals):
             offsets[tag] = float(val)
 
-    resid = Aw @ sol - bw
+    residual = A @ sol - b
+    weighted_residual = Aw @ sol - bw
     cond = float(np.linalg.cond(Aw))
     return ZernikeFit(
         indices=indices,
         coeffs=coeffs,
         offsets=offsets,
-        residual=resid,
-        rms_residual=float(np.sqrt(np.mean(resid**2))),
-        max_abs_residual=float(np.max(np.abs(resid))),
+        residual=residual,
+        weighted_residual=weighted_residual,
+        rms_residual=float(np.sqrt(np.mean(residual**2))),
+        max_abs_residual=float(np.max(np.abs(residual))),
+        weighted_rms_residual=float(
+            np.sqrt(np.mean(weighted_residual**2))
+        ),
+        weighted_max_abs_residual=float(np.max(np.abs(weighted_residual))),
         cond=cond,
         rank=int(rank),
         singular_values=singular_values,

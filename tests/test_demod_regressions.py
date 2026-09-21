@@ -16,6 +16,7 @@ import pytest
 
 from lsi.config import Grid, SystemConfig
 from lsi.forward import ForwardModel, ZernikeWavefront
+from lsi.grating import OrderSet
 from lsi.phaseshift import lsq_phase_shift
 from lsi.pipeline import demodulate_phase_shift
 from lsi.unwrap import unwrap_masked_poisson, unwrap_seed_growth
@@ -115,6 +116,39 @@ def test_calibrated_steps_reach_the_pipeline_demodulation():
     assert not np.allclose(base.dW["x"], other.dW["x"], equal_nan=True)
 
 
+def test_phase_shift_pipeline_rejects_missing_or_asymmetric_pair_orders():
+    cfg = SystemConfig(grid=Grid(n=32, extent=1.1))
+    wf = ZernikeWavefront([0.1], [4])
+
+    missing = ForwardModel(
+        cfg,
+        OrderSet(
+            ab=np.array([(0, 0), (1, 0), (0, 1), (0, -1)]),
+            amp=np.array([0.5, -0.2, 0.2, 0.2]),
+        ),
+    )
+    with pytest.raises(ValueError, match="symmetric \\(-1, 0\\) order"):
+        demodulate_phase_shift(
+            missing,
+            missing.phase_shift_frames(wf, "x"),
+            missing.phase_shift_frames(wf, "y"),
+        )
+
+    asymmetric = ForwardModel(
+        cfg,
+        OrderSet(
+            ab=np.array([(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]),
+            amp=np.array([0.5, -0.2, -0.1, 0.2, 0.2]),
+        ),
+    )
+    with pytest.raises(ValueError, match="beat coefficients are asymmetric"):
+        demodulate_phase_shift(
+            asymmetric,
+            asymmetric.phase_shift_frames(wf, "x"),
+            asymmetric.phase_shift_frames(wf, "y"),
+        )
+
+
 # ------------------------------------------------------------------ unwrap
 def _ramp(shape=(40, 40)):
     y, x = np.mgrid[0 : shape[0], 0 : shape[1]]
@@ -168,6 +202,18 @@ def test_empty_mask_returns_all_nan(unwrap):
     out = unwrap(phi, np.zeros_like(truth, dtype=bool))
     assert out.shape == truth.shape
     assert np.isnan(out).all()
+
+
+@pytest.mark.parametrize("method", ["sparse", "jacobi"])
+def test_poisson_single_pixel_mask_returns_the_pinned_gauge(method):
+    phi = np.full((5, 5), 0.7)
+    mask = np.zeros_like(phi, dtype=bool)
+    mask[2, 3] = True
+
+    out = unwrap_masked_poisson(phi, mask, method=method)
+
+    assert out[2, 3] == 0.0
+    assert np.isnan(out[~mask]).all()
 
 
 def test_unwrap_validation():

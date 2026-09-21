@@ -119,22 +119,40 @@ x_, y_ = cfg.grid.coords()
 two_x = truth.w(x_ + cfg.s, y_) - truth.w(x_ - cfg.s, y_)
 inner_x = demodulate_fourier(fm, I, direction="x")[1] & (np.hypot(x_, y_) < 0.7)
 print("  method                       rms(dW - two-sided)   Z7")
+demodulator_rows = []
 for sig in (0.04, 0.06, 0.10):
     dW, mk, L = demodulate_fourier(fm, I, direction="x",
                                    method="local", sigma_units=sig)
     f, _ = fourier_to_wavefront(fm, I, indices=INDICES,
                                 method="local", sigma_units=sig)
     r = dW[inner_x] - two_x[inner_x]
-    print(f"  local, sigma = {sig:.2f}          {np.sqrt(np.mean(r**2)):.3e} wave      {table(f)[7]:.4f}")
+    error = float(np.sqrt(np.mean(r**2)))
+    recovered = table(f)[7]
+    demodulator_rows.append({
+        "method": "local",
+        "sigma_units": sig,
+        "dW_rms": error,
+        "Z7": recovered,
+    })
+    print(f"  local, sigma = {sig:.2f}          {error:.3e} wave      {recovered:.4f}")
 for rad in (5.5, 6.6, 8.8):
     dW, mk, L = demodulate_fourier(fm, I, direction="x",
                                    method="lowpass", window_radius=rad)
     f, _ = fourier_to_wavefront(fm, I, indices=INDICES,
                                 method="lowpass", window_radius=rad)
     r = dW[inner_x] - two_x[inner_x]
-    print(f"  lowpass, radius = {rad:4.1f} px  {np.sqrt(np.mean(r**2)):.3e} wave      {table(f)[7]:.4f}")
+    error = float(np.sqrt(np.mean(r**2)))
+    recovered = table(f)[7]
+    demodulator_rows.append({
+        "method": "lowpass",
+        "window_radius_px": rad,
+        "dW_rms": error,
+        "Z7": recovered,
+    })
+    print(f"  lowpass, radius = {rad:4.1f} px  {error:.3e} wave      {recovered:.4f}")
 print("  -> both keep the phase reference at each pixel; 'lowpass' (band-limited,")
 print("     default) has the smaller bias, the Gaussian 'local' filter is smoother.")
+REPORT["demodulator_sensitivity"] = demodulator_rows
 
 # --------------------------------------------------------------------------- #
 section("5. Figures")

@@ -183,6 +183,9 @@ def demodulate_lobe(
         ``"spectrum"`` (Fourier lobe extraction; reference implementation).
     sigma_units:
         Gaussian half-width in pupil units for the local demodulator.
+    window_radius:
+        Radius in frequency-bin pixels for the ``"lowpass"`` and
+        ``"spectrum"`` filters.  The pipeline forwards this value unchanged.
     phase_offset:
         Constant phase of the lobe (``0`` or ``pi``, see
         ``ForwardModel.demodulation_offset``).  It is removed *before* taking

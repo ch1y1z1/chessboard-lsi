@@ -113,39 +113,44 @@
       "max_abs_A_modd_n0": 0.0
     }
   ],
-  "delta_error": [
+  "phase_shift_error": [
     {
-      "delta_deg": 0.0,
+      "step_scale_error_pct": 0.0,
+      "phase_position_jitter_std_deg": 0.0,
       "err_4step": 8.326672684688674e-16,
       "err_8step": 8.881784197001252e-16,
       "jitter_4step": 8.326672684688674e-16,
       "jitter_8step": 8.881784197001252e-16
     },
     {
-      "delta_deg": 0.5,
-      "err_4step": 0.0018833376621897912,
-      "err_8step": 0.0005478880103448653,
+      "step_scale_error_pct": 0.5,
+      "phase_position_jitter_std_deg": 0.5,
+      "err_4step": 0.006740917673735975,
+      "err_8step": 0.0018959298685355343,
       "jitter_4step": 0.004058912338653045,
       "jitter_8step": 0.006749404440151709
     },
     {
-      "delta_deg": 1.0,
-      "err_4step": 0.0037587813034409435,
-      "err_8step": 0.0010794081674593212,
+      "step_scale_error_pct": 1.0,
+      "phase_position_jitter_std_deg": 1.0,
+      "err_4step": 0.013350384677650387,
+      "err_8step": 0.0035818314279945553,
       "jitter_4step": 0.008072589834198104,
       "jitter_8step": 0.013531660599102678
     },
     {
-      "delta_deg": 2.0,
-      "err_4step": 0.0074825338716685156,
-      "err_8step": 0.002093563895536222,
+      "step_scale_error_pct": 2.0,
+      "phase_position_jitter_std_deg": 2.0,
+      "err_4step": 0.026013112457602842,
+      "err_8step": 0.006340326787235988,
       "jitter_4step": 0.015963813785379307,
       "jitter_8step": 0.027167659494514922
     },
     {
-      "delta_deg": 5.0,
-      "err_4step": 0.018374284092359756,
-      "err_8step": 0.004750331157296163,
+      "step_scale_error_pct": 5.0,
+      "phase_position_jitter_std_deg": 5.0,
+      "err_4step": 0.05674572162388804,
+      "err_8step": 0.012911259292181121,
       "jitter_4step": 0.03854830090334124,
       "jitter_8step": 0.06813551349966497
     }

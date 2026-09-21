@@ -330,6 +330,12 @@ def multistart_fit(
     enough.
     """
     cfg = config or LMConfig()
+    term = _as_int(term, "term", minimum=0)
+    if term >= wf_proto.n_terms:
+        raise ValueError(
+            f"term must index one of the {wf_proto.n_terms} fitted coefficients, "
+            f"got {term}"
+        )
     best_x0, best_cost = np.zeros(wf_proto.n_terms), np.inf
     coarse = replace(cfg, max_iter=coarse_iter)
     for v in values:
@@ -371,25 +377,39 @@ def reduced_scale_background(f_raw, J_raw, meas):
     """
     m = np.asarray(f_raw) + meas
     A = np.stack([m, np.ones_like(m)], axis=1)
-    G = A.T @ A
-    Ginv = np.linalg.pinv(G)
-    u = Ginv @ (A.T @ meas)              # [a, b]
+    # Work in the singular-vector basis instead of forming A.T @ A, which
+    # squares the condition number precisely when scale and background are
+    # difficult to distinguish.  An exactly (or numerically) rank-deficient
+    # nuisance basis has no unique physical scale/background decomposition.
+    U, singular_values, Vt = np.linalg.svd(A, full_matrices=False)
+    tol = np.finfo(float).eps * max(A.shape) * singular_values[0]
+    if singular_values[-1] <= tol:
+        raise ValueError(
+            "scale and background are not separately identifiable: the "
+            "nuisance basis [model, 1] is rank deficient"
+        )
+    u = Vt.T @ ((U.T @ meas) / singular_values)  # [a, b]
     a, b = float(u[0]), float(u[1])
     f = A @ u - meas
     if not J_raw.size:
         return f, J_raw, a, b
-    # Exact derivative of f(c) = P(c) meas - meas, where the projector is
-    # P = A (A^T A)^-1 A^T and A(c) = [m(c), 1].  Differentiating the projector
-    # gives, for each column j with dA_j = dA/dc_j and dG_j = d(A^T A)/dc_j,
-    #     df/dc_j = dA_j u + A G^-1 (dA_j^T meas - dG_j u)
-    # which is the Golub-Pereyra reduced Jacobian.  A plain ``a * J_raw``
-    # misses both the projection and the derivative of the fitted (a, b).
+    # Exact derivative of the normal-equation stationarity condition.  Applying
+    # (A.T A)^-1 in the SVD basis avoids ever forming that normal matrix:
+    #
+    #   du = V diag(1/s^2) V.T [-dA.T f - A.T dA u]
+    #   df = dA u + A du.
+    #
+    # A plain ``a * J_raw`` misses both the projection and the derivative of
+    # the re-fitted nuisance parameters.
+    def apply_normal_inverse(rhs):
+        return Vt.T @ ((Vt @ rhs) / singular_values**2)
+
     J = np.empty_like(J_raw, dtype=float)
     for j in range(J_raw.shape[1]):
         dA = np.zeros_like(A)
         dA[:, 0] = J_raw[:, j]
-        dG = dA.T @ A + A.T @ dA
-        J[:, j] = dA @ u + A @ (Ginv @ (dA.T @ meas - dG @ u))
+        du = apply_normal_inverse(-dA.T @ f - A.T @ (dA @ u))
+        J[:, j] = dA @ u + A @ du
     return f, J, a, b
 
 

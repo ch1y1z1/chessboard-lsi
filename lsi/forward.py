@@ -203,7 +203,12 @@ class ForwardModel:
         return self.orders.amp
 
     # ------------------------------------------------------------- precompute
-    def _prepare_pupil(self, pupil) -> np.ndarray | None:
+    def _prepare_pupil(
+        self, pupil
+    ) -> tuple[
+        np.ndarray | None,
+        Callable[[np.ndarray, np.ndarray], np.ndarray] | None,
+    ]:
         """Validate the user pupil and return ``(array, callable)``.
 
         ``pupil`` may be
@@ -250,7 +255,7 @@ class ForwardModel:
                 stacklevel=2,
             )
         if arr.dtype == bool:
-            return arr, None
+            return arr.copy(), None
         return arr > 0.5, None
 
     def _pupil_mask(self, a: float, b: float, xs: np.ndarray, ys: np.ndarray):
@@ -330,7 +335,7 @@ class ForwardModel:
         """
         if self._pupil_fn is not None:
             return self._pupil_fn
-        return self._pupil
+        return None if self._pupil is None else self._pupil.copy()
 
     def order_support(self, a: float, b: float) -> np.ndarray:
         """Pupil mask of order ``(a, b)``, or all-False if it is not present."""

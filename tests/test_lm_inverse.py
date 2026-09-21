@@ -155,6 +155,24 @@ def test_lm_from_poor_initial_guess():
     assert table[7] == pytest.approx(1.5, abs=2e-3)
 
 
+@pytest.mark.parametrize("term", [-1, len(INDICES), 1.5, True])
+def test_multistart_rejects_an_invalid_term(term):
+    _, fm = _fm()
+    proto = ZernikeWavefront(np.zeros(len(INDICES)), np.array(INDICES))
+    frame = fm.intensity(proto)
+
+    with pytest.raises(ValueError, match="term"):
+        multistart_fit(
+            fm,
+            proto,
+            [frame],
+            [None],
+            term=term,
+            values=[0.0],
+            samples=100,
+        )
+
+
 def test_generic_levenberg_marquardt_on_rosenbrock():
     def resid(x):
         f = np.array([10 * (x[1] - x[0] ** 2), 1 - x[0]])
