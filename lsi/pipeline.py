@@ -115,6 +115,48 @@ def _require_connected(mask: np.ndarray, what: str) -> np.ndarray:
     return mask
 
 
+def _fourier_pair_orders(
+    fm: ForwardModel,
+    direction: str,
+    difference_model: str,
+) -> tuple[tuple[int, int], tuple[int, int]]:
+    """Validate the zero/first-order beats represented by a Fourier model."""
+    positive = (1, 0) if direction == "x" else (0, 1)
+    negative = (-positive[0], -positive[1])
+    amplitudes = dict(zip(fm.indices, fm.amplitudes))
+    a0 = amplitudes.get((0, 0), 0.0j)
+    a_plus = amplitudes.get(positive, 0.0j)
+    a_minus = amplitudes.get(negative, 0.0j)
+    beat_plus = a_plus * np.conj(a0)
+    beat_minus = a0 * np.conj(a_minus)
+    scale = max(abs(beat_plus), abs(beat_minus), 1.0)
+    tol = 1e-12 * scale
+
+    if abs(beat_plus) <= tol:
+        raise ValueError(
+            f"the {direction} +f0 lobe needs non-zero (0, 0) and "
+            f"{positive} diffraction orders"
+        )
+    if difference_model == "two_sided":
+        if abs(beat_minus) <= tol:
+            raise ValueError(
+                f"difference_model='two_sided' needs the symmetric {negative} "
+                f"order in the {direction} +f0 lobe"
+            )
+        if not np.isclose(beat_plus, beat_minus, rtol=1e-10, atol=tol):
+            raise ValueError(
+                f"the {direction} +f0 beat coefficients are asymmetric, so "
+                "their summed phase is not an exact two-sided difference"
+            )
+    elif abs(beat_minus) > tol:
+        raise ValueError(
+            f"difference_model={difference_model!r} requires the opposite "
+            f"{negative} order to be optically removed; it contributes to the "
+            f"same {direction} +f0 lobe in this ForwardModel"
+        )
+    return positive, negative
+
+
 def _unwrap_phase(wrapped: np.ndarray, mask: np.ndarray, method: str, grid) -> np.ndarray:
     """Unwrap one phase map and pin its additive gauge at the pupil centre."""
     if method == "seed":
@@ -289,7 +331,7 @@ def demodulate_fourier(
     direction: str = "x",
     f0: float | None = None,
     threshold_frac: float = 0.5,
-    difference_model: str = "one_sided",
+    difference_model: str = "two_sided",
     window_radius: float | None = None,
     remove_offset: bool = True,
     erode_px: int = 4,
@@ -306,13 +348,17 @@ def demodulate_fourier(
     offset is added back only *after* unwrapping, avoiding the ideal
     chessboard's ``+-pi`` branch cut.
 
-    The isolated physical lobe is one-sided.  ``difference_model="two_sided"``
-    retains the dissertation's reading as an ``O(s^2)`` approximation and
-    emits a warning so it cannot be mistaken for an equally exact model.
+    With the model's symmetric ``+-1`` orders, the same carrier lobe contains
+    both zero/first-order beats and its phase is the dissertation's two-sided
+    difference.  A one-sided model is valid only when the opposite first order
+    has physically been removed from ``fm.orders``.
     """
     check_direction(direction)
     check_difference_model(difference_model)
     check_unwrap_method(unwrap)
+    positive, negative = _fourier_pair_orders(
+        fm, direction, difference_model
+    )
     threshold_frac = _as_float(
         threshold_frac,
         "threshold_frac",
@@ -321,13 +367,6 @@ def demodulate_fourier(
         inclusive_low=True,
         inclusive_high=False,
     )
-    if difference_model == "two_sided":
-        warnings.warn(
-            "Fourier difference_model='two_sided' is the dissertation's "
-            "O(s^2) paper approximation; the isolated +f0 lobe physically "
-            "contains the one-sided difference",
-            stacklevel=2,
-        )
     erode_px = _as_int(erode_px, "erode_px", minimum=0)
     model_offset = fm.demodulation_offset(direction)
     lobe = demodulate_lobe(
@@ -335,11 +374,14 @@ def demodulate_fourier(
         f0=fm.config.carrier_f0 if f0 is None else f0,
         phase_offset=model_offset, **lobe_kwargs,
     )
-    # support of the isolated lobe: intersection of the 0 and +-1 pupils, taken
-    # from the model so that a custom 'pupil' is honored (a hard-coded unit
-    # circle would claim signal the aperture never passed).
-    a, b = (1, 0) if direction == "x" else (0, 1)
+    # Support of the isolated lobe, taken from the model so that a custom pupil
+    # is honored.  A two-sided reading needs all three pupils; near an edge
+    # where one symmetric first order is absent, the same carrier becomes
+    # one-sided and cannot be fitted with a two-sided Zernike basis.
+    a, b = positive
     support = fm.order_support(0, 0) & fm.order_support(a, b)
+    if difference_model == "two_sided":
+        support &= fm.order_support(*negative)
     _require_nonempty(support, f"the physical {direction} shear support")
     amp = lobe.amplitude
     peak = float(np.max(amp[support]))
@@ -449,7 +491,7 @@ def phase_shift_to_wavefront(
 
 def fourier_to_wavefront(
     fm: ForwardModel, image: np.ndarray, *, indices=DEFAULT_INDICES,
-    difference_model: str = "one_sided", offset_mode: str = "none", **kwargs,
+    difference_model: str = "two_sided", offset_mode: str = "none", **kwargs,
 ) -> tuple[ZernikeFit, DiffPhase]:
     dWx, mask_x, lobe_x = demodulate_fourier(fm, image, direction="x",
                                              difference_model=difference_model, **kwargs)

@@ -94,7 +94,7 @@ def _diff_phase(fm, image, **kwargs):
         dW=dW,
         phase=phase,
         mask=mask,
-        difference_model=kwargs.get("difference_model", "one_sided"),
+        difference_model=kwargs.get("difference_model", "two_sided"),
         confidence=confidence,
     )
 
@@ -266,7 +266,7 @@ def test_fourier_route_masks_stay_inside_a_custom_aperture():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         fm = ForwardModel(cfg, orders=analytic_orders(max_index=1), pupil=square)
-        image = fm.intensity(_wf())
+        image = fm.ft_mode_frame(_wf())
 
         for direction in ("x", "y"):
             # erode_px=0: the default 4 iterations eat the narrow square-pupil
@@ -391,8 +391,6 @@ def test_reconstruct_rejects_a_typo_in_difference_model():
 
 
 def test_offset_in_dW_and_demodulate_fourier_reject_typos():
-    # both read ``... if difference_model == "one_sided" else ...``, so every
-    # unknown string silently became the two-sided model.
     cfg = SystemConfig(grid=Grid(n=64))
     fm = ForwardModel(cfg, orders=analytic_orders(max_index=1))
     image = fm.ft_mode_frame(_wf())
@@ -402,12 +400,14 @@ def test_offset_in_dW_and_demodulate_fourier_reject_typos():
     with pytest.raises(ValueError):
         demodulate_fourier(fm, image, direction="x", difference_model="junk")
 
-    one = demodulate_fourier(fm, image, direction="x",
-                             difference_model="one_sided")[0]
-    with pytest.warns(UserWarning, match=r"O\(s\^2\).*approximation"):
-        two = demodulate_fourier(fm, image, direction="x",
-                                 difference_model="two_sided")[0]
-    assert not np.allclose(one, two)
+    two, mask, _ = demodulate_fourier(
+        fm, image, direction="x", difference_model="two_sided"
+    )
+    assert np.all(np.isfinite(two[mask]))
+    with pytest.raises(ValueError, match="optically removed"):
+        demodulate_fourier(
+            fm, image, direction="x", difference_model="one_sided"
+        )
 
 
 def test_demodulate_phase_shift_rejects_typos():
@@ -546,7 +546,9 @@ def test_the_one_sided_doubled_model_stays_consistent_with_the_demodulator():
     instead of rejecting the third one as unknown.
     """
     cfg = SystemConfig(grid=Grid(n=256, extent=1.10), period_um=30.0)
-    fm = ForwardModel(cfg)
+    # A one-sided model is physical only after the opposite first orders have
+    # actually been selected out of the forward model.
+    fm = ForwardModel(cfg, orders=[(0, 0), (1, 0), (0, 1)])
     indices = np.array([2, 3, 4, 5, 6, 7])
     coeffs = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.6])
     frames = fm.ft_mode_frame(ZernikeWavefront(coeffs, indices))

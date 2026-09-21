@@ -93,7 +93,11 @@ def test_fourier_raw_offset_is_added_only_after_unwrap():
 
 def test_fourier_threshold_uses_peak_inside_physical_support(monkeypatch):
     model = ForwardModel(SystemConfig(grid=Grid(n=32, extent=1.1)))
-    support = model.order_support(0, 0) & model.order_support(1, 0)
+    support = (
+        model.order_support(0, 0)
+        & model.order_support(1, 0)
+        & model.order_support(-1, 0)
+    )
     amplitude = np.where(support, 1.0, 100.0)
 
     def fake_lobe(image, grid, *, direction, phase_offset, **kwargs):
@@ -109,15 +113,14 @@ def test_fourier_threshold_uses_peak_inside_physical_support(monkeypatch):
         )
 
     monkeypatch.setattr(pipeline_module, "demodulate_lobe", fake_lobe)
-    with pytest.warns(UserWarning, match=r"O\(s\^2\).*approximation"):
-        _, mask, _ = demodulate_fourier(
-            model,
-            np.zeros(model.shape),
-            direction="x",
-            threshold_frac=0.5,
-            erode_px=0,
-            difference_model="two_sided",
-        )
+    _, mask, _ = demodulate_fourier(
+        model,
+        np.zeros(model.shape),
+        direction="x",
+        threshold_frac=0.5,
+        erode_px=0,
+        difference_model="two_sided",
+    )
     assert np.array_equal(mask, support)
 
 

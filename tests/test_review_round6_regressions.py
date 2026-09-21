@@ -109,7 +109,7 @@ def test_fourier_route_publishes_lobe_amplitude_as_confidence():
     image = model.ft_mode_frame(ZernikeWavefront([0.3], [7]))
     _, diff = fourier_to_wavefront(model, image, indices=[7])
 
-    assert diff.difference_model == "one_sided"
+    assert diff.difference_model == "two_sided"
     for direction in ("x", "y"):
         assert diff.confidence[direction] is diff.amplitude[direction]
         assert np.max(diff.confidence[direction]) > 0.0

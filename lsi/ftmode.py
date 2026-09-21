@@ -35,18 +35,20 @@ Three demodulators are provided:
     constant tied to the FFT origin, which a constant-offset model cannot
     absorb without giving up the tilt.
 
-Content of the ``+f0`` lobe: it is the beat of the zero order with the
-``+(1,0)`` order, whose coefficient is ``A_10 conj(A_00)`` -- *negative* for a
-real chessboard.  Hence
+Content of the ``+f0`` lobe: when both symmetric first orders are present it
+contains *two* beats at the same carrier, ``E_+ E_0^*`` and ``E_0 E_-^*``.
+For the symmetric chessboard coefficients they combine as
 
-    psi(x, y) = 2 pi [ W(x+s, y) - W(x, y) ] + pi     (one-sided difference)
+    C_+f0 = 2 A_0 A_1 cos(Gamma)
+             exp{i pi [W(x+s, y) - W(x-s, y)]}
 
-The two-sided reading of eq. (2-42),
+and therefore, while ``cos(Gamma)`` does not change sign,
 
-    psi(x, y) = pi [ W(x+s, y) - W(x-s, y) ] + pi .
+    psi(x, y) = pi [ W(x+s, y) - W(x-s, y) ] + constant .
 
-is retained by :mod:`lsi.pipeline` as the dissertation's approximation; it
-differs from the physical isolated-lobe model by ``O(s^2)``.
+This is the dissertation's two-sided difference (eq. 2-42).  A one-sided
+phase ``2 pi [W(x+s)-W(x)]`` applies only to an optical model in which the
+opposite first order has actually been removed.
 """
 
 from __future__ import annotations

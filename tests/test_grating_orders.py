@@ -5,6 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from lsi.config import Grid, SystemConfig
+from lsi.forward import ForwardModel
 from lsi.grating import analytic_orders, bitmap_orders, diffraction_efficiency
 
 #: 表2-3: (m, n) -> |amplitude| and diffraction efficiency (%)
@@ -28,6 +30,16 @@ def test_first_orders_against_table(mn):
     assert abs(abs(amp) - 2.0 / (np.pi**2 * m * n)) < 1e-12
     # the dissertation's efficiency column is the trustworthy entry
     assert abs(abs(amp) ** 2 * 100 - ref_eff) < 0.01
+
+
+def test_forward_model_derives_analytic_limit_from_requested_orders():
+    model = ForwardModel(
+        SystemConfig(grid=Grid(n=32)),
+        orders=[(5, 0)],
+    )
+
+    assert model.indices == [(5, 0)]
+    assert model.amplitudes[0] == pytest.approx(-2.0 / (25.0 * np.pi**2))
 
 
 def test_dc_amplitude_and_parseval():

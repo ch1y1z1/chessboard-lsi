@@ -11,6 +11,7 @@ from lsi.ftmode import demodulate_lobe, find_carrier_peak, spectrum
 from lsi.metrics import wavefront_error
 from lsi.pipeline import demodulate_fourier, fourier_to_wavefront, offset_in_dW
 from lsi.reconstruct import wavefront_on_grid
+from lsi.unwrap import wrap
 
 
 def _fm(cfg=None):
@@ -39,16 +40,15 @@ def test_carrier_peaks_are_where_theory_says():
     assert max(abs(i0 - n // 2), abs(j0 - n // 2)) > 5
 
 
-def test_one_sided_model_recovers_wavefront():
+def test_two_sided_model_recovers_wavefront():
     cfg, fm = _fm()
     truth = _truth()
     I = fm.ft_mode_frame(truth)
-    fit, diff = fourier_to_wavefront(fm, I, indices=tuple(range(2, 14)),
-                                     difference_model="one_sided")
+    fit, diff = fourier_to_wavefront(fm, I, indices=tuple(range(2, 14)))
     table = fit.as_dict()
-    # the windowed-FT demodulator carries an O(sigma^2) smoothing bias
+    # The band-limited demodulator retains a small filter/edge bias.
     assert table[7] == pytest.approx(0.6, abs=0.02)
-    assert max(abs(v) for k, v in table.items() if k not in (2, 3, 7)) < 0.06
+    assert max(abs(v) for k, v in table.items() if k not in (2, 3, 7)) < 0.03
 
     x, y = cfg.grid.coords()
     pupil = diff.mask["x"] & diff.mask["y"]
@@ -57,29 +57,62 @@ def test_one_sided_model_recovers_wavefront():
     assert err["max_abs"] < 0.10
 
 
-def test_one_sided_vs_two_sided_model_differ_by_s_squared_curvature():
-    """The dissertation reads the isolated +f0 lobe as the two-sided
-    difference (eq. 2-42).  The demodulated phase really carries the
-    *one-sided* difference ``W(x+s)-W(x)``; the two readings differ by
+@pytest.mark.parametrize("index", [7, 9, 16])
+def test_extracted_complex_lobe_phase_is_two_sided_for_curved_modes(index):
+    """Both symmetric first orders contribute to the same ``+f0`` lobe."""
+    extent = 1.1
+    cfg = SystemConfig(
+        grid=Grid(n=256, extent=extent),
+        # Put the carrier exactly on FFT bin 24 to isolate model error from
+        # sub-pixel carrier leakage in this physics-oracle regression.
+        shear_ratio=(2.0 * extent) / (2.0 * 24.0),
+    )
+    fm = ForwardModel(
+        cfg, pupil=lambda x, y: np.ones_like(x, dtype=bool)
+    )
+    truth = ZernikeWavefront([0.2], [index])
+    flat = ZernikeWavefront([0.0], [index])
+    phase_offset = fm.demodulation_offset("x")
+    reference = demodulate_lobe(
+        fm.ft_mode_frame(flat),
+        cfg.grid,
+        direction="x",
+        f0=cfg.carrier_f0,
+        phase_offset=phase_offset,
+        window_radius=8.0,
+    )
+    lobe = demodulate_lobe(
+        fm.ft_mode_frame(truth),
+        cfg.grid,
+        direction="x",
+        f0=cfg.carrier_f0,
+        phase_offset=phase_offset,
+        window_radius=8.0,
+    )
 
-        [W(x+s) - W(x)] - [W(x+s) - W(x-s)] / 2
-            = s^2/2 W_xx + O(s^4),
-
-    i.e. by an O(s^2) term that is a real model error, not noise."""
-    cfg, fm = _fm()
-    truth = _truth(0.6)
     x, y = cfg.grid.coords()
     s = cfg.s
-    one = truth.w(x + s, y) - truth.w(x, y)
-    two_half = 0.5 * (truth.w(x + s, y) - truth.w(x - s, y))
-    diff = one - two_half
-    h = 1e-4
-    W_xx = (truth.w(x + h, y) - 2 * truth.w(x, y) + truth.w(x - h, y)) / h**2
-    pred = 0.5 * s**2 * W_xx
-    inner = np.hypot(x, y) < 0.7
-    scale = np.abs(pred[inner]).max()
-    assert scale > 1e-3                      # the model error is substantial
-    assert np.abs(diff - pred)[inner].max() / scale < 1e-2
+    measured = np.angle(lobe.complex_field * np.conj(reference.complex_field))
+    two_sided = np.pi * (
+        truth.w(x + s, y) - truth.w(x - s, y)
+    )
+    wrong_one_sided = 2.0 * np.pi * (
+        truth.w(x + s, y) - truth.w(x, y)
+    )
+    inner = (np.hypot(x, y) < 0.6) & (
+        lobe.amplitude > 0.1 * lobe.amplitude.max()
+    )
+
+    def circular_rms(prediction):
+        error = wrap(measured - prediction)[inner]
+        gauge = np.angle(np.mean(np.exp(1j * error)))
+        error = wrap(error - gauge)
+        return float(np.sqrt(np.mean(error**2)))
+
+    two_sided_error = circular_rms(two_sided)
+    one_sided_error = circular_rms(wrong_one_sided)
+    assert two_sided_error < 0.004
+    assert two_sided_error < 0.3 * one_sided_error
 
 
 def test_nuisance_offsets_model_prediction():
@@ -93,8 +126,7 @@ def test_noise_robustness():
     cfg, fm = _fm()
     truth = _truth()
     I = add_noise(fm.ft_mode_frame(truth), snr_db=40, seed=5)
-    fit, _ = fourier_to_wavefront(fm, I, indices=tuple(range(2, 14)),
-                                  difference_model="one_sided")
+    fit, _ = fourier_to_wavefront(fm, I, indices=tuple(range(2, 14)))
     assert fit.as_dict()[7] == pytest.approx(0.6, abs=0.05)
 
 
@@ -112,8 +144,7 @@ def test_ft_and_ps_models_use_the_same_forward_model():
     fy = fm_ps.phase_shift_frames(truth, "y", 8)
     fit_ps, _ = phase_shift_to_wavefront(fm_ps, fx, fy, indices=tuple(range(2, 14)))
     I = fm_ft.ft_mode_frame(truth)
-    fit_ft, _ = fourier_to_wavefront(fm_ft, I, indices=tuple(range(2, 14)),
-                                     difference_model="one_sided")
+    fit_ft, _ = fourier_to_wavefront(fm_ft, I, indices=tuple(range(2, 14)))
     assert fit_ps.as_dict()[7] == pytest.approx(0.5, abs=1e-6)
     assert fit_ft.as_dict()[7] == pytest.approx(0.5, abs=3e-2)
     assert fit_ft.as_dict()[7] == pytest.approx(fit_ps.as_dict()[7], abs=3e-2)

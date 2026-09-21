@@ -3,10 +3,10 @@
     I(x,y)  --carrier f0 = m/2s-->  spectral lobe  --window-->  c = A e^{i psi}
             --arg-->  dW  --differential Zernike-->  W
 
-The script also quantifies the model question: the isolated ``+f0`` lobe carries
-the *one-sided* difference ``W(x+s)-W(x)``, while the dissertation's eq. (2-42)
-reads it as the two-sided difference ``W(x+s)-W(x-s)``; the two differ by
-``s^2/2 W_xx``, which is a genuine model error of order ``s^2``.
+The script also verifies the physical content of the ``+f0`` lobe.  With both
+symmetric first orders present, the lobe contains the two beats ``E+ E0*`` and
+``E0 E-*`` and therefore carries the dissertation's two-sided difference
+``W(x+s)-W(x-s)``.
 
 Run:  python3 scripts/03_fourier_mode.py
 """
@@ -60,37 +60,41 @@ truth = ZernikeWavefront(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.6]), np.array([2, 
 print(f"  working configuration: {cfg.describe()}")
 
 # --------------------------------------------------------------------------- #
-section("2. Demodulation of one frame: lobe, wrapped phase, one-sided vs two-sided")
+section("2. Demodulation of one frame: the +f0 lobe is two-sided")
 
 I = fm.ft_mode_frame(truth)
-dWx, mask_x, lobe_x = demodulate_fourier(fm, I, direction="x", difference_model="one_sided")
-dWy, mask_y, lobe_y = demodulate_fourier(fm, I, direction="y", difference_model="one_sided")
+dWx, mask_x, lobe_x = demodulate_fourier(fm, I, direction="x")
+dWy, mask_y, lobe_y = demodulate_fourier(fm, I, direction="y")
 x, y = cfg.grid.coords()
 
-one = truth.w(x + cfg.s, y) - truth.w(x, y)
-two_half = 0.5 * (truth.w(x + cfg.s, y) - truth.w(x - cfg.s, y))
+two = truth.w(x + cfg.s, y) - truth.w(x - cfg.s, y)
+wrong_one_doubled = 2.0 * (truth.w(x + cfg.s, y) - truth.w(x, y))
 inner = mask_x & (np.hypot(x, y) < 0.7)
 print(f"  lobe detected at {lobe_x.peak_freq} cyc/unit (nominal f0 = {cfg.carrier_f0:.3f})")
 print(f"  region pixels: {int(mask_x.sum())} (x), {int(mask_y.sum())} (y)")
-print(f"  one-sided reading  : rms(dW - [W(x+s)-W(x)]) = "
-      f"{np.sqrt(np.mean((dWx - one)[inner] ** 2)):.3e} wave")
-print(f"  two-sided reading  : rms(dW - [W(x+s)-W(x-s)]/2) = "
-      f"{np.sqrt(np.mean((dWx - two_half)[inner] ** 2)):.3e} wave")
+print(f"  two-sided reading  : rms(dW - [W(x+s)-W(x-s)]) = "
+      f"{np.sqrt(np.mean((dWx - two)[inner] ** 2)):.3e} wave")
+print(f"  wrong one-sided    : rms(dW - 2[W(x+s)-W(x)]) = "
+      f"{np.sqrt(np.mean((dWx - wrong_one_doubled)[inner] ** 2)):.3e} wave")
 h = 1e-4
 W_xx = (truth.w(x + h, y) - 2 * truth.w(x, y) + truth.w(x - h, y)) / h**2
-print(f"  model difference   : max |[W(x+s)-W(x)] - [W(x+s)-W(x-s)]/2| = "
-      f"{np.abs(one - two_half)[inner].max():.4f} wave")
-print(f"                       predicted s^2/2 W_xx     = {np.abs(0.5*cfg.s**2*W_xx)[inner].max():.4f} wave")
+print(f"  wrong-model gap    : max |2[W(x+s)-W(x)] - [W(x+s)-W(x-s)]| = "
+      f"{np.abs(wrong_one_doubled - two)[inner].max():.4f} wave")
+print(f"                       predicted s^2 W_xx       = {np.abs(cfg.s**2*W_xx)[inner].max():.4f} wave")
 REPORT["model_difference"] = {
-    "one_sided_rms": float(np.sqrt(np.mean((dWx - one)[inner] ** 2))),
-    "two_sided_rms": float(np.sqrt(np.mean((dWx - two_half)[inner] ** 2))),
-    "max_model_gap": float(np.abs(one - two_half)[inner].max()),
+    "two_sided_rms": float(np.sqrt(np.mean((dWx - two)[inner] ** 2))),
+    "wrong_one_sided_doubled_rms": float(
+        np.sqrt(np.mean((dWx - wrong_one_doubled)[inner] ** 2))
+    ),
+    "max_wrong_model_gap": float(
+        np.abs(wrong_one_doubled - two)[inner].max()
+    ),
 }
 
 # --------------------------------------------------------------------------- #
 section("3. Reconstruction from one carrier frame (and with noise)")
 
-fit, diff = fourier_to_wavefront(fm, I, indices=INDICES, difference_model="one_sided")
+fit, diff = fourier_to_wavefront(fm, I, indices=INDICES)
 tab = table(fit)
 print("  recovered coefficients:",
       ", ".join(f"Z{j}={v:+.4f}" for j, v in tab.items() if abs(v) > 1e-3))
@@ -102,7 +106,7 @@ errs = []
 snrs = [60, 50, 40, 30, 20]
 for snr in snrs:
     In = add_noise(fm.ft_mode_frame(truth), snr_db=snr, seed=7)
-    f, _ = fourier_to_wavefront(fm, In, indices=INDICES, difference_model="one_sided")
+    f, _ = fourier_to_wavefront(fm, In, indices=INDICES)
     e = abs(table(f)[7] - 0.6)
     errs.append(e)
     print(f"  SNR {snr:3d} dB : |Z7 - 0.6| = {e:.4f} wave")
@@ -112,22 +116,22 @@ REPORT["noise"] = {"snr_db": snrs, "Z7_abs_error": errs}
 section("4. Choice of demodulator (all with the same physical phase reference)")
 
 x_, y_ = cfg.grid.coords()
-one_x = truth.w(x_ + cfg.s, y_) - truth.w(x_, y_)
-inner_x = demodulate_fourier(fm, I, direction="x", difference_model="one_sided")[1] & (np.hypot(x_, y_) < 0.7)
-print("  method                       rms(dW - one-sided)   Z7")
+two_x = truth.w(x_ + cfg.s, y_) - truth.w(x_ - cfg.s, y_)
+inner_x = demodulate_fourier(fm, I, direction="x")[1] & (np.hypot(x_, y_) < 0.7)
+print("  method                       rms(dW - two-sided)   Z7")
 for sig in (0.04, 0.06, 0.10):
-    dW, mk, L = demodulate_fourier(fm, I, direction="x", difference_model="one_sided",
+    dW, mk, L = demodulate_fourier(fm, I, direction="x",
                                    method="local", sigma_units=sig)
-    f, _ = fourier_to_wavefront(fm, I, indices=INDICES, difference_model="one_sided",
+    f, _ = fourier_to_wavefront(fm, I, indices=INDICES,
                                 method="local", sigma_units=sig)
-    r = dW[inner_x] - one_x[inner_x]
+    r = dW[inner_x] - two_x[inner_x]
     print(f"  local, sigma = {sig:.2f}          {np.sqrt(np.mean(r**2)):.3e} wave      {table(f)[7]:.4f}")
 for rad in (5.5, 6.6, 8.8):
-    dW, mk, L = demodulate_fourier(fm, I, direction="x", difference_model="one_sided",
+    dW, mk, L = demodulate_fourier(fm, I, direction="x",
                                    method="lowpass", window_radius=rad)
-    f, _ = fourier_to_wavefront(fm, I, indices=INDICES, difference_model="one_sided",
+    f, _ = fourier_to_wavefront(fm, I, indices=INDICES,
                                 method="lowpass", window_radius=rad)
-    r = dW[inner_x] - one_x[inner_x]
+    r = dW[inner_x] - two_x[inner_x]
     print(f"  lowpass, radius = {rad:4.1f} px  {np.sqrt(np.mean(r**2)):.3e} wave      {table(f)[7]:.4f}")
 print("  -> both keep the phase reference at each pixel; 'lowpass' (band-limited,")
 print("     default) has the smaller bias, the Gaussian 'local' filter is smoother.")
@@ -138,9 +142,9 @@ section("5. Figures")
 truth_ft = ZernikeWavefront(np.array([0.8]), np.array([7]))
 fm_c = ForwardModel(SystemConfig(grid=Grid(n=256, extent=1.10), period_um=30.0))
 I = fm_c.ft_mode_frame(truth_ft)
-dWx, mx, lx = demodulate_fourier(fm_c, I, direction="x", difference_model="one_sided")
-dWy, my, ly = demodulate_fourier(fm_c, I, direction="y", difference_model="one_sided")
-fit, _ = fourier_to_wavefront(fm_c, I, indices=INDICES, difference_model="one_sided")
+dWx, mx, lx = demodulate_fourier(fm_c, I, direction="x")
+dWy, my, ly = demodulate_fourier(fm_c, I, direction="y")
+fit, _ = fourier_to_wavefront(fm_c, I, indices=INDICES)
 from lsi.reconstruct import wavefront_on_grid
 
 x, y = fm_c.config.grid.coords()

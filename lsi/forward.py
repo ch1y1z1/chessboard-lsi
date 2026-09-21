@@ -154,8 +154,24 @@ class ForwardModel:
         if isinstance(orders, OrderSet):
             self.orders = orders
         else:
-            base = analytic_orders(max_index=3)
-            self.orders = base.with_orders(orders)
+            requested = tuple(orders)
+            requested_ab = np.asarray(requested)
+            if not requested:
+                requested_ab = np.empty((0, 2), dtype=float)
+            requested_set = OrderSet(
+                requested_ab,
+                np.zeros(len(requested), dtype=complex),
+            )
+            # ``analytic_orders`` is finite only because callers choose its
+            # detector-order limit.  Derive that limit from the requested
+            # orders instead of silently substituting zero above order 3.
+            max_index = (
+                int(np.ceil(np.max(np.abs(requested_set.ab))))
+                if len(requested_set)
+                else 0
+            )
+            base = analytic_orders(max_index=max_index)
+            self.orders = base.with_orders(requested_set.indices())
         if normalize_orders:
             amp = self.orders.amp
             scale = float(np.sqrt(np.sum(np.abs(amp) ** 2)))
