@@ -30,6 +30,7 @@ from .ftmode import LobeResult, demodulate_lobe
 from .phaseshift import lsq_phase_shift, shear_region_masks, zero_order_center_radius
 from .reconstruct import ZernikeFit, fit_differential_zernike
 from .unwrap import unwrap_masked_poisson, unwrap_seed_growth
+from .zernike import differential_zernike
 
 __all__ = [
     "DiffPhase",
@@ -506,6 +507,26 @@ def demodulate_fourier(
 
 
 # --------------------------------------------------------------------------- #
+def _tilt_gauge_constants(
+    shear: float, difference_model: str
+) -> tuple[float, float]:
+    """Constant value of the tilt columns in each difference direction.
+
+    ``dZx(2)`` (x tilt in the x-difference) and ``dZy(3)`` (y tilt in the
+    y-difference) are spatially constant for every difference model: ``2 s``
+    for ``"two_sided"`` and ``"one_sided_doubled"``, ``s`` for
+    ``"one_sided"``.  They are taken from the differential basis itself so
+    the gauge correction stays correct for all ``difference_model`` values.
+    """
+    c_x = float(
+        differential_zernike(2, 0.0, 0.0, shear, "x", difference_model)
+    )
+    c_y = float(
+        differential_zernike(3, 0.0, 0.0, shear, "y", difference_model)
+    )
+    return c_x, c_y
+
+
 def reconstruct(
     fm: ForwardModel,
     diff: DiffPhase,
@@ -515,6 +536,7 @@ def reconstruct(
     offset_mode: str = "none",
     weight_by_confidence: bool = True,
     weight_by_modulation: bool | None = None,
+    resolve_tilt_gauge: bool = True,
 ) -> ZernikeFit:
     """Differential-Zernike least squares on demodulated data.
 
@@ -540,6 +562,31 @@ def reconstruct(
                        constant is collinear with the tilt column, so the tilt
                        coefficients lose their meaning (see
                        ``fit_differential_zernike``).
+
+    ``resolve_tilt_gauge``
+        Correct the residual integer-wave gauge of the unwrapped phase.  The
+        demodulator pins the seed pixel's unwrapped phase to its wrapped
+        value, so whenever the true phase at that pixel sits more than half a
+        fringe away from its wrapped value the whole difference map is off by
+        an integer number of waves; a constant in ``dW_x`` (``dW_y``) is
+        absorbed by the tilt coefficient ``Z2`` (``Z3``), producing a
+        spurious tilt of ``k / c`` waves where ``c`` is the constant value of
+        the tilt column (``2 s`` for the two-sided model).  With this option
+        the fitted tilt is multiplied by the column constant, rounded to the
+        nearest integer ``k``, and -- when nonzero -- subtracted from the
+        difference map before a second fit.  This encodes the prior that the
+        true tilt satisfies ``|Z2|, |Z3| < 1 / (2 c)`` waves; switch it off
+        when that prior does not hold (e.g. a genuinely large tilt).
+
+        The gauge error is *exactly* an integer number of waves, so the
+        correction is applied only when the estimated constant is within a
+        quarter wave of an integer; a larger fractional part means the
+        constant is dominated by real tilt or noise rather than the unwrap
+        gauge, and rounding it would inject a whole-wave error.  The option
+        is also skipped when ``offset_mode="estimate"`` because the free
+        constant makes the tilt column unidentifiable anyway.  The applied
+        integers are recorded in ``diff.meta["tilt_gauge"]`` as
+        ``k_x`` / ``k_y``.
     """
     x, y = fm.config.grid.coords()
     check_offset_mode(offset_mode)
@@ -594,27 +641,71 @@ def reconstruct(
     if weight_by_confidence and diff.confidence:
         wx = np.clip(np.abs(diff.confidence["x"]), 1e-6, None)
         wy = np.clip(np.abs(diff.confidence["y"]), 1e-6, None)
-    return fit_differential_zernike(
-        diff.dW["x"], diff.dW["y"], diff.mask["x"], diff.mask["y"],
-        fm.s, x, y, indices=indices,
-        fit_offsets=(offset_mode == "estimate"),
-        known_offsets=known,
-        weights_x=wx, weights_y=wy,
-        difference_model=difference_model,
-    )
+    resolve_tilt_gauge = _require_bool(resolve_tilt_gauge, "resolve_tilt_gauge")
+
+    def _fit(dW_x, dW_y):
+        return fit_differential_zernike(
+            dW_x, dW_y, diff.mask["x"], diff.mask["y"],
+            fm.s, x, y, indices=indices,
+            fit_offsets=(offset_mode == "estimate"),
+            known_offsets=known,
+            weights_x=wx, weights_y=wy,
+            difference_model=difference_model,
+        )
+
+    fit = _fit(diff.dW["x"], diff.dW["y"])
+    k_x = k_y = 0
+    # The unwrap gauge pins the seed pixel to its wrapped value, so the whole
+    # map can carry an integer-wave constant that the fit parks in the tilt
+    # coefficient.  Skipped under offset_mode="estimate": the free constant
+    # is exactly collinear with the tilt column there, so the fitted tilt is
+    # already meaningless and no gauge can be read off it.
+    if (
+        resolve_tilt_gauge
+        and offset_mode != "estimate"
+        and isinstance(fit, ZernikeFit)
+    ):
+        idx = list(indices)
+        c_x, c_y = _tilt_gauge_constants(fm.s, difference_model)
+        # The gauge error is an exact integer number of waves; a fractional
+        # part far from an integer means the constant is real tilt or noise,
+        # not the unwrap gauge, so the integer hypothesis is rejected.
+        tol_waves = 0.25
+        if 2 in idx and c_x:
+            est = fit.coeffs[idx.index(2)] * c_x
+            if abs(est - np.rint(est)) <= tol_waves:
+                k_x = int(np.rint(est))
+        if 3 in idx and c_y:
+            est = fit.coeffs[idx.index(3)] * c_y
+            if abs(est - np.rint(est)) <= tol_waves:
+                k_y = int(np.rint(est))
+        if k_x or k_y:
+            fit = _fit(diff.dW["x"] - k_x, diff.dW["y"] - k_y)
+    diff.meta["tilt_gauge"] = {"k_x": k_x, "k_y": k_y}
+    return fit
 
 
 def phase_shift_to_wavefront(
     fm: ForwardModel, frames_x, frames_y, *, indices=DEFAULT_INDICES,
-    offset_mode: str = "none", **kwargs,
+    offset_mode: str = "none", resolve_tilt_gauge: bool = True, **kwargs,
 ) -> tuple[ZernikeFit, DiffPhase]:
     diff = demodulate_phase_shift(fm, frames_x, frames_y, **kwargs)
-    return reconstruct(fm, diff, indices=indices, offset_mode=offset_mode), diff
+    return (
+        reconstruct(
+            fm,
+            diff,
+            indices=indices,
+            offset_mode=offset_mode,
+            resolve_tilt_gauge=resolve_tilt_gauge,
+        ),
+        diff,
+    )
 
 
 def fourier_to_wavefront(
     fm: ForwardModel, image: np.ndarray, *, indices=DEFAULT_INDICES,
-    difference_model: str = "two_sided", offset_mode: str = "none", **kwargs,
+    difference_model: str = "two_sided", offset_mode: str = "none",
+    resolve_tilt_gauge: bool = True, **kwargs,
 ) -> tuple[ZernikeFit, DiffPhase]:
     remove_offset = _require_bool(
         kwargs.get("remove_offset", True), "remove_offset"
@@ -638,6 +729,13 @@ def fourier_to_wavefront(
         lobes={"x": lobe_x, "y": lobe_y},
         meta={"route": "fourier"},
     )
-    return reconstruct(
-        fm, diff, indices=indices, offset_mode=offset_mode
-    ), diff
+    return (
+        reconstruct(
+            fm,
+            diff,
+            indices=indices,
+            offset_mode=offset_mode,
+            resolve_tilt_gauge=resolve_tilt_gauge,
+        ),
+        diff,
+    )

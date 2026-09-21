@@ -16,9 +16,8 @@ Physical parameters follow chapter 3 of the reference dissertation:
     相移模式 :  NA = 0.34, p = 18 um, lambda = 632.8 nm  ->  s = 0.0731
     傅里叶模式: NA = 0.34, p = 30 um, lambda = 632.8 nm  ->  s = 0.0439
 
-(The dissertation text prints "63nm"; the shear ratios quoted there are
-only reproducible with lambda = 632.8 nm, i.e. the digits were lost in
-printing/OCR.  See README section 3.1.)
+(The dissertation text prints lambda = 633 nm; this code uses 632.8 nm
+(He-Ne).  Both values give the same quoted shear ratios 0.0731 / 0.0439.)
 """
 
 from __future__ import annotations
@@ -204,12 +203,16 @@ class SystemConfig:
     # ---------------------------------------------------------------- shear
     @property
     def shear_physical(self) -> float:
-        """Shear ratio from first principles.
+        """Shear ratio from first principles (dissertation eq. 4-5).
 
-        The 45-degree rotated chessboard has first-order grating vector
-        ``sqrt(2)*(2*pi/p)`` in the detector axes, hence a diffraction angle
-        ``theta = sqrt(2)*lambda/p`` and a shear of ``theta/(2*NA)`` in units
-        of the pupil radius.
+        ``S_r = lambda / (2 NA p)`` normalised to the pupil *diameter*; the
+        45-degree rotation of the chessboard contributes the ``sqrt(2)``
+        factor, so ``s = sqrt(2) lambda / (2 NA p)``, which reproduces the
+        dissertation's 0.0731 / 0.0439.  Table 2-5 of the dissertation then
+        uses this quantity directly as the displacement in unit-circle
+        coordinates and this project follows that convention; note that a
+        radius-normalised geometric derivation would give a displacement
+        twice as large.
         """
         lam_um = self.wavelength_nm * 1e-3
         return np.sqrt(2.0) * lam_um / (2.0 * self.period_um * self.na)
@@ -225,10 +228,24 @@ class SystemConfig:
     def carrier_f0(self) -> float:
         """Spatial carrier frequency (cycles per unit normalized coordinate).
 
-        ``f0 = m / (2 s)`` with Talbot number ``m`` (dissertation eq. 2-48
-        combined with the modulation function eq. 2-51).
+        ``f0 = m / (2 s)`` with Talbot number ``m``.  This is one quarter of
+        the dissertation's eq. (2-48) value ``f0 = 2 m / s`` (see
+        :attr:`carrier_frequency_paper`): the full carrier would sit above
+        the Nyquist frequency of the default grid, so the default is a
+        deliberate sampling-driven choice and does not correspond to the
+        dissertation's Talbot plane position.  The demodulation mathematics
+        is identical for both carriers.
         """
         return self.talbot_number / (2.0 * self.s)
+
+    @property
+    def carrier_frequency_paper(self) -> float:
+        """The dissertation's eq. (2-48) carrier ``f0 = 2 m / s``.
+
+        Equals ``4 * carrier_f0``; usable only on grids fine enough to keep
+        it (and the ``2 f0`` order-cross beat) below Nyquist.
+        """
+        return 2.0 * self.talbot_number / self.s
 
     # ------------------------------------------------------------ utility
     def describe(self) -> str:

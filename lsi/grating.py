@@ -147,46 +147,83 @@ class OrderSet:
         }
 
 
+def _check_duty_model(duty_model: str) -> str:
+    if duty_model not in ("complementary", "enlarged"):
+        raise ValueError(
+            "duty_model must be 'complementary' or 'enlarged', got "
+            f"{duty_model!r}"
+        )
+    return duty_model
+
+
 def analytic_orders(
     max_index: int = 3,
     *,
     include_zero: bool = True,
     duty: float = 0.5,
+    duty_model: str = "complementary",
 ) -> OrderSet:
     """Closed-form order amplitudes of the (rotated) chessboard grating.
 
-    In the grating frame the transmittance is
-    ``t = (1 + s(u) s(v)) / 2`` with ``s`` the +-1 square wave of duty ``d``,
-    whose Fourier coefficients are ``S_k = (1 - exp(-2 i pi k d)) / (i pi k)``.
-    Hence
+    Two physical interpretations of the duty parameter are available via
+    ``duty_model``:
 
-        A_mn = 0.5 S_m S_n
-             = -0.5 (1 - e^{-2 i pi m d})(1 - e^{-2 i pi n d}) / (pi^2 m n)
-             = 2 sin(pi m d) sin(pi n d) e^{-i pi (m + n) d} / (pi^2 m n)
+    ``"complementary"`` (default)
+        In the grating frame the transmittance is
+        ``t = (1 + s(u) s(v)) / 2`` with ``s`` the +-1 square wave of duty
+        ``d``: one transparent sub-cell is ``d x d``, the diagonally opposite
+        one ``(1 - d) x (1 - d)``, so the two shrink/grow *complementarily*
+        and the open fraction stays 1/2.  With
+        ``S_k = (1 - exp(-2 i pi k d)) / (i pi k)``,
 
-    The phase factor ``e^{-i pi (m+n) d} = e^{-2 i pi a d}`` is the grating
-    origin (a shift of the pattern by ``d`` periods along ``x``); it is what
-    makes the duty-dependent amplitudes reduce *exactly* to the real values of
-    表2-3 at the ideal 50 % duty,
+            A_mn = 0.5 S_m S_n
+                 = 2 sin(pi m d) sin(pi n d) e^{-i pi (m + n) d} / (pi^2 m n)
 
-        A_00 = 1/2,   A_mn = -2/(pi^2 m n)   for odd m, n  (表2-3).
+        The phase factor ``e^{-i pi (m+n) d} = e^{-2 i pi a d}`` is the grating
+        origin (a shift of the pattern by ``d`` periods along ``x``); it is
+        what makes the duty-dependent amplitudes reduce *exactly* to the real
+        values of 表2-3 at the ideal 50 % duty,
 
-    For a duty error the amplitudes stay on the same branch (no sign jump at
-    ``d = 1/2``); ``arg A_10`` and ``arg A_01`` move in opposite directions
-    proportionally to ``2 pi (d - 1/2)``, which is the half-fringe constant
-    that a two-sided shearing interferogram cannot separate from tilt.
+            A_00 = 1/2,   A_mn = -2/(pi^2 m n)   for odd m, n  (表2-3).
 
-    At ``d = 1/2`` only odd/odd harmonics survive.  Away from 50 %, even and
-    mixed-parity products are retained as well; the latter map to half-integer
-    detector coordinates and can reach a material fraction of a first order.
+        For a duty error the amplitudes stay on the same branch (no sign jump
+        at ``d = 1/2``); ``arg A_10`` and ``arg A_01`` move in opposite
+        directions proportionally to ``2 pi (d - 1/2)``, which is the
+        half-fringe constant that a two-sided shearing interferogram cannot
+        separate from tilt.  Even detector orders such as ``(a,b) = (1,1)``
+        appear only at *second* order in the duty error
+        (``|A| proportional to delta^2``), and mixed-parity products map to
+        half-integer detector coordinates.
+
+    ``"enlarged"``
+        The model of dissertation eq. (4-1): both transparent squares of the
+        unit cell -- ``[0, w] x [0, w]`` and ``[1/2, 1/2 + w] x [1/2, 1/2 + w]``
+        in units of the grating period -- grow *together* to ``w = d``, and
+        the spectrum is the linear superposition of the two apertures (the
+        corner overlap that appears for ``w > 1/2`` is neglected).  The
+        grating-frame amplitude is
+
+            A_mn = 2 w^2 sinc(m w) sinc(n w) e^{-i pi w (m + n)}
+                   for m + n even,   0 for m + n odd
+
+        (``np.sinc`` convention; the exponential is the placement of the two
+        squares in the unit cell, i.e. the same grating-origin convention as
+        the complementary model).  ``w = 1/2`` returns exactly the 表2-3 set,
+        so both models then agree order by order.  Here even detector orders
+        appear at *first* order in the duty error
+        (``|A_02| proportional to delta``), which is what makes this model --
+        not the complementary one -- comparable to 表4-1.
 
     Parameters
     ----------
     max_index:
         Keep orders with ``max(|a|, |b|) <= max_index`` in the detector frame.
     duty:
-        Transparent fraction of each checker cell.  Integer and half-integer
-        detector orders are retained.
+        Cell size parameter ``d``: the sub-cell edge of the complementary
+        model, or the square half-period edge ``w`` of the enlarged model.
+        Integer and half-integer detector orders are retained.
+    duty_model:
+        ``"complementary"`` (default) or ``"enlarged"``; see above.
     """
     if isinstance(max_index, bool) or not isinstance(max_index, (int, np.integer)):
         raise ValueError(f"max_index must be a non-negative integer, got {max_index!r}")
@@ -196,11 +233,26 @@ def analytic_orders(
     duty = float(duty)
     if not np.isfinite(duty) or not 0.0 < duty < 1.0:
         raise ValueError(f"duty must lie strictly between 0 and 1, got {duty!r}")
+    _check_duty_model(duty_model)
 
     def square_wave_coeff(k: int) -> complex:
         if k == 0:
             return complex(2.0 * duty - 1.0)
         return -np.expm1(-2j * np.pi * k * duty) / (1j * np.pi * k)
+
+    def enlarged_coeff(m: int, n: int) -> complex:
+        # Two squares [0, w]^2 and [1/2, 1/2 + w]^2, linearly superposed
+        # (dissertation eq. 4-1 neglects the corner overlap for w > 1/2):
+        #   w^2 sinc(mw) sinc(nw) e^{-i pi w (m+n)} (1 + e^{-i pi (m+n)})
+        if (m + n) % 2:
+            return 0.0j
+        return (
+            2.0
+            * duty**2
+            * np.sinc(m * duty)
+            * np.sinc(n * duty)
+            * np.exp(-1j * np.pi * duty * (m + n))
+        )
 
     ab, amp = [], []
     harmonic_limit = 2 * max_index
@@ -212,7 +264,16 @@ def analytic_orders(
             b = (n - m) / 2.0
             if max(abs(a), abs(b)) > max_index:
                 continue
-            if duty == 0.5:
+            if duty_model == "enlarged":
+                # sinc(m/2) = sin(pi m/2)/(pi m/2) vanishes on even m != 0,
+                # so at w = 1/2 only odd/odd harmonics are numerically
+                # non-zero; the 1e-13 cut keeps the order table identical to
+                # the complementary model there (np.sinc of an integer is
+                # ~1e-16, not exact zero).
+                val = enlarged_coeff(m, n)
+                if abs(val) <= 1e-13:
+                    continue
+            elif duty == 0.5:
                 # At exactly 50 % only odd/odd harmonics survive.  Keep the
                 # closed form so the tabulated real amplitudes stay exact.
                 if m % 2 == 0 or n % 2 == 0:
@@ -226,7 +287,10 @@ def analytic_orders(
             amp.append(val)
     if include_zero:
         ab.insert(0, (0, 0))
-        amp.insert(0, (1.0 + (2.0 * duty - 1.0) ** 2) / 2.0)
+        if duty_model == "enlarged":
+            amp.insert(0, 2.0 * duty**2)
+        else:
+            amp.insert(0, (1.0 + (2.0 * duty - 1.0) ** 2) / 2.0)
     return OrderSet(
         np.array(ab, dtype=float).reshape(-1, 2),
         np.array(amp, dtype=complex),
@@ -244,6 +308,7 @@ def bitmap_orders(
     origin_y: float = 0.0,
     rotation_deg: float = 0.0,
     edge="ideal",
+    duty_model: str = "complementary",
 ) -> OrderSet:
     """Order amplitudes of a *bitmapped* chessboard grating (FFT based).
 
@@ -253,6 +318,19 @@ def bitmap_orders(
         Resolution of the sampled grating period (samples per period).
     duty:
         Transparent fraction of each checker cell (0.5 = ideal).
+    duty_model:
+        ``"complementary"`` (default): one sub-cell is ``duty x duty``, the
+        diagonally opposite one ``(1-duty) x (1-duty)`` -- the cells shrink
+        and grow complementarily, the open fraction stays 1/2, and even
+        detector orders appear only at ``O(delta^2)`` in the duty error.
+        ``"enlarged"``: the physical bitmap behind dissertation eq. (4-1) --
+        *both* squares grow to ``w = duty`` (``[0, w]^2`` and
+        ``[1/2, 1/2 + w]^2``), so even orders appear at ``O(delta)``.  The
+        bitmap forms the *union* (overlapping corners transmit once, not
+        twice), whereas the eq. (4-1) closed form in
+        :func:`analytic_orders` superposes the two apertures linearly; for
+        ``w > 1/2`` the two therefore differ by the ``O(delta^2)`` corner
+        overlap (e.g. the DC term: ``2 w^2 - (w - 1/2)^2`` vs ``2 w^2``).
     offset_x, offset_y:
         Relative lithographic placement error of the second (diagonally
         opposite) transparent checker sub-cell, in units of the period.  This
@@ -306,6 +384,7 @@ def bitmap_orders(
         )
     if edge not in ("ideal", "soft"):
         raise ValueError("edge must be 'ideal' or 'soft'")
+    _check_duty_model(duty_model)
     if not 0.0 < duty < 1.0:
         raise ValueError("duty must lie strictly between 0 and 1")
     placement = {}
@@ -355,11 +434,22 @@ def bitmap_orders(
     # coordinate-axis odd orders reported in dissertation table 4-2.
     u0 = np.mod(U, 1.0)
     v0 = np.mod(V, 1.0)
-    first = (u0 < duty) & (v0 < duty)
-    second = (
-        (np.mod(U - offset_x, 1.0) >= duty)
-        & (np.mod(V - offset_y, 1.0) >= duty)
-    )
+    if duty_model == "enlarged":
+        # Dissertation eq. (4-1): both squares grow together to w = duty,
+        # placed at [0, w)^2 and [1/2, 1/2 + w)^2.  The union clips the corner
+        # overlap to a single transmission (the eq. (4-1) closed form instead
+        # superposes the apertures linearly; the difference is O(delta^2)).
+        first = (u0 < duty) & (v0 < duty)
+        second = (
+            (np.mod(U - offset_x - 0.5, 1.0) < duty)
+            & (np.mod(V - offset_y - 0.5, 1.0) < duty)
+        )
+    else:
+        first = (u0 < duty) & (v0 < duty)
+        second = (
+            (np.mod(U - offset_x, 1.0) >= duty)
+            & (np.mod(V - offset_y, 1.0) >= duty)
+        )
     t = (first | second).astype(float)
     if edge == "soft":
         from scipy.ndimage import uniform_filter

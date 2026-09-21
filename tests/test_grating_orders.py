@@ -185,3 +185,68 @@ def test_duty_amplitudes_match_bitmap_phase():
         ref = ana.with_orders([order]).amp[0] * np.exp(2j * np.pi * a / n)
         got = bit.with_orders([order]).amp[0]
         assert abs(got - ref) < 0.02 * abs(ref), (order, got, ref)
+
+
+# --------------------------------------------------------------------------- #
+# duty_model="enlarged": dissertation eq. (4-1) -- both transparent squares of
+# the unit cell grow together to w = 1/2 + delta (linear superposition).
+# --------------------------------------------------------------------------- #
+
+#: 表4-1: duty error (%) -> |(0,2)/(1,1)|^2 power ratio (%)
+TABLE_4_1 = {1: 0.254, 2: 1.056, 4: 4.593, 5: 7.489}
+
+
+def test_enlarged_model_equals_complementary_at_half_duty():
+    """At w = 1/2 the eq. (4-1) model reduces exactly to the 表2-3 order set."""
+    comp = analytic_orders(max_index=3, duty=0.5, duty_model="complementary")
+    enl = analytic_orders(max_index=3, duty=0.5, duty_model="enlarged")
+    assert comp.indices() == enl.indices()
+    comp_amp = dict(zip(comp.indices(), comp.amp))
+    for order, amp in zip(enl.indices(), enl.amp):
+        assert abs(amp - comp_amp[order]) < 1e-12, (order, amp, comp_amp[order])
+
+
+@pytest.mark.parametrize("pct", sorted(TABLE_4_1))
+def test_enlarged_model_reproduces_table_4_1(pct):
+    """eq. (4-1): |A(0,2)/A(1,1)|^2 against 表4-1 (detector (1,1) vs (1,0))."""
+    orders = analytic_orders(
+        max_index=3, duty=0.5 + pct / 100.0, duty_model="enlarged"
+    )
+    eff = orders.efficiencies()
+    ratio_pct = eff[(1, 1)] / eff[(1, 0)] * 100.0
+    assert ratio_pct == pytest.approx(TABLE_4_1[pct], rel=1e-2)
+
+
+def test_enlarged_dc_amplitude_is_2w2():
+    """eq. (4-1) DC amplitude: the two w x w squares superpose to 2 w^2."""
+    w = 0.56
+    orders = analytic_orders(duty=w, duty_model="enlarged")
+    dc = orders.with_orders([(0, 0)]).amp[0]
+    assert dc == pytest.approx(2.0 * w**2, abs=1e-15)
+
+
+def test_enlarged_bitmap_matches_analytic():
+    """The union bitmap agrees with the eq. (4-1) closed form up to the corner
+    overlap that the closed form double-counts for w > 1/2 (O(delta^2))."""
+    delta = 0.02
+    ana = analytic_orders(max_index=3, duty=0.5 + delta, duty_model="enlarged")
+    bit = bitmap_orders(
+        harmonic_cell=400, max_index=3, duty=0.5 + delta, duty_model="enlarged"
+    )
+    # axial first and second detector orders: overlap contribution negligible
+    for order in [(1, 0), (0, 1), (-1, 0), (0, -1), (2, 0), (0, 2)]:
+        a = ana.with_orders([order]).amp[0]
+        b = bit.with_orders([order]).amp[0]
+        assert abs(abs(b) - abs(a)) < 2e-2 * abs(a), (order, a, b)
+    # the (0,2) grating order (detector (1,1)) *is* sensitive to the corner
+    # overlap; the difference must stay at the documented O(delta^2) scale
+    a = ana.with_orders([(1, 1)]).amp[0]
+    b = bit.with_orders([(1, 1)]).amp[0]
+    assert abs(abs(b) - abs(a)) < 5.0 * delta**2
+
+
+def test_duty_model_rejects_unknown_values():
+    with pytest.raises(ValueError, match="duty_model"):
+        analytic_orders(duty=0.55, duty_model="unknown")
+    with pytest.raises(ValueError, match="duty_model"):
+        bitmap_orders(duty=0.55, duty_model="unknown")

@@ -226,17 +226,49 @@ res_big = multistart_fit(
     config=LMConfig(max_iter=150), coarse_iter=20,
 )
 print(f"  LM (coarse scan + refinement) : Z7 = {table(res_big)[7]:.5f}   (input 6.0)")
-fit_big, _ = phase_shift_to_wavefront(fm, fxb, fyb, indices=INDICES)
-print(f"  demodulation route            : Z7 = "
-      f"{float(fit_big.coeffs[list(fit_big.indices).index(7)]):.5f}")
+fit_big, diff_big = phase_shift_to_wavefront(fm, fxb, fyb, indices=INDICES)
+fit_raw, diff_raw = phase_shift_to_wavefront(
+    fm, fxb, fyb, indices=INDICES, resolve_tilt_gauge=False
+)
+
+
+def _row(fit, diff):
+    t = {int(j): float(v) for j, v in zip(fit.indices, fit.coeffs)}
+    k = diff.meta["tilt_gauge"]
+    return t, k
+
+
+t_on, k_on = _row(fit_big, diff_big)
+t_off, k_off = _row(fit_raw, diff_raw)
+print(f"  demodulation route            : Z7 = {t_on[7]:.5f}")
+print(f"    tilt-gauge resolution ON  : Z2 = {t_on[2]:+.4f}, Z3 = {t_on[3]:+.4f}, "
+      f"k_x = {k_on['k_x']}, k_y = {k_on['k_y']}")
+print(f"    tilt-gauge resolution OFF : Z2 = {t_off[2]:+.4f}, Z3 = {t_off[3]:+.4f}, "
+      f"k_x = {k_off['k_x']}, k_y = {k_off['k_y']}")
+print("    the large Z2 without the correction is the unwrap gauge: the seed")
+print("    pixel's true phase sits >1 fringe from its wrapped value, so the")
+print("    whole dW map is off by integer waves and the constant is absorbed")
+print("    by the tilt column (a distinct mechanism from the modulation-null")
+print("    vortices, which also corrupt the *shape* at 6 waves).")
 print("    note: the demodulation route is exact (<1e-9) for a single Z7 up to")
 print("    ~3 waves and loses 1 wave at 3.5, 2 waves at >= 4: past ~3.1 waves the")
-print("    leaked (0,+-1) order drives the modulation |Z| through a null, so the")
+print("    (+-1,0).(0,-+1)* cross term drives the modulation |Z| through a null, so the")
 print("    wrapped phase picks up vortices and unwrapping drops whole waves.")
 print("    LM is unaffected (no unwrapping step). Cf. README 4.1 and")
 print("    tests/test_demodulation_limit.py.")
 REPORT["lm_large"] = {"LM": table(res_big)[7],
-                      "phaseshift": float(fit_big.coeffs[list(fit_big.indices).index(7)])}
+                      "phaseshift": t_on[7],
+                      "phaseshift_Z2": t_on[2],
+                      "phaseshift_Z3": t_on[3],
+                      "tilt_gauge_k_x": k_on["k_x"],
+                      "tilt_gauge_k_y": k_on["k_y"],
+                      "phaseshift_gauge_off": {
+                          "Z7": t_off[7],
+                          "Z2": t_off[2],
+                          "Z3": t_off[3],
+                          "tilt_gauge_k_x": k_off["k_x"],
+                          "tilt_gauge_k_y": k_off["k_y"],
+                      }}
 
 # --------------------------------------------------------------------------- #
 section("6. Figures")

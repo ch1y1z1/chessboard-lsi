@@ -1,14 +1,14 @@
 {
   "lm_phaseshift": {
     "n_iter": 6,
-    "time_s": 0.26026225090026855,
+    "time_s": 0.23425793647766113,
     "max_error_all_modes": 1.8797463585684682e-13,
     "max_error_nonzero_truth_modes": 1.8797463585684682e-13,
     "max_leakage_into_zero_modes": 7.09388280947939e-14
   },
   "lm_single_frame": {
     "n_iter": 6,
-    "time_s": 0.026296138763427734,
+    "time_s": 0.027631044387817383,
     "Z7": 0.7999999999999999,
     "max_err": 2.0570008049218388e-16
   },
@@ -70,6 +70,17 @@
   },
   "lm_large": {
     "LM": 6.0,
-    "phaseshift": 5.673574712372446
+    "phaseshift": 5.673574712372447,
+    "phaseshift_Z2": -0.39881285429622326,
+    "phaseshift_Z3": -4.440892098500626e-16,
+    "tilt_gauge_k_x": 2,
+    "tilt_gauge_k_y": 0,
+    "phaseshift_gauge_off": {
+      "Z7": 5.673574712372446,
+      "Z2": 13.27847381087973,
+      "Z3": -2.220446049250313e-16,
+      "tilt_gauge_k_x": 0,
+      "tilt_gauge_k_y": 0
+    }
   }
 }

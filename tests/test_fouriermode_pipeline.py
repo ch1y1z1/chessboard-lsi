@@ -130,6 +130,31 @@ def test_noise_robustness():
     assert fit.as_dict()[7] == pytest.approx(0.6, abs=0.05)
 
 
+def test_paper_carrier_frequency_on_fine_grid():
+    """Run the FT pipeline at the dissertation's eq. (2-48) carrier 2 m / s.
+
+    The paper carrier needs ``f0 = 2/s = 45.6`` cyc/unit *and* keeps the
+    ``(+-1)x(-+1)`` beat at ``2 f0 = 91.2`` cyc/unit below the grid Nyquist
+    ``n / (4 extent)``; that needs ``n > 8 * 1.10 * 45.6 = 401``, so the test
+    uses a 512 grid (the 256 default would alias the 2f0 term).
+    """
+    cfg = SystemConfig(grid=Grid(n=512, extent=1.10), period_um=30.0)
+    f0 = cfg.carrier_frequency_paper
+    assert f0 < cfg.grid.n / (4.0 * cfg.grid.extent)
+    assert 2.0 * f0 < cfg.grid.n / (4.0 * cfg.grid.extent)
+    fm = ForwardModel(cfg)
+    truth = ZernikeWavefront(np.array([0.5]), np.array([7]))
+    I = fm.ft_mode_frame(truth, f0=f0)
+    fit, _ = fourier_to_wavefront(
+        fm, I, f0=f0, indices=tuple(range(2, 14))
+    )
+    table = fit.as_dict()
+    errors = [
+        abs(table[j] - (0.5 if j == 7 else 0.0)) for j in table
+    ]
+    assert max(errors) < 1e-2
+
+
 def test_ft_and_ps_models_use_the_same_forward_model():
     """Both routes must reconstruct the same wavefront from the same truth."""
     cfg_ps, fm_ps = preset_phase_shift(), None

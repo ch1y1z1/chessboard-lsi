@@ -7,9 +7,14 @@ mechanism so the degradation is documented rather than mistaken for a bug:
 
   * the unwrapper is *not* the limit -- handed the true wrapped phase, with the
     very same mask, it recovers the differential exactly;
-  * harmonic-1 demodulation collects both (1,0).(0,0)* and (0,1).(0,0)*, so the
-    orthogonal shear leaks in.  The leaked lobe drives the demodulated
-    modulation |Z| through a null inside the usable (overlap) region;
+  * harmonic-1 demodulation does not collect (0,1).(0,0)* -- under an x shift
+    the (0,+-1) orders acquire no phase, so that beat stays at harmonic 0.
+    What leaks into the first harmonic is the (+-1,0).(0,-+1)* cross term:
+    both orders move under the x shift, so their beat steps with the first
+    harmonic.  This is the 4 A1^2 cos(...) cross term already present in the
+    dissertation's modulation function (eqs. 2-12 / 2-18).  The leaked lobe
+    drives the demodulated modulation |Z| through a null inside the usable
+    (overlap) region;
   * at a null the wrapped phase carries vortices (residues), and unwrapping then
     loses whole waves.  Suppressing the (0,+-1) orders removes the null and the
     route stays exact at any amplitude.

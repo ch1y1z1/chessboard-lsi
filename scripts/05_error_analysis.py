@@ -85,9 +85,9 @@ def run(cfg, truth, *, n_steps=8, orders=None, fit_orders=None,
     return {int(j): float(v) for j, v in zip(fit.indices, fit.coeffs)}
 
 
-def run_jitter(cfg, truth, n_steps, jitter_std_deg):
+def run_jitter(cfg, truth, n_steps, jitter_std_deg, seed=12345):
     fm = ForwardModel(cfg)
-    rng = np.random.default_rng(12345)
+    rng = np.random.default_rng(seed)
     out = []
     for direction in ("x", "y"):
         tx = 1.0 if direction == "x" else 0.0
@@ -184,6 +184,33 @@ print("     away from 50 %, newly non-zero integer and half-integer orders are i
 REPORT["duty"] = rows
 
 print()
+print("  the dissertation's eq. (4-1) uses a different duty-error model: both")
+print("  transparent squares grow together to w = 1/2 + delta ('enlarged'), so the")
+print("  (0,2) order appears at O(delta) instead of O(delta^2).  The power ratio")
+print("  |(0,2)/(1,1)|^2 then matches 表4-1 (the complementary model cannot be")
+print("  compared to that table directly):")
+print("  duty err  |(0,2)/(1,1)|^2   表4-1     A00 = 2w^2")
+TABLE_4_1 = {1: 0.254, 2: 1.056, 4: 4.593, 5: 7.489}
+enlarged_rows = []
+for pct in (1, 2, 4, 5):
+    w = 0.5 + pct / 100.0
+    enl = analytic_orders(max_index=3, duty=w, duty_model="enlarged")
+    eff = enl.efficiencies()
+    ratio_pct = eff.get((1, 1), 0.0) / eff[(1, 0)] * 100.0
+    a00 = float(enl.with_orders([(0, 0)]).amp[0].real)
+    enlarged_rows.append({
+        "duty_error_pct": pct,
+        "power_ratio_02_over_11_pct": float(ratio_pct),
+        "table_4_1_pct": TABLE_4_1[pct],
+        "A00": a00,
+    })
+    print(f"  {pct:6.0f} %   {ratio_pct:12.4f} %  {TABLE_4_1[pct]:8.3f} %  {a00:.4f}")
+print("  -> duty_model='enlarged' reproduces 表4-1; the default 'complementary'")
+print("     model keeps the open fraction at 1/2 and puts the duty error into")
+print("     the O(delta^2) even orders plus a grating-origin phase instead.")
+REPORT["duty_enlarged_table4_1"] = enlarged_rows
+
+print()
 print("  relative y-placement error creates y-axis odd harmonics while the")
 print("  orthogonal x-axis harmonics remain extinguished:")
 print("  offset     |A(m=0,n=1)|  |A(m=0,n=3)|  max x-axis odd amplitude")
@@ -208,9 +235,12 @@ REPORT["pattern_offset_y"] = placement_rows
 
 # --------------------------------------------------------------------------- #
 section("2. Phase-step scale error and phase-position jitter (4.2)")
+JITTER_SEEDS = 20
 rows = []
-print("  scale error | mis-calibrated step size      | position jitter (same number)")
-print("      (%)     |  4 steps       8 steps         |  4 steps       8 steps (deg rms)")
+print("  scale error | mis-calibrated step size      | position jitter, mean +- std")
+print("      (%)     |  4 steps       8 steps         | over "
+      f"{JITTER_SEEDS} seeds (deg rms)")
+print("              |                                |  4 steps             8 steps")
 for value in (0.0, 0.5, 1.0, 2.0, 5.0):
     scale_error = value / 100.0
     e4 = maxerr(
@@ -219,8 +249,15 @@ for value in (0.0, 0.5, 1.0, 2.0, 5.0):
     e8 = maxerr(
         run(cfg, truth, n_steps=8, step_scale_error_frac=scale_error), truth
     )
-    j4 = maxerr(run_jitter(cfg, truth, 4, value), truth)
-    j8 = maxerr(run_jitter(cfg, truth, 8, value), truth)
+    j4_all = np.array([
+        maxerr(run_jitter(cfg, truth, 4, value, seed=7000 + i), truth)
+        for i in range(JITTER_SEEDS)
+    ])
+    j8_all = np.array([
+        maxerr(run_jitter(cfg, truth, 8, value, seed=9000 + i), truth)
+        for i in range(JITTER_SEEDS)
+    ])
+    j4, j8 = float(j4_all.mean()), float(j8_all.mean())
     rows.append({
         "step_scale_error_pct": value,
         "phase_position_jitter_std_deg": value,
@@ -228,10 +265,15 @@ for value in (0.0, 0.5, 1.0, 2.0, 5.0):
         "err_8step": e8,
         "jitter_4step": j4,
         "jitter_8step": j8,
+        "jitter_4step_std": float(j4_all.std()),
+        "jitter_8step_std": float(j8_all.std()),
+        "jitter_n_seeds": JITTER_SEEDS,
     })
-    print(f"  {value:6.1f}    | {e4:10.3e}  {e8:10.3e}     | {j4:10.3e}  {j8:10.3e}")
+    print(f"  {value:6.1f}    | {e4:10.3e}  {e8:10.3e}     | "
+          f"{j4:10.3e}+-{j4_all.std():8.2e}  {j8:10.3e}+-{j8_all.std():8.2e}")
 print("  -> the left columns use a fractional step-scale error; the right columns")
-print("     use an absolute per-frame phase-position jitter in degrees rms.")
+print(f"     average an absolute per-frame phase-position jitter (degrees rms)")
+print(f"     over {JITTER_SEEDS} seeds -- a single-seed draw is too noisy to rank 4 vs 8 steps.")
 REPORT["phase_shift_error"] = rows
 
 # --------------------------------------------------------------------------- #

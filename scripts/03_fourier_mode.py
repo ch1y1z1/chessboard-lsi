@@ -155,7 +155,45 @@ print("     default) has the smaller bias, the Gaussian 'local' filter is smooth
 REPORT["demodulator_sensitivity"] = demodulator_rows
 
 # --------------------------------------------------------------------------- #
-section("5. Figures")
+section("5. The dissertation's eq. (2-48) carrier: f0 = 2m/s")
+
+# The project default carrier is m/(2s), i.e. one quarter of the value the
+# dissertation derives for the Talbot plane (eq. 2-48 gives f0 = 2m/s = 45.6
+# cyc/unit for s = 0.0439).  That full carrier needs a finer grid: the frame
+# also contains the (+-1)x(-+1) beat at 2 f0 = 91.2 cyc/unit, which must stay
+# below the grid Nyquist n/(4*extent); n > 8*1.10*45.6 = 401, so 512 is used.
+cfg_paper = SystemConfig(grid=Grid(n=512, extent=1.10), period_um=30.0)
+f0_paper = cfg_paper.carrier_frequency_paper
+fm_paper = ForwardModel(cfg_paper)
+print(f"  default carrier f0 = m/(2s) = {cfg_paper.carrier_f0:.2f} cyc/unit; "
+      f"paper eq. (2-48) f0 = 2m/s = {f0_paper:.2f} cyc/unit = 4x that")
+print(f"  grid 512x512 (extent 1.10): Nyquist {512 / (4 * 1.10):.1f} cyc/unit > "
+      f"2 f0 = {2 * f0_paper:.1f}; a 256 grid would alias the 2 f0 beat")
+truth_paper = ZernikeWavefront(np.array([0.5]), np.array([7]))
+I_paper = fm_paper.ft_mode_frame(truth_paper, f0=f0_paper)
+fit_paper, _ = fourier_to_wavefront(fm_paper, I_paper, f0=f0_paper,
+                                    indices=INDICES)
+tab_paper = table(fit_paper)
+max_err_paper = max(
+    abs(v - (0.5 if j == 7 else 0.0)) for j, v in tab_paper.items()
+)
+print("  recovered coefficients:",
+      ", ".join(f"Z{j}={v:+.4f}" for j, v in tab_paper.items() if abs(v) > 1e-3))
+print(f"  Z7 = {tab_paper[7]:+.4f}  (input 0.5),  max |error over all terms| = "
+      f"{max_err_paper:.4f} wave")
+print("  -> the demodulation mathematics is identical at both carriers; the")
+print("     4x default is a sampling-driven choice for the default grid, not a")
+print("     statement about the dissertation's Talbot-plane position.")
+REPORT["carrier_paper_eq_2_48"] = {
+    "grid_n": cfg_paper.grid.n,
+    "f0_paper": f0_paper,
+    "f0_default": cfg_paper.carrier_f0,
+    "Z7_recovered": tab_paper[7],
+    "max_coef_error": float(max_err_paper),
+}
+
+# --------------------------------------------------------------------------- #
+section("6. Figures")
 
 truth_ft = ZernikeWavefront(np.array([0.8]), np.array([7]))
 fm_c = ForwardModel(SystemConfig(grid=Grid(n=256, extent=1.10), period_um=30.0))

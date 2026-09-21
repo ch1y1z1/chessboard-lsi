@@ -203,7 +203,7 @@ fit_big, _ = phase_shift_to_wavefront(fb, fb.phase_shift_frames(big, "x", 8),
 print(f"  this route returns Z7 = {table(fit_big)[7]:.4f} instead of 6.0 "
       f"(see script 04: LM has no such problem)")
 print("  mechanism (README 4.1): the demodulation route is exact (<1e-9) for a single")
-print("  Z7 up to ~3 waves; past ~3.1 waves the leaked (0,+-1) order drives the")
+print("  Z7 up to ~3 waves; past ~3.1 waves the (+-1,0).(0,-+1)* cross term")
 print("  modulation |Z| through a null, the wrapped phase picks up 4 vortices and")
 print("  unwrapping drops whole waves (1 wave at 3.5, 2 waves at >= 4).  The")
 print("  coefficient deficit therefore depends on grid/mask/sampling (~5.6-5.8 here),")

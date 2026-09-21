@@ -183,6 +183,33 @@ def test_phase_shift_step_count_variants():
         assert fit.as_dict()[7] == pytest.approx(1.0, abs=1e-8), n_steps
 
 
+def test_resolve_tilt_gauge_removes_integer_wave_constant():
+    """``resolve_tilt_gauge`` corrects the seed-pixel gauge of the unwrap.
+
+    At ``W = 3.5 Z7`` the true ``dW_x(0, 0)`` exceeds one wave, so the
+    unwrapped phase -- pinned to the *wrapped* seed value -- is off by one
+    fringe and ``dW_x`` carries a constant of 2 waves.  The fit parks that
+    constant in the x-tilt column (``dZx(2) = 2s``): without the correction
+    ``Z2 ~ 2/(2s) = 13.7`` waves; with it, ``Z2`` returns to ~0 while the
+    remaining coefficients (which the constant cannot reach) are unchanged.
+    """
+    cfg = SystemConfig(grid=Grid(n=96, extent=1.10))
+    fm = ForwardModel(cfg)
+    truth = ZernikeWavefront(np.array([3.5]), np.array([7]))
+    fx, fy = fm.phase_shift_stack(truth, 8)
+    fit_on, diff_on = phase_shift_to_wavefront(fm, fx, fy, indices=INDICES)
+    fit_off, diff_off = phase_shift_to_wavefront(
+        fm, fx, fy, indices=INDICES, resolve_tilt_gauge=False
+    )
+    assert diff_on.meta["tilt_gauge"] == {"k_x": 2, "k_y": 0}
+    assert diff_off.meta["tilt_gauge"] == {"k_x": 0, "k_y": 0}
+    on, off = fit_on.as_dict(), fit_off.as_dict()
+    assert abs(on[2]) < 1e-2 and abs(on[3]) < 1e-2
+    assert abs(off[2]) > 10.0
+    assert on[7] == pytest.approx(off[7], abs=1e-9)
+    assert on[7] == pytest.approx(3.4986, abs=1e-3)
+
+
 def test_modulation_flips_sign_for_large_aberration():
     """The dissertation's known limitation: for large aberration the
     modulation term 4 A0 A1 cos(pi[...]) changes sign inside the region, so a
