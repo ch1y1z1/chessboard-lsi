@@ -362,18 +362,20 @@ class ForwardModel:
     def demodulation_offset(self, direction: str = "x") -> float:
         """Constant phase carried by the demodulated frequency-1 interferogram.
 
-        With amplitudes ``A_0`` and ``A_1`` the two beats (zero order with the
-        ``+1`` and with the ``-1`` order) combine into
+        The physical beat coefficient of the ``+1`` and zero orders is
+        ``A_1 conj(A_0)``.  With a real, positive ``A_0`` the two symmetric
+        beats combine into
 
             D = 2 A_0 A_1 exp(i pi [W(x+s)-W(x-s)]) cos(Gamma)
 
         so the demodulated phase equals ``pi * dW`` shifted by the *argument*
-        of the amplitude product ``A_0 A_1`` (``A_0`` is real positive here, so
-        this is also ``arg(conj(A_0) A_1)``).  For the ideal 50 % duty that
-        constant is exactly ``0`` or ``pi``; for a duty error it drifts
-        smoothly with the grating phase (``arg A_10 = pi - 2 pi (d - 1/2)``,
-        ``arg A_01 = 0``), which is why the duty-cycle error of section 4.2.2
-        moves the demodulated constant and nothing else.  An additional sign
+        of ``A_1 conj(A_0)``.  This form is invariant when every diffraction
+        amplitude is multiplied by the same global phase.  For the ideal 50 %
+        duty that constant is exactly ``0`` or ``pi``; for a duty error it
+        drifts smoothly with the grating phase
+        (``arg A_10 = pi - 2 pi (d - 1/2)``, ``arg A_01 = 0``), which is why
+        the duty-cycle error of section 4.1.1 moves the demodulated constant
+        and nothing else.  An additional sign
         flip appears wherever the modulation ``cos(Gamma)`` changes sign --
         the limitation discussed in section 2.3.2 of the dissertation.
 
@@ -397,7 +399,7 @@ class ForwardModel:
         a0, a1 = self.orders.amp[zero], self.orders.amp[other]
         if a0 == 0 or a1 == 0:
             return 0.0
-        return float(np.angle(a0 * a1))
+        return float(np.angle(a1 * np.conj(a0)))
 
     # ------------------------------------------------- phase-shift frames
     def phase_shift_frames(

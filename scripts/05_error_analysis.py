@@ -2,8 +2,8 @@
 
 Studied here:
 
-* grating duty cycle error (4.2.2) -- changes efficiency, not the phase,
-* phase-shift step error delta (4.2.3 / the 4-step algorithm is much more
+* grating duty cycle error (4.1.1) -- changes efficiency, not the phase,
+* phase-shift step error delta (4.2 / the 4-step algorithm is much more
   sensitive than 8-step),
 * shear (grating pitch) error -- the classic Zernike-fit scale error,
 * detector noise,
@@ -121,7 +121,7 @@ truth = ZernikeWavefront(np.array([0.0, 0.0, 0.22, 0.0, 0.31, -0.12]), np.array(
 print(f"  truth: " + ", ".join(f"Z{int(j)}={float(c):+.3f}" for j, c in zip(truth.indices, truth.coeffs)))
 
 # --------------------------------------------------------------------------- #
-section("1. Grating duty-cycle error (4.2.2)")
+section("1. Grating duty-cycle error (4.1.1)")
 print("  amplitudes use the closed form A_mn = S_m S_n/2 of lsi.grating;")
 print("  the first comparison keeps the same five beams as the nominal model:")
 print()
@@ -188,7 +188,7 @@ print("  -> this is a relative sub-cell displacement, not a global grating shift
 REPORT["pattern_offset_y"] = placement_rows
 
 # --------------------------------------------------------------------------- #
-section("2. Phase-shift step error (4.2.3)")
+section("2. Phase-shift step error (4.2)")
 rows = []
 print("  step error | mis-calibrated step size      | random step jitter")
 print("     (deg)   |  4 steps       8 steps         |  4 steps       8 steps")
@@ -239,7 +239,7 @@ d = [r["delta_deg"] for r in REPORT["delta_error"]]
 axes[0, 0].loglog(np.array(d) + 1e-3, np.array([r["err_8step"] for r in REPORT["delta_error"]]) + 1e-16, "o-", label="8 step")
 axes[0, 0].loglog(np.array(d) + 1e-3, np.array([r["err_4step"] for r in REPORT["delta_error"]]) + 1e-16, "s-", label="4 step")
 axes[0, 0].set_xlabel("phase-shift step error (deg)"), axes[0, 0].set_ylabel("max |coeff error| (wave)")
-axes[0, 0].legend(), axes[0, 0].grid(alpha=0.3), axes[0, 0].set_title("step error (4.2.3)")
+axes[0, 0].legend(), axes[0, 0].grid(alpha=0.3), axes[0, 0].set_title("step error (4.2)")
 
 sh = [r["shear_rel_error"] for r in REPORT["shear_error"]]
 axes[0, 1].plot(sh, [r["max_coef_error"] for r in REPORT["shear_error"]], "o-")
@@ -255,7 +255,7 @@ ax_du.plot(du, [r["tilt_error_nominal_prior"] for r in REPORT["duty"]], "s--",
            color="tab:red", label="tilt error, 50 % prior assumed")
 ax_du.set_ylabel("tilt error (wave)", color="tab:red")
 axes[1, 0].legend(loc="lower left", fontsize=7), ax_du.legend(loc="lower right", fontsize=7)
-axes[1, 0].grid(alpha=0.3), axes[1, 0].set_title("duty error (4.2.2): shape exact, tilt only")
+axes[1, 0].grid(alpha=0.3), axes[1, 0].set_title("duty error (4.1.1): shape exact, tilt only")
 
 ns = [r["n_steps"] for r in REPORT["steps"]]
 axes[1, 1].semilogy(ns, [r["err_snr30_mean"] for r in REPORT["steps"]], "o-")

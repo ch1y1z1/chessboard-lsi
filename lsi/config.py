@@ -134,7 +134,13 @@ class Grid:
 
 @dataclass
 class SystemConfig:
-    """Physical + numerical configuration."""
+    """Physical + numerical configuration for the scalar air-pupil model.
+
+    ``na`` is deliberately restricted to ``0 < NA <= 1``.  Supporting
+    immersion ``NA > 1`` requires a refractive index, vector diffraction and
+    high-NA pupil-coordinate corrections; merely relaxing the validator would
+    incorrectly imply that those effects are modelled.
+    """
 
     wavelength_nm: float = 632.8
     na: float = 0.34

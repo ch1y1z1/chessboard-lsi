@@ -26,13 +26,13 @@ The order amplitude convention matches the field model in ``forward.py``.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Iterable
 
 import numpy as np
-import warnings
 
-from .config import _as_int_array
+from .config import _as_int, _as_int_array
 
 __all__ = [
     "OrderSet",
@@ -116,20 +116,29 @@ class OrderSet:
     ) -> "OrderSet":
         want = {tuple(o) for o in orders}
         keep = [i for i, o in enumerate(self.indices()) if o in want]
-        return OrderSet(self.ab[keep], self.amp[keep])
+        parity = None if self.parity is None else self.parity[keep]
+        return OrderSet(self.ab[keep], self.amp[keep], parity=parity)
 
     def with_orders(
         self, orders: Iterable[tuple[int | float, int | float]]
     ) -> "OrderSet":
         """Same as :meth:`select` but tolerates missing orders (amp 0)."""
         want = [tuple(o) for o in orders]
-        amps = []
+        amps, source_indices = [], []
         for o in want:
             idx = [i for i, oo in enumerate(self.indices()) if oo == o]
             amps.append(self.amp[idx[0]] if idx else 0.0 + 0.0j)
+            source_indices.append(idx[0] if idx else None)
+        # Preserve metadata when every requested order came from this set.  A
+        # synthesized zero-amplitude order has no source metadata, so mixing a
+        # sentinel into ``parity`` would be more misleading than dropping it.
+        parity = None
+        if self.parity is not None and all(i is not None for i in source_indices):
+            parity = self.parity[np.asarray(source_indices, dtype=int)]
         return OrderSet(
             np.array(want, dtype=float).reshape(-1, 2),
             np.array(amps, dtype=complex),
+            parity=parity,
         )
 
     def efficiencies(self) -> dict[tuple[int | float, int | float], float]:
@@ -450,9 +459,7 @@ def far_field_amplitude(
     """
     from numpy.fft import fft2, fftshift
 
-    m = int(n)
-    if m < 2:
-        raise ValueError("n must be at least 2 samples")
+    m = _as_int(n, "n", minimum=2)
     if orders <= 0:
         raise ValueError("orders must be positive")
     if not 0.0 < duty < 1.0:

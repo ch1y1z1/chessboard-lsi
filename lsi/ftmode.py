@@ -36,16 +36,17 @@ Three demodulators are provided:
     absorb without giving up the tilt.
 
 Content of the ``+f0`` lobe: it is the beat of the zero order with the
-``+(1,0)`` order, whose amplitude is ``2 A_00 A_10`` -- *negative* for a real
-chessboard.  Hence
+``+(1,0)`` order, whose coefficient is ``A_10 conj(A_00)`` -- *negative* for a
+real chessboard.  Hence
 
     psi(x, y) = 2 pi [ W(x+s, y) - W(x, y) ] + pi     (one-sided difference)
 
-or, if the two-sided (product) convention of eq. (2-42) is used,
+The two-sided reading of eq. (2-42),
 
     psi(x, y) = pi [ W(x+s, y) - W(x-s, y) ] + pi .
 
-Both are handled by :mod:`lsi.pipeline` (``difference_model``).
+is retained by :mod:`lsi.pipeline` as the dissertation's approximation; it
+differs from the physical isolated-lobe model by ``O(s^2)``.
 """
 
 from __future__ import annotations
@@ -72,7 +73,7 @@ def spectrum(image: np.ndarray) -> np.ndarray:
 
 @dataclass
 class LobeResult:
-    phase: np.ndarray          # wrapped differential phase (rad)
+    phase: np.ndarray          # wrapped phase after phase_offset removal (rad)
     amplitude: np.ndarray      # |c(x, y)|
     complex_field: np.ndarray  # c(x, y)
     peak_index: tuple[int, int]
@@ -80,6 +81,7 @@ class LobeResult:
     direction: str
     method: str = "local"
     unwrapped_phase: np.ndarray | None = None
+    phase_offset: float = 0.0
 
 
 def _refine_peak_subpixel(mag: np.ndarray, i0: int, j0: int) -> tuple[float, float]:
@@ -187,6 +189,33 @@ def demodulate_lobe(
         wrapped map would be corrupted by ``+-pi`` jitter.
     """
     check_direction(direction)
+    if method not in ("local", "lowpass", "spectrum"):
+        raise ValueError("method must be 'local', 'lowpass' or 'spectrum'")
+    if sigma_units is not None:
+        if isinstance(sigma_units, bool):
+            raise ValueError(
+                f"sigma_units must be a positive finite number, got {sigma_units!r}"
+            )
+        sigma_units = float(sigma_units)
+        if not np.isfinite(sigma_units) or sigma_units <= 0.0:
+            raise ValueError(
+                f"sigma_units must be a positive finite number, got {sigma_units!r}"
+            )
+    if window_radius is not None:
+        if isinstance(window_radius, bool):
+            raise ValueError(
+                f"window_radius must be a positive finite number, got {window_radius!r}"
+            )
+        window_radius = float(window_radius)
+        if not np.isfinite(window_radius) or window_radius <= 0.0:
+            raise ValueError(
+                f"window_radius must be a positive finite number, got {window_radius!r}"
+            )
+    if isinstance(phase_offset, bool):
+        raise ValueError(f"phase_offset must be finite, got {phase_offset!r}")
+    phase_offset = float(phase_offset)
+    if not np.isfinite(phase_offset):
+        raise ValueError(f"phase_offset must be finite, got {phase_offset!r}")
     I = np.asarray(image, dtype=float)
     if I.shape != grid.shape:
         raise ValueError(
@@ -288,9 +317,6 @@ def demodulate_lobe(
         else:
             raise ValueError(f"unknown window {window!r}")
         c = np.fft.ifft2(np.fft.ifftshift(bs * win))
-    else:
-        raise ValueError("method must be 'local', 'lowpass' or 'spectrum'")
-
     if phase_offset:
         c = c * np.exp(-1j * phase_offset)
 
@@ -302,6 +328,7 @@ def demodulate_lobe(
         peak_freq=(float(fx), float(fy)),
         direction=direction,
         method=method,
+        phase_offset=phase_offset,
     )
 
 

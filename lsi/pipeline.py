@@ -10,12 +10,14 @@ so that simulations stay consistent with the model used for reconstruction.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import Sequence
 
 import numpy as np
 
 from .config import (
+    _as_float,
     _as_int,
     check_difference_model,
     check_direction,
@@ -45,7 +47,13 @@ DEFAULT_INDICES = tuple(range(2, 16))
 # --------------------------------------------------------------------------- #
 @dataclass
 class DiffPhase:
-    """Demodulated differential phase data for both shear directions."""
+    """Demodulated differential phase data for both shear directions.
+
+    ``phase`` is the final unwrapped phase used to form ``dW``.
+    ``wrapped_phase`` is the branch-safe wrapped map after removal of the known
+    grating offset; it remains offset-corrected even when ``phase`` requests
+    the raw constant via ``remove_offset=False``.
+    """
 
     dW: dict[str, np.ndarray]
     phase: dict[str, np.ndarray]
@@ -263,25 +271,49 @@ def demodulate_fourier(
     Returns ``(dW, mask, lobe)`` with the unwrapped phase converted according to
     ``difference_model`` (``phase / 2 pi`` for a one-sided difference,
     ``phase / pi`` for a two-sided one).  ``lobe.phase`` remains the wrapped
-    phase and ``lobe.unwrapped_phase`` records the phase used for ``dW``.
+    phase after removal of the model offset.  ``lobe.unwrapped_phase`` records
+    the final phase used for ``dW``: when ``remove_offset=False`` the model
+    offset is added back only *after* unwrapping, avoiding the ideal
+    chessboard's ``+-pi`` branch cut.
+
+    The isolated physical lobe is one-sided.  ``difference_model="two_sided"``
+    retains the dissertation's reading as an ``O(s^2)`` approximation and
+    emits a warning so it cannot be mistaken for an equally exact model.
     """
     check_direction(direction)
     check_difference_model(difference_model)
     check_unwrap_method(unwrap)
+    threshold_frac = _as_float(
+        threshold_frac,
+        "threshold_frac",
+        low=0.0,
+        high=1.0,
+        inclusive_low=True,
+        inclusive_high=False,
+    )
+    if difference_model == "two_sided":
+        warnings.warn(
+            "Fourier difference_model='two_sided' is the dissertation's "
+            "O(s^2) paper approximation; the isolated +f0 lobe physically "
+            "contains the one-sided difference",
+            stacklevel=2,
+        )
     erode_px = _as_int(erode_px, "erode_px", minimum=0)
-    offset = fm.demodulation_offset(direction) if remove_offset else 0.0
+    model_offset = fm.demodulation_offset(direction)
     lobe = demodulate_lobe(
         image, fm.config.grid, direction=direction,
         f0=fm.config.carrier_f0 if f0 is None else f0,
-        phase_offset=offset, **lobe_kwargs,
+        phase_offset=model_offset, **lobe_kwargs,
     )
     # support of the isolated lobe: intersection of the 0 and +-1 pupils, taken
     # from the model so that a custom 'pupil' is honored (a hard-coded unit
     # circle would claim signal the aperture never passed).
     a, b = (1, 0) if direction == "x" else (0, 1)
     support = fm.order_support(0, 0) & fm.order_support(a, b)
+    _require_nonempty(support, f"the physical {direction} shear support")
     amp = lobe.amplitude
-    mask = (amp > threshold_frac * amp.max()) & support
+    peak = float(np.max(amp[support]))
+    mask = (amp > threshold_frac * peak) & support
     if erode_px > 0:
         # The demodulated lobe is distorted in a ring at the region border
         # (the filter kernel mixes in the dark area).  Eroding the mask by a
@@ -292,6 +324,8 @@ def demodulate_fourier(
         mask = binary_erosion(mask, iterations=erode_px)
     _require_nonempty(mask, f"the {direction} demodulation mask")
     phase = _unwrap_phase(lobe.phase, mask, unwrap, fm.config.grid)
+    if not remove_offset:
+        phase = phase + model_offset
     lobe.unwrapped_phase = phase
     factor = 2.0 * np.pi if difference_model == "one_sided" else np.pi
     dW = phase / factor

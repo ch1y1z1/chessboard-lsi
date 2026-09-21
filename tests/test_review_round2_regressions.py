@@ -397,8 +397,9 @@ def test_offset_in_dW_and_demodulate_fourier_reject_typos():
 
     one = demodulate_fourier(fm, image, direction="x",
                              difference_model="one_sided")[0]
-    two = demodulate_fourier(fm, image, direction="x",
-                             difference_model="two_sided")[0]
+    with pytest.warns(UserWarning, match=r"O\(s\^2\).*approximation"):
+        two = demodulate_fourier(fm, image, direction="x",
+                                 difference_model="two_sided")[0]
     assert not np.allclose(one, two)
 
 

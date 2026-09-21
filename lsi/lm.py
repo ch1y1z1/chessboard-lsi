@@ -167,6 +167,11 @@ def levenberg_marquardt(
     model (variable projection).
     """
     cfg = config or LMConfig()
+    if cfg.fit_scale_background and scale_background is None:
+        raise ValueError(
+            "LMConfig(fit_scale_background=True) requires a "
+            "scale_background callback"
+        )
     x = np.asarray(x0, dtype=float).copy()
     if x.ndim != 1 or x.size == 0:
         raise ValueError("x0 must be a non-empty one-dimensional parameter vector")
