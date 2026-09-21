@@ -41,7 +41,7 @@ __all__ = [
     "fourier_to_wavefront",
 ]
 
-DEFAULT_INDICES = tuple(range(2, 16))
+DEFAULT_INDICES = tuple(range(2, 17))
 
 
 # --------------------------------------------------------------------------- #
@@ -53,16 +53,26 @@ class DiffPhase:
     ``wrapped_phase`` is the branch-safe wrapped map after removal of the known
     grating offset; it remains offset-corrected even when ``phase`` requests
     the raw constant via ``remove_offset=False``.
+
+    ``difference_model`` is part of the data contract: reconstruction defaults
+    to it and rejects an explicitly conflicting model.  ``confidence`` is the
+    route-specific signal strength used for weighted reconstruction (phase-
+    shift modulation or Fourier-lobe amplitude).
     """
 
     dW: dict[str, np.ndarray]
     phase: dict[str, np.ndarray]
     mask: dict[str, np.ndarray]
+    difference_model: str
     wrapped_phase: dict[str, np.ndarray] = field(default_factory=dict)
     modulation: dict[str, np.ndarray] = field(default_factory=dict)
     amplitude: dict[str, np.ndarray] = field(default_factory=dict)
+    confidence: dict[str, np.ndarray] = field(default_factory=dict)
     meta: dict = field(default_factory=dict)
     lobes: dict[str, LobeResult] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self.difference_model = check_difference_model(self.difference_model)
 
     def regions(self) -> tuple[np.ndarray, np.ndarray]:
         return self.mask["x"], self.mask["y"]
@@ -86,6 +96,21 @@ def _require_nonempty(mask: np.ndarray, what: str) -> np.ndarray:
             "that the model aperture and shear match the data (a custom "
             "'pupil' that does not overlap its own shear-shifted copies gives "
             "no interference region)."
+        )
+    return mask
+
+
+def _require_connected(mask: np.ndarray, what: str) -> np.ndarray:
+    """Reject independent phase gauges that the reconstruction cannot model."""
+    from scipy.ndimage import label
+
+    _, n_components = label(np.asarray(mask, dtype=bool))
+    if n_components > 1:
+        raise ValueError(
+            f"{what} has {n_components} disconnected components. Each component "
+            "has an independent phase gauge, but differential-Zernike "
+            "reconstruction models only one gauge per direction; reconstruct "
+            "the components separately or supply a connected mask."
         )
     return mask
 
@@ -221,6 +246,9 @@ def demodulate_phase_shift(
             masks[key] = eroded
         meta["erode_px"] = r
 
+    for key in ("region_x", "region_y"):
+        _require_connected(masks[key], f"the {key[7:]} shear region")
+
     dW, phase, wrapped_phase, mod, amplitude = {}, {}, {}, {}, {}
     for res, direction in ((res_x, "x"), (res_y, "y")):
         mask = masks[f"region_{direction}"]
@@ -244,10 +272,12 @@ def demodulate_phase_shift(
     return DiffPhase(
         dW=dW,
         phase=phase,
+        difference_model="two_sided",
         wrapped_phase=wrapped_phase,
         mask={"x": masks["region_x"], "y": masks["region_y"]},
         modulation=mod,
         amplitude=amplitude,
+        confidence=mod,
         meta={**meta, "n_steps": n_frames, "route": "phase_shift"},
     )
 
@@ -323,6 +353,7 @@ def demodulate_fourier(
 
         mask = binary_erosion(mask, iterations=erode_px)
     _require_nonempty(mask, f"the {direction} demodulation mask")
+    _require_connected(mask, f"the {direction} demodulation mask")
     phase = _unwrap_phase(lobe.phase, mask, unwrap, fm.config.grid)
     if not remove_offset:
         phase = phase + model_offset
@@ -338,11 +369,22 @@ def reconstruct(
     diff: DiffPhase,
     *,
     indices: Sequence[int] = DEFAULT_INDICES,
-    difference_model: str = "two_sided",
+    difference_model: str | None = None,
     offset_mode: str = "none",
-    weight_by_modulation: bool = True,
+    weight_by_confidence: bool = True,
+    weight_by_modulation: bool | None = None,
 ) -> ZernikeFit:
     """Differential-Zernike least squares on demodulated data.
+
+    ``difference_model`` defaults to the model carried by ``diff``.  An
+    explicit conflicting value is rejected rather than silently fitting the
+    data with the wrong differential-Zernike basis.
+
+    ``weight_by_confidence=True`` uses the route-specific signal strength:
+    phase-shift modulation or Fourier lobe amplitude.
+
+    ``weight_by_modulation`` is the deprecated name of
+    ``weight_by_confidence`` and is retained for API compatibility.
 
     ``offset_mode``
         ``"none"``     default: the demodulator already removed the
@@ -357,7 +399,26 @@ def reconstruct(
     """
     x, y = fm.config.grid.coords()
     check_offset_mode(offset_mode)
+    if weight_by_modulation is not None:
+        warnings.warn(
+            "weight_by_modulation is deprecated; use weight_by_confidence",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        weight_by_confidence = bool(weight_by_modulation)
+    if difference_model is None:
+        difference_model = diff.difference_model
+    else:
+        check_difference_model(difference_model)
+        if difference_model != diff.difference_model:
+            raise ValueError(
+                f"difference_model={difference_model!r} conflicts with "
+                f"DiffPhase.difference_model={diff.difference_model!r}"
+            )
     check_difference_model(difference_model)
+    for direction, mask in diff.mask.items():
+        _require_nonempty(mask, f"the {direction} reconstruction mask")
+        _require_connected(mask, f"the {direction} reconstruction mask")
     known = None
     if offset_mode == "model":
         known = {
@@ -365,9 +426,9 @@ def reconstruct(
             for d in ("x", "y")
         }
     wx = wy = None
-    if weight_by_modulation and diff.modulation:
-        wx = np.clip(np.abs(diff.modulation["x"]), 1e-6, None)
-        wy = np.clip(np.abs(diff.modulation["y"]), 1e-6, None)
+    if weight_by_confidence and diff.confidence:
+        wx = np.clip(np.abs(diff.confidence["x"]), 1e-6, None)
+        wy = np.clip(np.abs(diff.confidence["y"]), 1e-6, None)
     return fit_differential_zernike(
         diff.dW["x"], diff.dW["y"], diff.mask["x"], diff.mask["y"],
         fm.s, x, y, indices=indices,
@@ -400,11 +461,14 @@ def fourier_to_wavefront(
             "x": lobe_x.unwrapped_phase,
             "y": lobe_y.unwrapped_phase,
         },
+        difference_model=difference_model,
         wrapped_phase={"x": lobe_x.phase, "y": lobe_y.phase},
         mask={"x": mask_x, "y": mask_y},
         amplitude={"x": lobe_x.amplitude, "y": lobe_y.amplitude},
+        confidence={"x": lobe_x.amplitude, "y": lobe_y.amplitude},
         lobes={"x": lobe_x, "y": lobe_y},
-        meta={"route": "fourier", "difference_model": difference_model},
+        meta={"route": "fourier"},
     )
-    return reconstruct(fm, diff, indices=indices, difference_model=difference_model,
-                       offset_mode=offset_mode), diff
+    return reconstruct(
+        fm, diff, indices=indices, offset_mode=offset_mode
+    ), diff

@@ -85,11 +85,18 @@ def _wf(coeffs=(0.0, 0.05, -0.03)):
 
 def _diff_phase(fm, image, **kwargs):
     """A :class:`DiffPhase` from the single-frame carrier route."""
-    dW, mask, phase = {}, {}, {}
+    dW, mask, phase, confidence = {}, {}, {}, {}
     for direction in ("x", "y"):
         d_w, m, lobe = demodulate_fourier(fm, image, direction=direction, **kwargs)
         dW[direction], mask[direction], phase[direction] = d_w, m, lobe.phase
-    return DiffPhase(dW=dW, phase=phase, mask=mask)
+        confidence[direction] = lobe.amplitude
+    return DiffPhase(
+        dW=dW,
+        phase=phase,
+        mask=mask,
+        difference_model=kwargs.get("difference_model", "one_sided"),
+        confidence=confidence,
+    )
 
 
 # --------------------------------------------------------------------------- #
