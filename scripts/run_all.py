@@ -16,6 +16,7 @@ SCRIPTS = [
     "03_fourier_mode.py",
     "04_lm_inverse.py",
     "05_error_analysis.py",
+    "06_freeform_wavefront.py",
 ]
 
 

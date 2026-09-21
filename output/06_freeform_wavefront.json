@@ -1,0 +1,138 @@
+{
+  "wavefront_source": "two localized Gaussians + one broad Gaussian + sinusoidal ripple; no Zernike coefficients are used to generate the measurements",
+  "grid": {
+    "n": 128,
+    "extent": 1.1
+  },
+  "data": {
+    "phase_shift_frames": 16,
+    "fourier_frames": 1,
+    "lm_samples_per_frame": 6000
+  },
+  "truth": {
+    "pv_wave": 0.3910426712956433,
+    "rms_after_piston_alignment_wave": 0.04326044328468866
+  },
+  "best_36_mode_projection": {
+    "rms_error_wave": 0.0182031267488226,
+    "max_abs_error_wave": 0.09059347404959038
+  },
+  "lm_z2_to_z36": {
+    "n_parameters": 35,
+    "n_iter": 7,
+    "converged": true,
+    "message": "cost tolerance",
+    "rank": 35,
+    "condition_number": 23.882812436335534,
+    "intensity_rms_residual": 0.017337683276202887,
+    "rms_error_to_original_wave": 0.01993347342957183,
+    "max_abs_error_to_original_wave": 0.1041101242783311,
+    "rms_error_to_best_projection_wave": 0.008123394581930971,
+    "max_abs_error_to_best_projection_wave": 0.02678430484856447,
+    "max_coefficient_difference_from_projection_wave": 0.013789549081000482
+  },
+  "same_subspace_control": {
+    "n_iter": 6,
+    "max_coefficient_error_wave": 2.9467259795440404e-16
+  },
+  "method_comparison": [
+    {
+      "method": "phase_shift_differential_zernike",
+      "frames": 16,
+      "n_parameters": 35,
+      "rank": 35,
+      "condition_number": 15.793220263485075,
+      "rms_error_to_original_wave": 0.019197302084537935,
+      "max_abs_error_to_original_wave": 0.09839551108216653,
+      "rms_error_to_best_projection_wave": 0.006097752363888167,
+      "max_abs_error_to_best_projection_wave": 0.027428238910642517,
+      "max_coefficient_difference_from_projection_wave": 0.013778183513159507
+    },
+    {
+      "method": "fourier_differential_zernike",
+      "frames": 1,
+      "n_parameters": 35,
+      "rank": 35,
+      "condition_number": 5.477344073662797,
+      "rms_error_to_original_wave": 0.02359069580002831,
+      "max_abs_error_to_original_wave": 0.19800025255689166,
+      "rms_error_to_best_projection_wave": 0.015005569129352381,
+      "max_abs_error_to_best_projection_wave": 0.15775107459123114,
+      "max_coefficient_difference_from_projection_wave": 0.017528354819088526
+    },
+    {
+      "method": "lm_intensity",
+      "frames": 16,
+      "n_parameters": 35,
+      "rank": 35,
+      "condition_number": 23.882812436335534,
+      "rms_error_to_original_wave": 0.01993347342957183,
+      "max_abs_error_to_original_wave": 0.1041101242783311,
+      "rms_error_to_best_projection_wave": 0.008123394581930971,
+      "max_abs_error_to_best_projection_wave": 0.02678430484856447,
+      "max_coefficient_difference_from_projection_wave": 0.013789549081000482
+    }
+  ],
+  "largest_recovered_modes": [
+    {
+      "index": 14,
+      "lm_coefficient": 0.052833312238439976,
+      "oracle_coefficient": 0.05422158387675499,
+      "difference": -0.0013882716383150154
+    },
+    {
+      "index": 7,
+      "lm_coefficient": -0.04282855799288483,
+      "oracle_coefficient": -0.04585587087166451,
+      "difference": 0.0030273128787796783
+    },
+    {
+      "index": 15,
+      "lm_coefficient": -0.03560535705134657,
+      "oracle_coefficient": -0.03310823360300706,
+      "difference": -0.0024971234483395083
+    },
+    {
+      "index": 8,
+      "lm_coefficient": 0.03507187677000783,
+      "oracle_coefficient": 0.032688511847502134,
+      "difference": 0.0023833649225056958
+    },
+    {
+      "index": 23,
+      "lm_coefficient": -0.03395344663428826,
+      "oracle_coefficient": -0.03546039541130962,
+      "difference": 0.001506948777021358
+    },
+    {
+      "index": 4,
+      "lm_coefficient": -0.032489595887265854,
+      "oracle_coefficient": -0.0319589679245985,
+      "difference": -0.0005306279626673543
+    },
+    {
+      "index": 34,
+      "lm_coefficient": 0.02166257510088103,
+      "oracle_coefficient": 0.019750829082575548,
+      "difference": 0.001911746018305481
+    },
+    {
+      "index": 9,
+      "lm_coefficient": 0.01955796610976055,
+      "oracle_coefficient": 0.020369124473160957,
+      "difference": -0.0008111583634004063
+    },
+    {
+      "index": 3,
+      "lm_coefficient": -0.01877790926523281,
+      "oracle_coefficient": -0.016814301718152104,
+      "difference": -0.0019636075470807063
+    },
+    {
+      "index": 20,
+      "lm_coefficient": 0.016457965411814966,
+      "oracle_coefficient": 0.01771711438098123,
+      "difference": -0.0012591489691662627
+    }
+  ]
+}

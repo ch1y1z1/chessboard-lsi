@@ -40,3 +40,4 @@ jobs:
           uv run python scripts/03_fourier_mode.py
           uv run python scripts/04_lm_inverse.py
           uv run python scripts/05_error_analysis.py
+          uv run python scripts/06_freeform_wavefront.py
