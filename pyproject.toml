@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chessboard-lsi"
+# single source of truth: lsi/__init__.py, so the two can no longer drift
+dynamic = ["version"]
+description = "Chessboard lateral-shearing interferometry: grating orders, forward model, phase demodulation and Zernike inversion"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7",
+]
+
+[tool.setuptools]
+packages = ["lsi"]
+
+[tool.setuptools.dynamic]
+version = { attr = "lsi.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

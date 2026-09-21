@@ -1,0 +1,203 @@
+"""04 - direct non-linear inversion with Levenberg-Marquardt.
+
+The forward model is non-linear in the wavefront,
+
+    I_k(i) = | sum_m A_m exp( i [ 2 pi W(x_i + s a_m, y_i + s b_m) + delta_km ] ) |^2,
+
+so the coefficients can be obtained *without* phase shifting, *without*
+demodulating and *without* unwrapping:
+
+    c = argmin_c  sum_k || I_k - I_k(c) ||^2      via LM (Marquardt damping).
+
+The script shows
+
+1. LM from 8+8 phase-shift frames (comparison with the demodulation route),
+2. LM from a *single* carrier-mode frame,
+3. LM with unknown fringe contrast offset (scale + background),
+4. noise robustness,
+5. a large aberration (6 waves), where the demodulation route breaks down,
+6. convergence history.
+
+Run:  python3 scripts/04_lm_inverse.py
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import time
+
+import numpy as np
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from lsi.config import Grid, SystemConfig
+from lsi.forward import ForwardModel, ZernikeWavefront, add_noise
+from lsi.lm import (
+    LMConfig,
+    fit_wavefront_from_carrier_frame,
+    fit_wavefront_from_frames,
+    multistart_fit,
+)
+from lsi.metrics import rms
+from lsi.pipeline import phase_shift_to_wavefront
+from lsi.plotting import imshow, new_fig, savefig
+from lsi.reconstruct import wavefront_on_grid
+
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
+os.makedirs(OUT, exist_ok=True)
+INDICES = tuple(range(2, 14))
+REPORT: dict = {}
+
+
+def section(title):
+    print("\n" + "=" * 78 + f"\n{title}\n" + "=" * 78)
+
+
+def table(res):
+    return {int(j): float(v) for j, v in zip(INDICES, res.x)}
+
+
+def proto(n=len(INDICES)):
+    return ZernikeWavefront(np.zeros(n), np.array(INDICES))
+
+
+def errs(tab, truth):
+    return {int(j): tab[int(j)] - float(c) for j, c in zip(truth.indices, truth.coeffs)}
+
+
+# --------------------------------------------------------------------------- #
+section("1. LM from 8 + 8 phase-shift frames (96 x 96 pupil sampling)")
+
+cfg = SystemConfig(grid=Grid(n=96, extent=1.10))
+fm = ForwardModel(cfg)
+truth = ZernikeWavefront(np.array([0.0, 0.0, 0.31, -0.12, 0.07, 0.42, 0.05]),
+                        np.array([2, 3, 4, 5, 6, 7, 8]))
+fx = fm.phase_shift_frames(truth, "x", 8)
+fy = fm.phase_shift_frames(truth, "y", 8)
+deltas = [fm.phase_shift_deltas(k / 8, 0.0) for k in range(8)]
+deltas += [fm.phase_shift_deltas(0.0, k / 8) for k in range(8)]
+frames = np.concatenate([np.asarray(fx), np.asarray(fy)], axis=0)
+
+t0 = time.time()
+res = fit_wavefront_from_frames(fm, proto(), frames, deltas, samples=6000)
+dt = time.time() - t0
+tab = table(res)
+print(f"  {res.n_iter} LM iterations, {res.n_residual} residuals, {dt:.2f} s")
+print(f"  final cost = {res.cost:.3e} (rms residual = {res.rms_residual:.3e})")
+print("  coefficient errors (wave):",
+      ", ".join(f"Z{j}:{e:+.2e}" for j, e in sorted(errs(tab, truth).items())))
+print(f"  max |coefficient error| = {max(abs(v) for v in errs(tab, truth).values()):.2e}")
+
+fit_ps, _ = phase_shift_to_wavefront(fm, fx, fy, indices=INDICES)
+tab_ps = {int(j): float(v) for j, v in zip(fit_ps.indices, fit_ps.coeffs)}
+print(f"  for comparison, the phase-shift demodulation route gives "
+      f"{max(abs(tab_ps[int(j)] - float(c)) for j, c in zip(truth.indices, truth.coeffs)):.2e}")
+REPORT["lm_phaseshift"] = {"n_iter": res.n_iter, "time_s": dt,
+                           "max_err": float(max(abs(v) for v in errs(tab, truth).values()))}
+
+x, y = cfg.grid.coords()
+pupil = cfg.grid.pupil()
+W_true = truth.w(x, y)
+W_lm = wavefront_on_grid(res.x, proto().indices, x, y, pupil)
+print(f"  wavefront map error: rms = {rms(W_lm - W_true, pupil):.3e} wave "
+      f"(W input rms = {rms(W_true, pupil):.4f} wave)")
+
+# --------------------------------------------------------------------------- #
+section("2. LM from a single carrier-mode frame")
+
+cfg_ft = SystemConfig(grid=Grid(n=128, extent=1.10), period_um=30.0)
+fm_ft = ForwardModel(cfg_ft)
+truth_ft = ZernikeWavefront(np.array([0.8]), np.array([7]))
+I = fm_ft.ft_mode_frame(truth_ft)
+t0 = time.time()
+res1 = fit_wavefront_from_carrier_frame(fm_ft, proto(), I, samples=8000,
+                                        config=LMConfig(max_iter=80))
+dt1 = time.time() - t0
+tab1 = table(res1)
+print(f"  {res1.n_iter} iterations, {dt1:.2f} s, cost {res1.cost:.2e}")
+print(f"  Z7 = {tab1[7]:.6f} (input 0.8), Z4 = {tab1[4]:+.6f}, Z5 = {tab1[5]:+.6f}")
+print(f"  max |coefficient error| = "
+      f"{max(abs(v - (0.8 if j == 7 else 0.0)) for j, v in tab1.items()):.2e}")
+print("  -> one interferogram, no phase shifting, no demodulation, no unwrapping;")
+print("     compare with the demodulation route for the same frame (script 03).")
+REPORT["lm_single_frame"] = {"n_iter": res1.n_iter, "time_s": dt1,
+                             "Z7": tab1[7], "max_err": float(max(abs(v - (0.8 if j == 7 else 0.0))
+                                                                  for j, v in tab1.items()))}
+
+# --------------------------------------------------------------------------- #
+section("3. Unknown contrast and background (scale + offset fitted)")
+
+frames_scaled = [2.3 * f + 0.17 for f in frames]
+res_sb = fit_wavefront_from_frames(
+    fm, proto(), frames_scaled, deltas, samples=6000,
+    config=LMConfig(max_iter=80, fit_scale_background=True),
+)
+print(f"  fitted scale = {res_sb.scale:.6f} (true 2.3), background = {res_sb.background:+.6f} "
+      f"(true 0.17)")
+print(f"  max |coefficient error| = "
+      f"{max(abs(v) for v in errs(table(res_sb), truth).values()):.2e}")
+REPORT["lm_scale_background"] = {"scale": res_sb.scale, "background": res_sb.background}
+
+# --------------------------------------------------------------------------- #
+section("4. Noise")
+
+noise_snrs = (60, 50, 40, 30, 20)
+noise_errs = []
+for snr in noise_snrs:
+    noisy = add_noise(frames, snr_db=snr, seed=3)
+    r = fit_wavefront_from_frames(fm, proto(), noisy, deltas, samples=6000,
+                                  config=LMConfig(max_iter=80))
+    e = max(abs(v) for v in errs(table(r), truth).values())
+    noise_errs.append(e)
+    print(f"  SNR {snr:3d} dB : max |coefficient error| = {e:.4f} wave")
+REPORT["lm_noise"] = {"snr_db": list(noise_snrs), "max_coef_error": noise_errs}
+
+# --------------------------------------------------------------------------- #
+section("5. Large aberration (6 waves of coma): LM vs demodulation")
+
+big = ZernikeWavefront(np.array([6.0]), np.array([7]))
+fxb = fm.phase_shift_frames(big, "x", 8)
+fyb = fm.phase_shift_frames(big, "y", 8)
+res_big = multistart_fit(
+    fm, proto(), np.concatenate([np.asarray(fxb), np.asarray(fyb)], axis=0), deltas,
+    term=5, values=np.arange(-8.0, 8.1, 1.0), samples=4000,
+    config=LMConfig(max_iter=150), coarse_iter=20,
+)
+print(f"  LM (coarse scan + refinement) : Z7 = {table(res_big)[7]:.5f}   (input 6.0)")
+fit_big, _ = phase_shift_to_wavefront(fm, fxb, fyb, indices=INDICES)
+print(f"  demodulation route            : Z7 = "
+      f"{float(fit_big.coeffs[list(fit_big.indices).index(7)]):.5f}")
+print("    note: the demodulation route is exact (<1e-9) for a single Z7 up to")
+print("    ~3 waves and loses 1 wave at 3.5, 2 waves at >= 4: past ~3.1 waves the")
+print("    leaked (0,+-1) order drives the modulation |Z| through a null, so the")
+print("    wrapped phase picks up vortices and unwrapping drops whole waves.")
+print("    LM is unaffected (no unwrapping step). Cf. README 4.1 and")
+print("    tests/test_demodulation_limit.py.")
+REPORT["lm_large"] = {"LM": table(res_big)[7],
+                      "phaseshift": float(fit_big.coeffs[list(fit_big.indices).index(7)])}
+
+# --------------------------------------------------------------------------- #
+section("6. Figures")
+
+fig, axes = new_fig(2, 3, figsize=(15, 9))
+imshow(axes[0, 0], frames[0], cfg.grid, title="input frame (t=0, x pair)")
+imshow(axes[0, 1], W_true, cfg.grid, title="true W (waves)")
+imshow(axes[0, 2], W_lm, cfg.grid, title="LM reconstruction (waves)")
+imshow(axes[1, 0], W_lm - W_true, cfg.grid, title="LM error (waves)")
+ax = axes[1, 1]
+ax.semilogy(res.history["cost"], "o-", ms=3)
+ax.set_xlabel("iteration"), ax.set_ylabel("cost")
+ax.set_title("LM convergence (phase-shift frames)")
+ax.grid(alpha=0.3)
+ax = axes[1, 2]
+ax.semilogy(res1.history["cost"], "s-", ms=3, color="C1")
+ax.set_xlabel("iteration"), ax.set_ylabel("cost")
+ax.set_title("LM convergence (single carrier frame)")
+ax.grid(alpha=0.3)
+savefig(fig, "04_lm_inverse.png")
+
+with open(os.path.join(OUT, "04_lm_inverse.json"), "w") as fh:
+    json.dump(REPORT, fh, indent=2)
+print(f"  -> wrote {OUT}/04_lm_inverse.png and .json")
