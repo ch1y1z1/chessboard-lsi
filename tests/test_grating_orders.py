@@ -59,6 +59,45 @@ def test_bitmap_matches_analytic():
         assert abs(abs(b) - abs(a)) < 5e-3, (order, a, b)
 
 
+def test_pattern_offset_creates_only_the_expected_axis_harmonics():
+    """Table 4-2 invariant: a y displacement creates (m=0, n=odd) orders.
+
+    In detector coordinates these are half-integer diagonal orders.  The
+    orthogonal (m=odd, n=0) axis remains extinguished.
+    """
+    delta = 0.02
+    orders = bitmap_orders(
+        harmonic_cell=400, max_index=2, offset_y=delta
+    )
+    axis_y_1 = orders.with_orders([(0.5, 0.5)]).amp[0]   # (m,n)=(0,1)
+    axis_y_3 = orders.with_orders([(1.5, 1.5)]).amp[0]   # (m,n)=(0,3)
+    axis_x_1 = orders.with_orders([(0.5, -0.5)]).amp[0]  # (m,n)=(1,0)
+    axis_x_3 = orders.with_orders([(1.5, -1.5)]).amp[0]  # (m,n)=(3,0)
+
+    assert abs(axis_y_1) == pytest.approx(
+        np.sin(np.pi * delta) / np.pi, rel=0.02
+    )
+    assert abs(axis_y_3) == pytest.approx(
+        np.sin(3.0 * np.pi * delta) / (3.0 * np.pi), rel=0.02
+    )
+    assert abs(axis_x_1) < 1e-12
+    assert abs(axis_x_3) < 1e-12
+
+
+def test_global_bitmap_translation_changes_phase_not_efficiency_or_support():
+    base = bitmap_orders(harmonic_cell=64, max_index=3)
+    shifted = bitmap_orders(
+        harmonic_cell=64, max_index=3, origin_x=1 / 64, origin_y=-2 / 64
+    )
+    base_amp = dict(zip(base.indices(), base.amp))
+    shifted_amp = dict(zip(shifted.indices(), shifted.amp))
+    assert base_amp.keys() == shifted_amp.keys()
+    assert max(
+        abs(abs(base_amp[order]) - abs(shifted_amp[order]))
+        for order in base_amp
+    ) < 1e-12
+
+
 def test_duty_cycle_error_reduces_scattered_to_third_order():
     """Chapter-4 error analysis: duty cycle error hits odd orders."""
     ideal = analytic_orders(max_index=2)

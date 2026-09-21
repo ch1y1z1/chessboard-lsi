@@ -47,6 +47,8 @@ class ZernikeFit:
     rms_residual: float = 0.0
     max_abs_residual: float = 0.0
     cond: float = np.nan
+    rank: int = 0
+    singular_values: np.ndarray = field(default_factory=lambda: np.array([]))
     n_rows: int = 0
 
     def wavefront(self, x, y, pupil=None) -> np.ndarray:
@@ -102,16 +104,6 @@ def _build_system(
     A = np.vstack(rows)
     b = np.concatenate(rhs)
     w = np.concatenate(wts)
-    if fit_offsets and np.linalg.matrix_rank(A) < A.shape[1]:
-        warnings.warn(
-            "the differential design matrix is rank deficient: a constant "
-            "offset is collinear with a fitted Zernike column (the tilt term "
-            "has a constant difference, dZ/dx = 2 * shear), so the offsets "
-            "and that coefficient are only determined up to a gauge.  Drop "
-            "the tilt indices or use fit_offsets=False for an unambiguous "
-            "wavefront.",
-            stacklevel=2,
-        )
     return A, b, w, n_off, tags
 
 
@@ -217,7 +209,16 @@ def fit_differential_zernike(
     )
     Aw = A * w[:, None]
     bw = b * w
-    sol, *_ = np.linalg.lstsq(Aw, bw, rcond=None)
+    if not np.any(w > 0.0):
+        raise ValueError("all effective reconstruction weights are zero")
+    sol, _, rank, singular_values = np.linalg.lstsq(Aw, bw, rcond=None)
+    if rank < Aw.shape[1]:
+        warnings.warn(
+            "the weighted differential design matrix is rank deficient: "
+            f"rank={rank}, parameters={Aw.shape[1]}; the reported coefficients "
+            "are a minimum-norm solution and are not all identifiable",
+            stacklevel=2,
+        )
     coeffs = sol[: len(indices)]
     offsets = {}
     if n_off:
@@ -235,6 +236,8 @@ def fit_differential_zernike(
         rms_residual=float(np.sqrt(np.mean(resid**2))),
         max_abs_residual=float(np.max(np.abs(resid))),
         cond=cond,
+        rank=int(rank),
+        singular_values=singular_values,
         n_rows=int(Aw.shape[0]),
     )
 

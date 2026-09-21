@@ -1,4 +1,4 @@
-"""05 - error sources (dissertation chapter 4) reproduced in the forward model.
+"""05 - selected dissertation chapter-4 error sources in the forward model.
 
 Studied here:
 
@@ -24,14 +24,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lsi.config import Grid, SystemConfig
 from lsi.forward import ForwardModel, ZernikeWavefront, add_noise
-from lsi.grating import analytic_orders
+from lsi.grating import analytic_orders, bitmap_orders
 from lsi.pipeline import phase_shift_to_wavefront
 from lsi.plotting import new_fig, savefig
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
 os.makedirs(OUT, exist_ok=True)
 INDICES = tuple(range(2, 14))
-REPORT: dict = {}
+REPORT: dict = {
+    "noise_definition": "peak_snr_db = 20 log10(max(intensity) / noise_std)"
+}
 
 
 def section(title):
@@ -138,8 +140,8 @@ for duty in (0.40, 0.45, 0.50, 0.55, 0.60):
     tab_no = run(cfg, truth, orders=five, fit_orders=NOMINAL)
     e, tl = maxerr(tab, truth), tilterr(tab, truth)
     en, tln = maxerr(tab_no, truth), tilterr(tab_no, truth)
-    # every integer-lattice harmonic (not only the five beams), including the
-    # even orders that appear away from 50 % duty -> higher-order crosstalk
+    # every integer/half-integer detector harmonic (not only the five beams),
+    # including orders that appear away from 50 % duty -> higher-order crosstalk
     tab_all = run(cfg, truth, orders=analytic_orders(max_index=3, duty=duty))
     tiny = lambda z: 0.0 if abs(z) < 1e-12 else float(z)
     rows.append({"duty": duty, "A00": dc, "A10": abs(a1), "eff_pct": eff * 100,
@@ -157,10 +159,33 @@ print("     shearing interferogram cannot separate from tilt moves as arg A_10 =
 print("     pi - 2 pi (d-1/2), arg A_01 = 0, so assuming an ideal 50 % grating puts")
 print(f"     the whole error into tilt (up to {max(r['tilt_error_nominal_prior'] for r in rows):.1f} waves = 1/s;")
 print("     the sign of the residual depends on where the 2 pi wrap falls).")
-print("  -> the all-orders column (integer orders up to |a|,|b| <= 3) also shows")
+print("  -> the all-orders column (integer/half orders up to |a|,|b| <= 3) also shows")
 print(f"     higher-order crosstalk: {rows[2]['max_coef_error_all_orders']:.1e} wave even at 50 % duty;")
-print("     away from 50 %, newly non-zero even orders are included as well.")
+print("     away from 50 %, newly non-zero integer and half-integer orders are included.")
 REPORT["duty"] = rows
+
+print()
+print("  relative y-placement error creates y-axis odd harmonics while the")
+print("  orthogonal x-axis harmonics remain extinguished:")
+print("  offset     |A(m=0,n=1)|  |A(m=0,n=3)|  max x-axis odd amplitude")
+placement_rows = []
+for offset in (0.01, 0.02, 0.04, 0.05):
+    orders = bitmap_orders(harmonic_cell=400, max_index=2, offset_y=offset)
+    ay1 = abs(orders.with_orders([(0.5, 0.5)]).amp[0])
+    ay3 = abs(orders.with_orders([(1.5, 1.5)]).amp[0])
+    ax1 = abs(orders.with_orders([(0.5, -0.5)]).amp[0])
+    ax3 = abs(orders.with_orders([(1.5, -1.5)]).amp[0])
+    placement_rows.append(
+        {
+            "offset_y": offset,
+            "abs_A_m0_n1": ay1,
+            "abs_A_m0_n3": ay3,
+            "max_abs_A_modd_n0": max(ax1, ax3),
+        }
+    )
+    print(f"  {offset:6.3f}       {ay1:10.6f}      {ay3:10.6f}          {max(ax1, ax3):.2e}")
+print("  -> this is a relative sub-cell displacement, not a global grating shift.")
+REPORT["pattern_offset_y"] = placement_rows
 
 # --------------------------------------------------------------------------- #
 section("2. Phase-shift step error (4.2.3)")
@@ -200,7 +225,7 @@ for n in (4, 8, 12):
     e_clean = maxerr(run(cfg, truth, n_steps=n), truth)
     noisy = [maxerr(run(cfg, truth, n_steps=n, noise_db=30, seed=s_), truth) for s_ in range(5)]
     rows.append({"n_steps": n, "err_clean": e_clean, "err_snr30_mean": float(np.mean(noisy))})
-    print(f"  {n:2d} steps : clean {e_clean:.3e} wave,  SNR 30 dB (5 seeds) "
+    print(f"  {n:2d} steps : clean {e_clean:.3e} wave,  peak SNR 30 dB (5 seeds) "
           f"{np.mean(noisy):.4f} +- {np.std(noisy):.4f} wave")
 print("  -> averaging over the frames reduces the noise sensitivity with the number")
 print("     of steps (the demodulation weights the frames as a matched filter).")
@@ -234,7 +259,7 @@ axes[1, 0].grid(alpha=0.3), axes[1, 0].set_title("duty error (4.2.2): shape exac
 
 ns = [r["n_steps"] for r in REPORT["steps"]]
 axes[1, 1].semilogy(ns, [r["err_snr30_mean"] for r in REPORT["steps"]], "o-")
-axes[1, 1].set_xlabel("phase steps"), axes[1, 1].set_ylabel("max |coeff error| (wave), SNR 30 dB")
+axes[1, 1].set_xlabel("phase steps"), axes[1, 1].set_ylabel("max |coeff error| (wave), peak SNR 30 dB")
 axes[1, 1].grid(alpha=0.3), axes[1, 1].set_title("noise averaging vs steps")
 savefig(fig, "05_error_analysis.png")
 

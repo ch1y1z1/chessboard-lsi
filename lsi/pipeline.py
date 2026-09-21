@@ -50,6 +50,7 @@ class DiffPhase:
     dW: dict[str, np.ndarray]
     phase: dict[str, np.ndarray]
     mask: dict[str, np.ndarray]
+    wrapped_phase: dict[str, np.ndarray] = field(default_factory=dict)
     modulation: dict[str, np.ndarray] = field(default_factory=dict)
     amplitude: dict[str, np.ndarray] = field(default_factory=dict)
     meta: dict = field(default_factory=dict)
@@ -79,6 +80,23 @@ def _require_nonempty(mask: np.ndarray, what: str) -> np.ndarray:
             "no interference region)."
         )
     return mask
+
+
+def _unwrap_phase(wrapped: np.ndarray, mask: np.ndarray, method: str, grid) -> np.ndarray:
+    """Unwrap one phase map and pin its additive gauge at the pupil centre."""
+    if method == "seed":
+        phase = unwrap_seed_growth(wrapped, mask)
+    elif method == "poisson":
+        phase = unwrap_masked_poisson(wrapped, mask)
+    elif method == "none":
+        phase = wrapped.copy()
+    ys, xs = np.nonzero(mask)
+    k = int(
+        np.argmin(
+            (ys - grid.n / 2.0) ** 2 + (xs - grid.n / 2.0) ** 2
+        )
+    )
+    return phase + (wrapped[ys[k], xs[k]] - phase[ys[k], xs[k]])
 
 
 # --------------------------------------------------------------------------- #
@@ -119,6 +137,12 @@ def demodulate_phase_shift(
     cfg = fm.config
     frames_x = np.asarray(frames_x, dtype=float)
     frames_y = np.asarray(frames_y, dtype=float)
+    for name, frames in (("frames_x", frames_x), ("frames_y", frames_y)):
+        if frames.ndim != 3 or frames.shape[1:] != fm.shape:
+            raise ValueError(
+                f"{name} must have shape (N, {fm.shape[0]}, {fm.shape[1]}), "
+                f"got {frames.shape}"
+            )
     check_region_mode(region_mode)
     check_unwrap_method(unwrap)
     n_frames = int(frames_x.shape[0])
@@ -127,10 +151,12 @@ def demodulate_phase_shift(
             "frames_x and frames_y must hold the same number of phase steps, "
             f"got {n_frames} and {frames_y.shape[0]}"
         )
-    if n_steps is not None and int(n_steps) != n_frames:
-        raise ValueError(
-            f"n_steps={n_steps} does not match the {n_frames} frames supplied"
-        )
+    if n_steps is not None:
+        n_steps = _as_int(n_steps, "n_steps", minimum=3)
+        if n_steps != n_frames:
+            raise ValueError(
+                f"n_steps={n_steps} does not match the {n_frames} frames supplied"
+            )
     for name, d in (("deltas_x", deltas_x), ("deltas_y", deltas_y)):
         if d is not None and len(d) != n_frames:
             raise ValueError(
@@ -187,7 +213,7 @@ def demodulate_phase_shift(
             masks[key] = eroded
         meta["erode_px"] = r
 
-    dW, phase, mod, amplitude = {}, {}, {}, {}
+    dW, phase, wrapped_phase, mod, amplitude = {}, {}, {}, {}, {}
     for res, direction in ((res_x, "x"), (res_y, "y")):
         mask = masks[f"region_{direction}"]
         model_offset = fm.demodulation_offset(direction)
@@ -196,22 +222,7 @@ def demodulate_phase_shift(
         # raw wrapped phase first makes an arbitrarily small noise perturbation
         # choose between +pi and -pi and can shift the whole result by -2*pi.
         wrapped = np.angle(np.exp(1j * (res.phase - model_offset)))
-        if unwrap == "seed":
-            ph = unwrap_seed_growth(wrapped, mask)
-        elif unwrap == "poisson":
-            ph = unwrap_masked_poisson(wrapped, mask)
-        elif unwrap == "none":
-            ph = wrapped.copy()
-        # Gauge convention: every unwrapping method is pinned to the wrapped
-        # value at the seed pixel (the mask pixel closest to the pupil
-        # centre).  Path following does this by construction; the two
-        # least-squares solvers fix an arbitrary constant instead (zero mean
-        # over the region) and need it imposed.  Without this, the phase
-        # carries an extra multiple of 2 pi, which the differential-Zernike
-        # fit can only absorb as a tilt.
-        ys, xs = np.nonzero(mask)
-        kk = int(np.argmin((ys - cfg.grid.n / 2.0) ** 2 + (xs - cfg.grid.n / 2.0) ** 2))
-        ph = ph + (wrapped[ys[kk], xs[kk]] - ph[ys[kk], xs[kk]])
+        ph = _unwrap_phase(wrapped, mask, unwrap, cfg.grid)
         if not remove_offset:
             # Preserve the public "raw phase" option, but add the model offset
             # back only after unwrapping so its exact pi value cannot choose the
@@ -219,11 +230,13 @@ def demodulate_phase_shift(
             ph = ph + model_offset
         dW[direction] = ph / np.pi
         phase[direction] = ph
+        wrapped_phase[direction] = wrapped
         mod[direction] = res.modulation
         amplitude[direction] = res.modulation
     return DiffPhase(
         dW=dW,
         phase=phase,
+        wrapped_phase=wrapped_phase,
         mask={"x": masks["region_x"], "y": masks["region_y"]},
         modulation=mod,
         amplitude=amplitude,
@@ -242,16 +255,19 @@ def demodulate_fourier(
     window_radius: float | None = None,
     remove_offset: bool = True,
     erode_px: int = 4,
+    unwrap: str = "seed",
     **lobe_kwargs,
 ) -> tuple[np.ndarray, np.ndarray, LobeResult]:
     """Single-frame carrier demodulation for one shear direction.
 
-    Returns ``(dW, mask, lobe)`` with the phase converted according to
+    Returns ``(dW, mask, lobe)`` with the unwrapped phase converted according to
     ``difference_model`` (``phase / 2 pi`` for a one-sided difference,
-    ``phase / pi`` for a two-sided one).
+    ``phase / pi`` for a two-sided one).  ``lobe.phase`` remains the wrapped
+    phase and ``lobe.unwrapped_phase`` records the phase used for ``dW``.
     """
     check_direction(direction)
     check_difference_model(difference_model)
+    check_unwrap_method(unwrap)
     erode_px = _as_int(erode_px, "erode_px", minimum=0)
     offset = fm.demodulation_offset(direction) if remove_offset else 0.0
     lobe = demodulate_lobe(
@@ -275,8 +291,10 @@ def demodulate_fourier(
 
         mask = binary_erosion(mask, iterations=erode_px)
     _require_nonempty(mask, f"the {direction} demodulation mask")
+    phase = _unwrap_phase(lobe.phase, mask, unwrap, fm.config.grid)
+    lobe.unwrapped_phase = phase
     factor = 2.0 * np.pi if difference_model == "one_sided" else np.pi
-    dW = lobe.phase / factor
+    dW = phase / factor
     return dW, mask, lobe
 
 
@@ -344,7 +362,11 @@ def fourier_to_wavefront(
                                              difference_model=difference_model, **kwargs)
     diff = DiffPhase(
         dW={"x": dWx, "y": dWy},
-        phase={"x": lobe_x.phase, "y": lobe_y.phase},
+        phase={
+            "x": lobe_x.unwrapped_phase,
+            "y": lobe_y.unwrapped_phase,
+        },
+        wrapped_phase={"x": lobe_x.phase, "y": lobe_y.phase},
         mask={"x": mask_x, "y": mask_y},
         amplitude={"x": lobe_x.amplitude, "y": lobe_y.amplitude},
         lobes={"x": lobe_x, "y": lobe_y},

@@ -64,6 +64,15 @@ def coefficient_comparison(
     c_test: Sequence[float],
     c_ref: Sequence[float],
 ) -> list[dict[str, float]]:
+    indices = list(indices)
+    c_test = list(c_test)
+    c_ref = list(c_ref)
+    lengths = (len(indices), len(c_test), len(c_ref))
+    if len(set(lengths)) != 1:
+        raise ValueError(
+            "indices, c_test and c_ref must have the same length, got "
+            f"{lengths}"
+        )
     out = []
     for j, a, b in zip(indices, c_test, c_ref):
         out.append(

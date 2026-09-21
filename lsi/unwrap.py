@@ -138,6 +138,8 @@ def unwrap_masked_poisson(
         raise ValueError(f"method must be 'sparse' or 'jacobi', got {method!r}")
     if not np.any(mask):
         return np.full(phi.shape, np.nan)
+    if not np.all(np.isfinite(phi[mask])):
+        raise ValueError("phi must be finite inside mask")
 
     rho = _masked_divergence(phi, mask)
 
@@ -181,7 +183,9 @@ def unwrap_masked_poisson(
             psi = psi_new
             if step < 1e-10:
                 break
-        return psi - psi[mask].mean()
+        out = np.full(phi.shape, np.nan)
+        out[mask] = psi[mask] - psi[mask].mean()
+        return out
 
     from scipy import sparse
     from scipy.sparse.linalg import spsolve
@@ -267,9 +271,12 @@ def unwrap_seed_growth(
     if mask.shape != phi.shape:
         raise ValueError(f"mask must have shape {phi.shape}, got {mask.shape}")
     out = np.full(phi.shape, np.nan)
+    visited = np.zeros(phi.shape, dtype=bool)
     m, n = phi.shape
     if not np.any(mask):
         return out
+    if not np.all(np.isfinite(phi[mask])):
+        raise ValueError("phi must be finite inside mask")
 
     def grow(start: tuple[int, int]) -> None:
         """Unwrap everything connected to ``start``, which must be seeded."""
@@ -282,8 +289,9 @@ def unwrap_seed_growth(
                     0 <= ii < m
                     and 0 <= jj < n
                     and mask[ii, jj]
-                    and np.isnan(out[ii, jj])
+                    and not visited[ii, jj]
                 ):
+                    visited[ii, jj] = True
                     out[ii, jj] = out[i, j] + wrap(phi[ii, jj] - phi[i, j])
                     q.append((ii, jj))
 
@@ -298,18 +306,20 @@ def unwrap_seed_growth(
         raise ValueError("seed is outside the mask")
 
     out[seed] = phi[seed]
+    visited[seed] = True
     grow(seed)
     n_comp = 1
-    todo = mask & np.isnan(out)
+    todo = mask & ~visited
     while todo.any():
         ys, xs = np.nonzero(todo)
         cy, cx = m / 2.0, n / 2.0
         k = int(np.argmin((ys - cy) ** 2 + (xs - cx) ** 2))
         start = (int(ys[k]), int(xs[k]))
         out[start] = phi[start]
+        visited[start] = True
         grow(start)
         n_comp += 1
-        todo = mask & np.isnan(out)
+        todo = mask & ~visited
     if n_comp > 1:
         warnings.warn(
             f"mask has {n_comp} disconnected regions: only differences *within* "

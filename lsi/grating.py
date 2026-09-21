@@ -15,9 +15,9 @@ Two ways to obtain the order amplitudes:
 ``bitmap_orders``
     Build a sampled unit cell of the *physical* (unrotated) chessboard
     grating with arbitrary duty cycle / offset (and a rotation by a multiple
-    of 90 degrees, the only angles the integer order lattice can express), FFT
+    of 90 degrees, the only angles the sampled order lattice can express), FFT
     it, keep the (m, n) harmonics and map them onto the detector-frame indices
-    ``(a, b) = ((m+n)/2, (m-n)/2)``.  This is what supports the grating
+    ``(a, b) = ((m+n)/2, (n-m)/2)``.  This is what supports the grating
     manufacturing-error analysis of chapter 4 of the dissertation
     (占空比误差 / 图形偏移误差).
 
@@ -49,9 +49,11 @@ class OrderSet:
 
     Attributes
     ----------
-    ab : (K, 2) int array
+    ab : (K, 2) float array
         Effective order indices ``(a, b)``; order ``(a, b)`` samples the
-        wavefront at ``(x + a*s, y + b*s)``.
+        wavefront at ``(x + a*s, y + b*s)``.  Integer orders describe the ideal
+        checkerboard; half-integer orders are retained because a relative
+        pattern-placement error creates mixed-parity grating harmonics.
     amp : (K,) complex array
         Complex amplitude of each order (normalized so that the DC order is
         1/2 for the ideal 50 % duty chessboard).
@@ -65,10 +67,21 @@ class OrderSet:
     parity: np.ndarray | None = None
 
     def __post_init__(self) -> None:
-        ab = _as_int_array(self.ab, "ab", ndim=2)
+        raw_ab = np.asarray(self.ab)
+        if raw_ab.dtype == bool:
+            raise ValueError("ab must contain numeric diffraction orders")
+        try:
+            ab = raw_ab.astype(float)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("ab must contain numeric diffraction orders") from exc
         amp = np.asarray(self.amp, dtype=complex)
-        if ab.shape[1:] != (2,):
+        if ab.ndim != 2 or ab.shape[1:] != (2,):
             raise ValueError(f"ab must have shape (K, 2), got {ab.shape}")
+        if not np.all(np.isfinite(ab)):
+            raise ValueError("ab must contain only finite values")
+        if not np.allclose(2.0 * ab, np.rint(2.0 * ab), atol=1e-12):
+            raise ValueError("ab entries must be integer or half-integer orders")
+        ab = np.rint(2.0 * ab) / 2.0
         if amp.ndim != 1 or amp.shape[0] != ab.shape[0]:
             raise ValueError(
                 f"amp must have shape ({ab.shape[0]},), got {amp.shape}"
@@ -91,15 +104,23 @@ class OrderSet:
     def __len__(self) -> int:
         return len(self.ab)
 
-    def indices(self) -> list[tuple[int, int]]:
-        return [tuple(int(v) for v in row) for row in self.ab]
+    def indices(self) -> list[tuple[int | float, int | float]]:
+        def canonical(value):
+            integer = int(np.rint(value))
+            return integer if np.isclose(value, integer) else float(value)
 
-    def select(self, orders: Iterable[tuple[int, int]]) -> "OrderSet":
+        return [tuple(canonical(v) for v in row) for row in self.ab]
+
+    def select(
+        self, orders: Iterable[tuple[int | float, int | float]]
+    ) -> "OrderSet":
         want = {tuple(o) for o in orders}
         keep = [i for i, o in enumerate(self.indices()) if o in want]
         return OrderSet(self.ab[keep], self.amp[keep])
 
-    def with_orders(self, orders: Iterable[tuple[int, int]]) -> "OrderSet":
+    def with_orders(
+        self, orders: Iterable[tuple[int | float, int | float]]
+    ) -> "OrderSet":
         """Same as :meth:`select` but tolerates missing orders (amp 0)."""
         want = [tuple(o) for o in orders]
         amps = []
@@ -107,11 +128,11 @@ class OrderSet:
             idx = [i for i, oo in enumerate(self.indices()) if oo == o]
             amps.append(self.amp[idx[0]] if idx else 0.0 + 0.0j)
         return OrderSet(
-            np.array(want, dtype=int).reshape(-1, 2),
+            np.array(want, dtype=float).reshape(-1, 2),
             np.array(amps, dtype=complex),
         )
 
-    def efficiencies(self) -> dict[tuple[int, int], float]:
+    def efficiencies(self) -> dict[tuple[int | float, int | float], float]:
         return {
             o: float(abs(a) ** 2) for o, a in zip(self.indices(), self.amp)
         }
@@ -146,19 +167,17 @@ def analytic_orders(
     proportionally to ``2 pi (d - 1/2)``, which is the half-fringe constant
     that a two-sided shearing interferogram cannot separate from tilt.
 
-    At ``d = 1/2`` only odd/odd harmonics survive.  Away from 50 %, the
-    even/even and zero/even products are retained as well: they map to integer
-    detector orders and can reach a material fraction of a first order.
-    Mixed-parity ``(m, n)`` map to half-integer detector coordinates and cannot
-    be represented by :class:`OrderSet`'s integer ``(a, b)`` lattice.
+    At ``d = 1/2`` only odd/odd harmonics survive.  Away from 50 %, even and
+    mixed-parity products are retained as well; the latter map to half-integer
+    detector coordinates and can reach a material fraction of a first order.
 
     Parameters
     ----------
     max_index:
         Keep orders with ``max(|a|, |b|) <= max_index`` in the detector frame.
     duty:
-        Transparent fraction of each checker cell.  All harmonics that map to
-        integer detector orders are retained.
+        Transparent fraction of each checker cell.  Integer and half-integer
+        detector orders are retained.
     """
     if isinstance(max_index, bool) or not isinstance(max_index, (int, np.integer)):
         raise ValueError(f"max_index must be a non-negative integer, got {max_index!r}")
@@ -175,11 +194,15 @@ def analytic_orders(
         return -np.expm1(-2j * np.pi * k * duty) / (1j * np.pi * k)
 
     ab, amp = [], []
-    for a in range(-max_index, max_index + 1):
-        for b in range(-max_index, max_index + 1):
-            if (a, b) == (0, 0):
+    harmonic_limit = 2 * max_index
+    for m in range(-harmonic_limit, harmonic_limit + 1):
+        for n in range(-harmonic_limit, harmonic_limit + 1):
+            if (m, n) == (0, 0):
                 continue
-            m, n = a - b, a + b
+            a = (m + n) / 2.0
+            b = (n - m) / 2.0
+            if max(abs(a), abs(b)) > max_index:
+                continue
             if duty == 0.5:
                 # At exactly 50 % only odd/odd harmonics survive.  Keep the
                 # closed form so the tabulated real amplitudes stay exact.
@@ -188,9 +211,7 @@ def analytic_orders(
                 denom = m * n
                 val = -2.0 / (np.pi**2 * denom)
             else:
-                # Off 50 %, even and zero harmonics are physical too.  Every
-                # integer detector order maps to same-parity (m,n), so all of
-                # them can be represented by OrderSet's integer (a,b) lattice.
+                # Off 50 %, even, zero and mixed-parity harmonics are physical.
                 val = 0.5 * square_wave_coeff(m) * square_wave_coeff(n)
             ab.append((a, b))
             amp.append(val)
@@ -198,7 +219,7 @@ def analytic_orders(
         ab.insert(0, (0, 0))
         amp.insert(0, (1.0 + (2.0 * duty - 1.0) ** 2) / 2.0)
     return OrderSet(
-        np.array(ab, dtype=int).reshape(-1, 2),
+        np.array(ab, dtype=float).reshape(-1, 2),
         np.array(amp, dtype=complex),
     )
 
@@ -210,6 +231,8 @@ def bitmap_orders(
     duty: float = 0.5,
     offset_x: float = 0.0,
     offset_y: float = 0.0,
+    origin_x: float = 0.0,
+    origin_y: float = 0.0,
     rotation_deg: float = 0.0,
     edge="ideal",
 ) -> OrderSet:
@@ -222,18 +245,25 @@ def bitmap_orders(
     duty:
         Transparent fraction of each checker cell (0.5 = ideal).
     offset_x, offset_y:
-        Lithographic placement error of the pattern, in units of the period.
+        Relative lithographic placement error of the second (diagonally
+        opposite) transparent checker sub-cell, in units of the period.  This
+        is the dissertation's 图形偏移误差: unlike a global translation it
+        changes diffraction efficiencies and creates mixed-parity harmonics.
+    origin_x, origin_y:
+        Global translation of the complete grating, in units of the period.
+        By the Fourier shift theorem this changes order phases but not their
+        efficiencies or support.
     rotation_deg:
         Rotation of the sampled pattern with respect to the ``u = x``,
         ``v = y`` frame of :func:`analytic_orders`, in degrees.
 
-        **Only multiples of 90 are representable by an integer order set.**
+        **Only multiples of 90 are representable by the sampled order set.**
         The window holds exactly one grating period, so the pattern has to
         stay commensurate with the sampling lattice for the FFT bins to *be*
         the detector-frame orders ``(a, b)``.  A chessboard maps onto itself
         under a 90-degree rotation about a cell centre, so those angles are
-        exact (90 and 270 additionally move the pattern origin, which is the
-        order phase, i.e. an ``offset_x``/``offset_y``).  Any other angle
+        exact (90 and 270 additionally move the pattern origin, which changes
+        only the order phase).  Any other angle
         rotates the reciprocal lattice off the integer bins: the energy then
         leaks across frequencies and the ``m, n`` both-odd selection keeps
         only a minority of it (18 % at 45 degrees, where the *strongest*
@@ -269,6 +299,26 @@ def bitmap_orders(
         raise ValueError("edge must be 'ideal' or 'soft'")
     if not 0.0 < duty < 1.0:
         raise ValueError("duty must lie strictly between 0 and 1")
+    placement = {}
+    for name, value in (
+        ("offset_x", offset_x),
+        ("offset_y", offset_y),
+        ("origin_x", origin_x),
+        ("origin_y", origin_y),
+    ):
+        if isinstance(value, bool):
+            raise ValueError(f"{name} must be finite, got {value!r}")
+        try:
+            value = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{name} must be finite, got {value!r}") from exc
+        if not np.isfinite(value):
+            raise ValueError(f"{name} must be finite, got {value!r}")
+        placement[name] = value
+    offset_x = placement["offset_x"]
+    offset_y = placement["offset_y"]
+    origin_x = placement["origin_x"]
+    origin_y = placement["origin_y"]
     rot = float(rotation_deg)
     if not np.isfinite(rot):
         raise ValueError(f"rotation_deg must be finite, got {rotation_deg!r}")
@@ -283,17 +333,25 @@ def bitmap_orders(
         )
     u = (np.arange(n) + 0.5) / n
     v = (np.arange(n) + 0.5) / n
-    U, V = np.meshgrid(u - offset_x, v - offset_y, indexing="xy")
+    U, V = np.meshgrid(u - origin_x, v - origin_y, indexing="xy")
     if rot % 360.0:
         theta = np.deg2rad(rot)
         U, V = (
             np.cos(theta) * U + np.sin(theta) * V,
             -np.sin(theta) * U + np.cos(theta) * V,
         )
-    # chessboard = (1 + s(u) s(v)) / 2 with s the +-1 square wave
-    su = np.where(np.mod(U, 1.0) < duty, 1.0, 0.0)
-    sv = np.where(np.mod(V, 1.0) < duty, 1.0, 0.0)
-    t = (1.0 + (2 * su - 1) * (2 * sv - 1)) / 2.0
+    # One period is the union of two diagonally opposite transparent sub-cells.
+    # A placement error moves only the second sub-cell; translating U and V
+    # together would move the entire grating and could never create the
+    # coordinate-axis odd orders reported in dissertation table 4-2.
+    u0 = np.mod(U, 1.0)
+    v0 = np.mod(V, 1.0)
+    first = (u0 < duty) & (v0 < duty)
+    second = (
+        (np.mod(U - offset_x, 1.0) >= duty)
+        & (np.mod(V - offset_y, 1.0) >= duty)
+    )
+    t = (first | second).astype(float)
     if edge == "soft":
         from scipy.ndimage import uniform_filter
 
@@ -307,13 +365,11 @@ def bitmap_orders(
         for l_index in range(-2 * max_index, 2 * max_index + 1):
             if (k_index, l_index) == (0, 0):
                 continue
-            if (k_index - l_index) % 2:
-                continue  # maps to a half-integer detector order
             i = int(np.argmin(np.abs(freqs - k_index)))
             j = int(np.argmin(np.abs(freqs - l_index)))
             val = F[j, i]
-            a = (k_index + l_index) // 2
-            b = (k_index - l_index) // 2
+            a = (k_index + l_index) / 2.0
+            b = (l_index - k_index) / 2.0
             if max(abs(a), abs(b)) > max_index:
                 continue
             if abs(val) <= tol:
@@ -328,7 +384,7 @@ def bitmap_orders(
     for (a, b), val in zip(ab, amp):
         merged[(a, b)] = merged.get((a, b), 0.0 + 0.0j) + val
     items = sorted(merged.items())
-    ab_arr = np.array([k for k, _ in items], dtype=int)
+    ab_arr = np.array([k for k, _ in items], dtype=float)
     amp_arr = np.array([v for _, v in items], dtype=complex)
     return OrderSet(ab_arr, amp_arr)
 

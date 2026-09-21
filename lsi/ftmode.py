@@ -79,6 +79,7 @@ class LobeResult:
     peak_freq: tuple[float, float]
     direction: str
     method: str = "local"
+    unwrapped_phase: np.ndarray | None = None
 
 
 def _refine_peak_subpixel(mag: np.ndarray, i0: int, j0: int) -> tuple[float, float]:

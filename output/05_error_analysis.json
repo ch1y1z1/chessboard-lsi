@@ -1,4 +1,5 @@
 {
+  "noise_definition": "peak_snr_db = 20 log10(max(intensity) / noise_std)",
   "duty": [
     {
       "duty": 0.4,
@@ -11,8 +12,8 @@
       "tilt_error": 9.43689570931383e-16,
       "max_coef_error_nominal_prior": 7.494005416219807e-16,
       "tilt_error_nominal_prior": 1.3677286665175963,
-      "max_coef_error_all_orders": 0.02473290562201369,
-      "tilt_error_all_orders": 0.025086029026846913
+      "max_coef_error_all_orders": 0.08382382076342282,
+      "tilt_error_all_orders": 1.3230011350346293
     },
     {
       "duty": 0.45,
@@ -25,8 +26,8 @@
       "tilt_error": 2.7755575615628914e-16,
       "max_coef_error_nominal_prior": 3.0161505456221233e-16,
       "tilt_error_nominal_prior": 0.6838643332587979,
-      "max_coef_error_all_orders": 0.03203358992257671,
-      "tilt_error_all_orders": 0.01631037176689698
+      "max_coef_error_all_orders": 0.04449911880148483,
+      "tilt_error_all_orders": 0.415664059005609
     },
     {
       "duty": 0.5,
@@ -39,8 +40,8 @@
       "tilt_error": 7.299623035370746e-17,
       "max_coef_error_nominal_prior": 8.881784197001252e-16,
       "tilt_error_nominal_prior": 7.299623035370746e-17,
-      "max_coef_error_all_orders": 0.0422342422312888,
-      "tilt_error_all_orders": 0.015101805752942399
+      "max_coef_error_all_orders": 0.042234242231288854,
+      "tilt_error_all_orders": 0.015101805752942565
     },
     {
       "duty": 0.55,
@@ -53,8 +54,8 @@
       "tilt_error": 7.84018617313194e-16,
       "max_coef_error_nominal_prior": 4.718447854656915e-16,
       "tilt_error_nominal_prior": 0.6838643332587979,
-      "max_coef_error_all_orders": 0.03632545205300164,
-      "tilt_error_all_orders": 0.00677447929990371
+      "max_coef_error_all_orders": 0.06111097966983089,
+      "tilt_error_all_orders": 0.399088818918676
     },
     {
       "duty": 0.6,
@@ -67,8 +68,34 @@
       "tilt_error": 3.885780586188048e-16,
       "max_coef_error_nominal_prior": 3.0531133177191805e-16,
       "tilt_error_nominal_prior": 1.3677286665175945,
-      "max_coef_error_all_orders": 0.03352203157944683,
-      "tilt_error_all_orders": 0.013850796179043414
+      "max_coef_error_all_orders": 0.22505463913845372,
+      "tilt_error_all_orders": 1.2200162385727684
+    }
+  ],
+  "pattern_offset_y": [
+    {
+      "offset_y": 0.01,
+      "abs_A_m0_n1": 0.009998457939313952,
+      "abs_A_m0_n3": 0.009986126133171354,
+      "max_abs_A_modd_n0": 0.0
+    },
+    {
+      "offset_y": 0.02,
+      "abs_A_m0_n1": 0.019987048607770258,
+      "abs_A_m0_n3": 0.01988361470382846,
+      "max_abs_A_modd_n0": 0.0
+    },
+    {
+      "offset_y": 0.04,
+      "abs_A_m0_n1": 0.03989521746589958,
+      "abs_A_m0_n3": 0.039062842443944375,
+      "max_abs_A_modd_n0": 0.0
+    },
+    {
+      "offset_y": 0.05,
+      "abs_A_m0_n1": 0.04979514869645198,
+      "abs_A_m0_n3": 0.04817434543021074,
+      "max_abs_A_modd_n0": 0.0
     }
   ],
   "delta_error": [

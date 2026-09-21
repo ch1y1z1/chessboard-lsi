@@ -222,11 +222,12 @@ class ForwardModel:
                 f"pupil must have shape {self.shape} to match the grid, got "
                 f"{arr.shape}"
             )
-        px = self.s / self.grid.dx
-        if not np.isclose(px, np.rint(px)):
+        order_px = np.abs(self.orders.ab) * self.s / self.grid.dx
+        if not np.allclose(order_px, np.rint(order_px)):
             warnings.warn(
-                f"shear={self.s:g} is {px:.3f} pixels, not an integer: the "
-                "shear-shifted copies of a custom pupil are snapped to the "
+                f"some order displacements are not an integer number of pixels "
+                f"at shear={self.s:g}: the shifted copies of a custom pupil "
+                "are snapped to the "
                 "grid, so the order pupils (and every region mask derived "
                 "from them) carry a sub-pixel edge error.  Pass a callable "
                 "pupil instead to get the analytic order pupils.",
@@ -236,7 +237,7 @@ class ForwardModel:
             return arr, None
         return arr > 0.5, None
 
-    def _pupil_mask(self, a: int, b: int, xs: np.ndarray, ys: np.ndarray):
+    def _pupil_mask(self, a: float, b: float, xs: np.ndarray, ys: np.ndarray):
         """Pupil transmission mask of order ``(a, b)``.
 
         Without a user pupil this is the unit disk, evaluated at the order's
@@ -315,7 +316,7 @@ class ForwardModel:
             return self._pupil_fn
         return self._pupil
 
-    def order_support(self, a: int, b: int) -> np.ndarray:
+    def order_support(self, a: float, b: float) -> np.ndarray:
         """Pupil mask of order ``(a, b)``, or all-False if it is not present."""
         for aa, bb, _, _, inside in self.order_geometry():
             if (aa, bb) == (a, b):
@@ -678,7 +679,11 @@ def add_noise(
     frames: np.ndarray, snr_db: float | None = None, seed: int | None = 0,
     poisson_scale: float | None = None,
 ) -> np.ndarray:
-    """Add Gaussian (``snr_db``) and/or Poisson shot noise to intensity frames."""
+    """Add Gaussian and/or Poisson shot noise to intensity frames.
+
+    ``snr_db`` is a *peak* intensity-to-noise-standard-deviation ratio,
+    ``20 log10(max(I) / sigma)``.  It is not an RMS signal-power SNR.
+    """
     frames = np.asarray(frames, dtype=float)
     if not np.all(np.isfinite(frames)):
         raise ValueError("frames must contain only finite values")

@@ -80,7 +80,7 @@ def test_wavefront_rejects_lossy_or_duplicate_indices(indices):
     [
         ([(0, 0), (1, 0)], [1.0]),
         ([(0, 0), (0, 0)], [1.0, 1.0]),
-        ([(0.5, 0)], [1.0]),
+        ([(0.25, 0)], [1.0]),
         ([(0, 0)], [np.nan]),
     ],
 )

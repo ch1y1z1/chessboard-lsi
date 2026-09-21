@@ -38,6 +38,7 @@ from typing import Callable, Sequence
 
 import numpy as np
 
+from .config import _as_float, _as_int
 from .forward import ForwardModel, ZernikeWavefront
 
 __all__ = [
@@ -64,6 +65,39 @@ class LMConfig:
     #: estimate an affine intensity model ``alpha * I_model + beta`` in the
     #: loop (variable projection) -- protects against unknown exposure/offset
     fit_scale_background: bool = False
+
+    def __post_init__(self) -> None:
+        self.max_iter = _as_int(self.max_iter, "max_iter", minimum=1)
+        self.lambda_min = _as_float(self.lambda_min, "lambda_min", low=0.0)
+        self.lambda_max = _as_float(self.lambda_max, "lambda_max", low=0.0)
+        if self.lambda_min > self.lambda_max:
+            raise ValueError("lambda_min must not exceed lambda_max")
+        self.lambda0 = _as_float(
+            self.lambda0,
+            "lambda0",
+            low=self.lambda_min,
+            high=self.lambda_max,
+            inclusive_low=True,
+        )
+        self.nu0 = _as_float(self.nu0, "nu0", low=1.0)
+        for name in ("ftol", "xtol", "gtol"):
+            setattr(
+                self,
+                name,
+                _as_float(
+                    getattr(self, name),
+                    name,
+                    low=0.0,
+                    inclusive_low=True,
+                ),
+            )
+        if not isinstance(self.verbose, bool):
+            raise ValueError(f"verbose must be a bool, got {self.verbose!r}")
+        if not isinstance(self.fit_scale_background, bool):
+            raise ValueError(
+                "fit_scale_background must be a bool, got "
+                f"{self.fit_scale_background!r}"
+            )
 
 
 @dataclass

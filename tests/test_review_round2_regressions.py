@@ -26,6 +26,11 @@ import warnings
 import numpy as np
 import pytest
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
+
 import lsi
 from lsi.config import (
     Grid,
@@ -501,8 +506,6 @@ def test_normalize_orders_still_normalizes_a_real_set():
 # packaging
 # --------------------------------------------------------------------------- #
 def test_version_has_a_single_source_of_truth():
-    import tomllib
-
     with (ROOT / "pyproject.toml").open("rb") as fh:
         project = tomllib.load(fh)["project"]
 
@@ -513,8 +516,6 @@ def test_version_has_a_single_source_of_truth():
 
 
 def test_declared_license_file_exists():
-    import tomllib
-
     with (ROOT / "pyproject.toml").open("rb") as fh:
         project = tomllib.load(fh)["project"]
 

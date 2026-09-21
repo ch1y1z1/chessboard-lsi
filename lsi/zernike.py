@@ -263,9 +263,22 @@ def as_wavefront(
 ) -> np.ndarray:
     """Evaluate ``W = sum_j c_j Z_j`` on the grid (coefficients in waves)."""
     coeffs = np.asarray(coeffs, dtype=float)
+    if coeffs.ndim != 1 or not np.all(np.isfinite(coeffs)):
+        raise ValueError("coeffs must be a finite one-dimensional sequence")
     if indices is None:
-        indices = range(1, len(coeffs) + 1)
-    W = np.zeros_like(np.asarray(x, dtype=float))
+        indices = list(range(1, len(coeffs) + 1))
+    else:
+        indices = list(indices)
+    if len(coeffs) != len(indices):
+        raise ValueError(
+            f"coeffs and indices must have the same length, got "
+            f"{len(coeffs)} and {len(indices)}"
+        )
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    if x.shape != y.shape:
+        raise ValueError(f"x and y must have the same shape, got {x.shape} and {y.shape}")
+    W = np.zeros_like(x)
     for c, j in zip(coeffs, indices):
         if c != 0.0:
             W = W + c * zernike_value(j, x, y)
