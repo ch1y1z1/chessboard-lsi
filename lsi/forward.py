@@ -35,7 +35,7 @@ Why the 5-beam superposition is *the* model
 Each order carries its own (translated) pupil, so the 2/3/4/5-beam overlap
 regions of figures 2-8 / 2-9 appear automatically: no hand-made region
 bookkeeping is required.  ``paper_region_intensity`` re-implements the
-dissertation's explicit 4-beam and 5-beam formulas (2-12) ... (2-15) so that
+dissertation's explicit 4-beam and 5-beam formulas (2-12) ... (2-16) so that
 the superposition model can be validated against them (see
 ``tests/test_forward_vs_paper.py``).
 """
@@ -615,7 +615,7 @@ def paper_region_intensity(
     A0: float = 0.5,
     A1: float | None = None,
 ) -> np.ndarray:
-    """Dissertation eqs. (2-12) ... (2-15), transcribed literally.
+    """Dissertation eqs. (2-12) ... (2-16), transcribed literally.
 
     ``region`` is one of
 

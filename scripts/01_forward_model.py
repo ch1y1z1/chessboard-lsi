@@ -6,7 +6,7 @@ Reproduces, step by step, chapter 2 of the dissertation:
   (表2-3: 0 order 25 %, each +-1 order 4.11 %, crossed grating 2.53 %),
 * the phase-shift law of 2.3.1 (period 8 frames along +x),
 * the superposition forward model ``I = |sum A exp(i[2 pi W + delta])|^2``
-  against the explicit 4-beam / 5-beam region formulas (2-12) ... (2-15).
+  against the explicit 4-beam / 5-beam region formulas (2-12) ... (2-16).
 
 Run:  python3 scripts/01_forward_model.py
 """
@@ -65,7 +65,7 @@ for k in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
     print(f"    (a,b)=({k[0]:+d},{k[1]:+d})  |A| = {abs(bit.with_orders([k]).amp[0]):.6f}")
 
 # --------------------------------------------------------------------------- #
-section("2. Superposition model vs the paper's region formulas (2-12) ... (2-15)")
+section("2. Superposition model vs the paper's region formulas (2-12) ... (2-16)")
 
 cfg = SystemConfig(grid=Grid(n=160, extent=1.10))
 s = cfg.s

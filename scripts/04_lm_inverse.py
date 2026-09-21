@@ -41,7 +41,7 @@ from lsi.lm import (
     multistart_fit,
 )
 from lsi.metrics import coefficient_error_metrics, coefficient_errors, rms
-from lsi.pipeline import phase_shift_to_wavefront
+from lsi.pipeline import fourier_to_wavefront, phase_shift_to_wavefront
 from lsi.plotting import imshow, new_fig, savefig
 from lsi.reconstruct import wavefront_on_grid
 
@@ -150,6 +150,41 @@ REPORT["lm_scale_background"] = {
     "scale": res_sb.scale,
     "background": res_sb.background,
     **err_metrics(table(res_sb), truth),
+}
+
+# Same scaled data through the demodulation routes: a uniform affine gain +
+# background cancels in the symmetric atan2 demodulation (sum of sin/cos over
+# a full 2*pi cycle is zero), and only adds a DC lobe for the Fourier route.
+fit_ps_sb, _ = phase_shift_to_wavefront(
+    fm, np.asarray(frames_scaled[:8]), np.asarray(frames_scaled[8:]),
+    indices=INDICES)
+m_ps_sb = err_metrics(
+    {int(j): float(v) for j, v in zip(fit_ps_sb.indices, fit_ps_sb.coeffs)},
+    truth)
+print(f"  phase-shift route on scaled frames: max |coefficient error| = "
+      f"{m_ps_sb['max_error_all_modes']:.2e}")
+
+I_sb = 2.3 * I + 0.17
+fit_ft_sb, _ = fourier_to_wavefront(fm_ft, I_sb, indices=INDICES)
+m_ft_sb = err_metrics(
+    {int(j): float(v) for j, v in zip(fit_ft_sb.indices, fit_ft_sb.coeffs)},
+    truth_ft)
+print(f"  Fourier route on scaled carrier frame: max |coefficient error| = "
+      f"{m_ft_sb['max_error_all_modes']:.2e}")
+
+res_ft_sb = fit_wavefront_from_carrier_frame(
+    fm_ft, proto(), I_sb, samples=8000,
+    config=LMConfig(max_iter=80, fit_scale_background=True))
+m_lm_ft_sb = err_metrics(table(res_ft_sb), truth_ft)
+print(f"  LM on scaled carrier frame: scale = {res_ft_sb.scale:.6f}, "
+      f"background = {res_ft_sb.background:+.6f}, "
+      f"max |coefficient error| = {m_lm_ft_sb['max_error_all_modes']:.2e}")
+REPORT["scale_background_routes"] = {
+    "phase_shift": m_ps_sb,
+    "fourier": m_ft_sb,
+    "lm_carrier": {"scale": res_ft_sb.scale,
+                   "background": res_ft_sb.background,
+                   **m_lm_ft_sb},
 }
 
 # --------------------------------------------------------------------------- #

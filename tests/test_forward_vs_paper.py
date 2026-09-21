@@ -1,5 +1,5 @@
 """The order-superposition forward model vs the dissertation's explicit
-4-beam / 5-beam region formulas, eqs. (2-12) ... (2-15).
+4-beam / 5-beam region formulas, eqs. (2-12) ... (2-16).
 
 The dissertation writes the intensity inside each overlap region as an
 explicit sum of cosine terms (with a common first-order amplitude
