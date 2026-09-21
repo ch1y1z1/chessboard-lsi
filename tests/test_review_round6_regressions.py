@@ -41,6 +41,7 @@ def _simple_diff(model: str = "one_sided") -> DiffPhase:
         phase={"x": zeros.copy(), "y": zeros.copy()},
         mask={"x": mask.copy(), "y": mask.copy()},
         difference_model=model,
+        grating_offset_removed={"x": True, "y": True},
         confidence={"x": confidence.copy(), "y": confidence.copy()},
     )
 
@@ -57,6 +58,35 @@ def test_reconstruct_uses_diff_model_and_rejects_an_explicit_mismatch():
 
     with pytest.raises(ValueError, match="difference_model"):
         _simple_diff("one-side")
+
+
+def test_reconstruct_rejects_missing_or_duplicate_grating_offset_correction():
+    model = ForwardModel(SystemConfig(grid=Grid(n=8, extent=1.1)))
+    corrected = _simple_diff("two_sided")
+
+    with pytest.raises(ValueError, match="subtract the grating offset twice"):
+        reconstruct(model, corrected, indices=[2], offset_mode="model")
+
+    raw = _simple_diff("two_sided")
+    raw.grating_offset_removed = {"x": False, "y": False}
+    with pytest.raises(ValueError, match="would leave the model grating offset"):
+        reconstruct(model, raw, indices=[2], offset_mode="none")
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        {"x": True},
+        {"x": True, "y": True, "z": False},
+        {"x": True, "y": 1},
+    ],
+)
+def test_diff_phase_validates_grating_offset_state(state):
+    diff = _simple_diff()
+    diff.grating_offset_removed = state
+
+    with pytest.raises(ValueError, match="grating_offset_removed"):
+        diff.__post_init__()
 
 
 def test_route_specific_confidence_reaches_weighted_reconstruction(monkeypatch):

@@ -132,9 +132,13 @@ class Grid:
         return self.radius() <= 1.0
 
 
-@dataclass
+@dataclass(frozen=True)
 class SystemConfig:
     """Physical + numerical configuration for the scalar air-pupil model.
+
+    Instances are immutable value objects so a :class:`ForwardModel` cannot
+    retain cached geometry from one configuration while reading live values
+    from a later mutation.  Use :func:`dataclasses.replace` to derive a variant.
 
     ``na`` is deliberately restricted to ``0 < NA <= 1``.  Supporting
     immersion ``NA > 1`` requires a refractive index, vector diffraction and
@@ -155,22 +159,45 @@ class SystemConfig:
     grid: Grid = field(default_factory=Grid)
 
     def __post_init__(self) -> None:
-        self.wavelength_nm = _as_float(
-            self.wavelength_nm, "wavelength_nm", low=0.0
+        object.__setattr__(
+            self,
+            "wavelength_nm",
+            _as_float(self.wavelength_nm, "wavelength_nm", low=0.0),
         )
-        self.na = _as_float(self.na, "na", low=0.0, high=1.0)
-        self.period_um = _as_float(self.period_um, "period_um", low=0.0)
+        object.__setattr__(
+            self, "na", _as_float(self.na, "na", low=0.0, high=1.0)
+        )
+        object.__setattr__(
+            self,
+            "period_um",
+            _as_float(self.period_um, "period_um", low=0.0),
+        )
         if self.shear_ratio is not None:
             # zero is excluded as well as one: ``carrier_f0 = m / (2 s)``
             # divides by it, and a zero shear has no overlap region at all.
-            self.shear_ratio = _as_float(
-                self.shear_ratio, "shear_ratio", low=0.0, high=1.0,
-                inclusive_high=False,
+            object.__setattr__(
+                self,
+                "shear_ratio",
+                _as_float(
+                    self.shear_ratio,
+                    "shear_ratio",
+                    low=0.0,
+                    high=1.0,
+                    inclusive_high=False,
+                ),
             )
         # ``lsq_phase_shift`` fits B + C cos d + S sin d, which needs three
         # frames; a smaller value here used to pass and fail only later.
-        self.phase_steps = _as_int(self.phase_steps, "phase_steps", minimum=3)
-        self.talbot_number = _as_int(self.talbot_number, "talbot_number", minimum=1)
+        object.__setattr__(
+            self,
+            "phase_steps",
+            _as_int(self.phase_steps, "phase_steps", minimum=3),
+        )
+        object.__setattr__(
+            self,
+            "talbot_number",
+            _as_int(self.talbot_number, "talbot_number", minimum=1),
+        )
         if not isinstance(self.grid, Grid):
             raise ValueError(f"grid must be a Grid, got {type(self.grid).__name__}")
 

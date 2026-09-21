@@ -58,12 +58,17 @@ class DiffPhase:
     to it and rejects an explicitly conflicting model.  ``confidence`` is the
     route-specific signal strength used for weighted reconstruction (phase-
     shift modulation or Fourier-lobe amplitude).
+
+    ``grating_offset_removed`` records whether each direction has already had
+    the model-predicted grating phase removed.  Reconstruction uses this state
+    to reject both a missing correction and a duplicate correction.
     """
 
     dW: dict[str, np.ndarray]
     phase: dict[str, np.ndarray]
     mask: dict[str, np.ndarray]
     difference_model: str
+    grating_offset_removed: dict[str, bool]
     wrapped_phase: dict[str, np.ndarray] = field(default_factory=dict)
     modulation: dict[str, np.ndarray] = field(default_factory=dict)
     amplitude: dict[str, np.ndarray] = field(default_factory=dict)
@@ -73,6 +78,16 @@ class DiffPhase:
 
     def __post_init__(self) -> None:
         self.difference_model = check_difference_model(self.difference_model)
+        state = dict(self.grating_offset_removed)
+        if set(state) != {"x", "y"} or not all(
+            isinstance(value, (bool, np.bool_)) for value in state.values()
+        ):
+            raise ValueError(
+                "grating_offset_removed must map both 'x' and 'y' to booleans"
+            )
+        self.grating_offset_removed = {
+            direction: bool(state[direction]) for direction in ("x", "y")
+        }
 
     def regions(self) -> tuple[np.ndarray, np.ndarray]:
         return self.mask["x"], self.mask["y"]
@@ -113,6 +128,12 @@ def _require_connected(mask: np.ndarray, what: str) -> np.ndarray:
             "the components separately or supply a connected mask."
         )
     return mask
+
+
+def _require_bool(value, name: str) -> bool:
+    if not isinstance(value, (bool, np.bool_)):
+        raise ValueError(f"{name} must be a boolean, got {value!r}")
+    return bool(value)
 
 
 def _fourier_pair_orders(
@@ -220,6 +241,7 @@ def demodulate_phase_shift(
             )
     check_region_mode(region_mode)
     check_unwrap_method(unwrap)
+    remove_offset = _require_bool(remove_offset, "remove_offset")
     n_frames = int(frames_x.shape[0])
     if frames_y.shape[0] != n_frames:
         raise ValueError(
@@ -315,6 +337,7 @@ def demodulate_phase_shift(
         dW=dW,
         phase=phase,
         difference_model="two_sided",
+        grating_offset_removed={"x": remove_offset, "y": remove_offset},
         wrapped_phase=wrapped_phase,
         mask={"x": masks["region_x"], "y": masks["region_y"]},
         modulation=mod,
@@ -356,6 +379,7 @@ def demodulate_fourier(
     check_direction(direction)
     check_difference_model(difference_model)
     check_unwrap_method(unwrap)
+    remove_offset = _require_bool(remove_offset, "remove_offset")
     positive, negative = _fourier_pair_orders(
         fm, direction, difference_model
     )
@@ -430,9 +454,11 @@ def reconstruct(
 
     ``offset_mode``
         ``"none"``     default: the demodulator already removed the
-                       model-predicted half-fringe constant,
+                       model-predicted half-fringe constant; rejected if the
+                       :class:`DiffPhase` says otherwise,
         ``"model"``    subtract the grating-model prediction here (use when
-                       the demodulation was run with ``remove_offset=False``),
+                       the demodulation was run with ``remove_offset=False``);
+                       rejected when every direction was already corrected,
         ``"estimate"`` estimate one free constant per direction -- only useful
                        when the beam amplitudes are unknown; note that such a
                        constant is collinear with the tilt column, so the tilt
@@ -461,10 +487,31 @@ def reconstruct(
     for direction, mask in diff.mask.items():
         _require_nonempty(mask, f"the {direction} reconstruction mask")
         _require_connected(mask, f"the {direction} reconstruction mask")
+    removed = diff.grating_offset_removed
+    if offset_mode == "none" and not all(removed.values()):
+        pending = [direction for direction, done in removed.items() if not done]
+        raise ValueError(
+            "offset_mode='none' would leave the model grating offset in "
+            f"direction(s) {pending}; use offset_mode='model' or 'estimate'"
+        )
     known = None
     if offset_mode == "model":
+        if all(removed.values()):
+            raise ValueError(
+                "offset_mode='model' would subtract the grating offset twice; "
+                "the DiffPhase already records it as removed"
+            )
         known = {
-            d: fm.demodulation_offset(d) / (np.pi if difference_model != "one_sided" else 2 * np.pi)
+            d: (
+                0.0
+                if removed[d]
+                else fm.demodulation_offset(d)
+                / (
+                    np.pi
+                    if difference_model != "one_sided"
+                    else 2 * np.pi
+                )
+            )
             for d in ("x", "y")
         }
     wx = wy = None
@@ -493,6 +540,9 @@ def fourier_to_wavefront(
     fm: ForwardModel, image: np.ndarray, *, indices=DEFAULT_INDICES,
     difference_model: str = "two_sided", offset_mode: str = "none", **kwargs,
 ) -> tuple[ZernikeFit, DiffPhase]:
+    remove_offset = _require_bool(
+        kwargs.get("remove_offset", True), "remove_offset"
+    )
     dWx, mask_x, lobe_x = demodulate_fourier(fm, image, direction="x",
                                              difference_model=difference_model, **kwargs)
     dWy, mask_y, lobe_y = demodulate_fourier(fm, image, direction="y",
@@ -504,6 +554,7 @@ def fourier_to_wavefront(
             "y": lobe_y.unwrapped_phase,
         },
         difference_model=difference_model,
+        grating_offset_removed={"x": remove_offset, "y": remove_offset},
         wrapped_phase={"x": lobe_x.phase, "y": lobe_y.phase},
         mask={"x": mask_x, "y": mask_y},
         amplitude={"x": lobe_x.amplitude, "y": lobe_y.amplitude},

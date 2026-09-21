@@ -95,6 +95,10 @@ def _diff_phase(fm, image, **kwargs):
         phase=phase,
         mask=mask,
         difference_model=kwargs.get("difference_model", "two_sided"),
+        grating_offset_removed={
+            "x": kwargs.get("remove_offset", True),
+            "y": kwargs.get("remove_offset", True),
+        },
         confidence=confidence,
     )
 

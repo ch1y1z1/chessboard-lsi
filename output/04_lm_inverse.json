@@ -2,7 +2,9 @@
   "lm_phaseshift": {
     "n_iter": 6,
     "time_s": 0.20642805099487305,
-    "max_err": 1.8797463585684682e-13
+    "max_error_all_modes": 1.8797463585684682e-13,
+    "max_error_nonzero_truth_modes": 1.8797463585684682e-13,
+    "max_leakage_into_zero_modes": 7.09388280947939e-14
   },
   "lm_single_frame": {
     "n_iter": 6,
@@ -12,7 +14,10 @@
   },
   "lm_scale_background": {
     "scale": 2.2999999999999936,
-    "background": 0.17000000000001014
+    "background": 0.17000000000001014,
+    "max_error_all_modes": 3.6137759451548845e-14,
+    "max_error_nonzero_truth_modes": 3.6137759451548845e-14,
+    "max_leakage_into_zero_modes": 3.5825813323935974e-14
   },
   "lm_noise": {
     "snr_db": [
@@ -22,7 +27,21 @@
       30,
       20
     ],
-    "max_coef_error": [
+    "max_error_all_modes": [
+      0.00017397701492515857,
+      0.0005501464360523384,
+      0.0017395415282221531,
+      0.005499095320539689,
+      0.017369205457024736
+    ],
+    "max_error_nonzero_truth_modes": [
+      2.7368934779586906e-05,
+      8.651833326660946e-05,
+      0.0002732953375286784,
+      0.0008611994185949018,
+      0.0026917395232782804
+    ],
+    "max_leakage_into_zero_modes": [
       0.00017397701492515857,
       0.0005501464360523384,
       0.0017395415282221531,

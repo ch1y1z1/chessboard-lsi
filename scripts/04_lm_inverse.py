@@ -40,7 +40,7 @@ from lsi.lm import (
     fit_wavefront_from_frames,
     multistart_fit,
 )
-from lsi.metrics import rms
+from lsi.metrics import coefficient_error_metrics, coefficient_errors, rms
 from lsi.pipeline import phase_shift_to_wavefront
 from lsi.plotting import imshow, new_fig, savefig
 from lsi.reconstruct import wavefront_on_grid
@@ -64,7 +64,11 @@ def proto(n=len(INDICES)):
 
 
 def errs(tab, truth):
-    return {int(j): tab[int(j)] - float(c) for j, c in zip(truth.indices, truth.coeffs)}
+    return coefficient_errors(tab, truth.indices, truth.coeffs)
+
+
+def err_metrics(tab, truth):
+    return coefficient_error_metrics(tab, truth.indices, truth.coeffs)
 
 
 # --------------------------------------------------------------------------- #
@@ -88,14 +92,18 @@ print(f"  {res.n_iter} LM iterations, {res.n_residual} residuals, {dt:.2f} s")
 print(f"  final cost = {res.cost:.3e} (rms residual = {res.rms_residual:.3e})")
 print("  coefficient errors (wave):",
       ", ".join(f"Z{j}:{e:+.2e}" for j, e in sorted(errs(tab, truth).items())))
-print(f"  max |coefficient error| = {max(abs(v) for v in errs(tab, truth).values()):.2e}")
+metrics = err_metrics(tab, truth)
+print(f"  max |error| over all {len(INDICES)} fitted modes = "
+      f"{metrics['max_error_all_modes']:.2e}")
+print(f"  max leakage into a zero-truth mode = "
+      f"{metrics['max_leakage_into_zero_modes']:.2e}")
 
 fit_ps, _ = phase_shift_to_wavefront(fm, fx, fy, indices=INDICES)
 tab_ps = {int(j): float(v) for j, v in zip(fit_ps.indices, fit_ps.coeffs)}
 print(f"  for comparison, the phase-shift demodulation route gives "
-      f"{max(abs(tab_ps[int(j)] - float(c)) for j, c in zip(truth.indices, truth.coeffs)):.2e}")
+      f"{err_metrics(tab_ps, truth)['max_error_all_modes']:.2e}")
 REPORT["lm_phaseshift"] = {"n_iter": res.n_iter, "time_s": dt,
-                           "max_err": float(max(abs(v) for v in errs(tab, truth).values()))}
+                           **metrics}
 
 x, y = cfg.grid.coords()
 pupil = cfg.grid.pupil()
@@ -137,22 +145,39 @@ res_sb = fit_wavefront_from_frames(
 print(f"  fitted scale = {res_sb.scale:.6f} (true 2.3), background = {res_sb.background:+.6f} "
       f"(true 0.17)")
 print(f"  max |coefficient error| = "
-      f"{max(abs(v) for v in errs(table(res_sb), truth).values()):.2e}")
-REPORT["lm_scale_background"] = {"scale": res_sb.scale, "background": res_sb.background}
+      f"{err_metrics(table(res_sb), truth)['max_error_all_modes']:.2e}")
+REPORT["lm_scale_background"] = {
+    "scale": res_sb.scale,
+    "background": res_sb.background,
+    **err_metrics(table(res_sb), truth),
+}
 
 # --------------------------------------------------------------------------- #
 section("4. Noise")
 
 noise_snrs = (60, 50, 40, 30, 20)
-noise_errs = []
+noise_metrics = []
 for snr in noise_snrs:
     noisy = add_noise(frames, snr_db=snr, seed=3)
     r = fit_wavefront_from_frames(fm, proto(), noisy, deltas, samples=6000,
                                   config=LMConfig(max_iter=80))
-    e = max(abs(v) for v in errs(table(r), truth).values())
-    noise_errs.append(e)
-    print(f"  SNR {snr:3d} dB : max |coefficient error| = {e:.4f} wave")
-REPORT["lm_noise"] = {"snr_db": list(noise_snrs), "max_coef_error": noise_errs}
+    metric = err_metrics(table(r), truth)
+    noise_metrics.append(metric)
+    print(f"  SNR {snr:3d} dB : max all-mode error = "
+          f"{metric['max_error_all_modes']:.4f} wave "
+          f"(zero-mode leakage {metric['max_leakage_into_zero_modes']:.4f})")
+REPORT["lm_noise"] = {
+    "snr_db": list(noise_snrs),
+    "max_error_all_modes": [
+        metric["max_error_all_modes"] for metric in noise_metrics
+    ],
+    "max_error_nonzero_truth_modes": [
+        metric["max_error_nonzero_truth_modes"] for metric in noise_metrics
+    ],
+    "max_leakage_into_zero_modes": [
+        metric["max_leakage_into_zero_modes"] for metric in noise_metrics
+    ],
+}
 
 # --------------------------------------------------------------------------- #
 section("5. Large aberration (6 waves of coma): LM vs demodulation")

@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lsi.config import Grid, SystemConfig
 from lsi.forward import ForwardModel, ZernikeWavefront, add_noise
-from lsi.metrics import pv, rms, wavefront_error
+from lsi.metrics import coefficient_error_metrics, pv, rms, wavefront_error
 from lsi.phaseshift import lsq_phase_shift, zero_order_center_radius
 from lsi.pipeline import demodulate_phase_shift, phase_shift_to_wavefront
 from lsi.plotting import imshow, new_fig, savefig
@@ -114,9 +114,11 @@ fx = fm.phase_shift_frames(truth_mix, "x", 8)
 fy = fm.phase_shift_frames(truth_mix, "y", 8)
 fit_mix, _ = phase_shift_to_wavefront(fm, fx, fy, indices=INDICES)
 tab_mix = table(fit_mix)
-worst = max(abs(tab_mix[int(j)] - float(c)) for j, c in zip(truth_mix.indices, truth_mix.coeffs))
+worst = coefficient_error_metrics(
+    tab_mix, truth_mix.indices, truth_mix.coeffs
+)["max_error_all_modes"]
 print(f"  mixed wavefront: max |coefficient error| = {worst:.3e} wave "
-      f"({len(truth_mix.indices)} terms)")
+      f"({len(INDICES)} fitted modes)")
 
 snr_list = [60, 50, 40, 30, 20, 10]
 errs = []
@@ -125,7 +127,9 @@ for snr in snr_list:
     fy = add_noise(fm.phase_shift_frames(truth_mix, "y", 8), snr_db=snr, seed=2)
     f, _ = phase_shift_to_wavefront(fm, fx, fy, indices=INDICES, unwrap="poisson")
     t = table(f)
-    errs.append(max(abs(t[int(j)] - float(c)) for j, c in zip(truth_mix.indices, truth_mix.coeffs)))
+    errs.append(coefficient_error_metrics(
+        t, truth_mix.indices, truth_mix.coeffs
+    )["max_error_all_modes"])
     print(f"  SNR {snr:3d} dB : max |coefficient error| = {errs[-1]:.4f} wave")
 REPORT["noise"] = {"snr_db": snr_list, "max_coeff_error": errs}
 
@@ -151,18 +155,28 @@ print(f"  demodulated phase of the y pair carries "
 from lsi.pipeline import reconstruct
 
 for mode in ("none", "model", "estimate"):
-    kwargs = {}
     if mode == "none":
-        d = demodulate_phase_shift(fm0, fm0.phase_shift_frames(truth, "x", 8),
-                                   fm0.phase_shift_frames(truth, "y", 8), remove_offset=False)
+        d = demodulate_phase_shift(
+            fm0,
+            fm0.phase_shift_frames(truth, "x", 8),
+            fm0.phase_shift_frames(truth, "y", 8),
+        )
         f = reconstruct(fm0, d, indices=INDICES, offset_mode="none")
     elif mode == "model":
-        d = demodulate_phase_shift(fm0, fm0.phase_shift_frames(truth, "x", 8),
-                                   fm0.phase_shift_frames(truth, "y", 8), remove_offset=False)
+        d = demodulate_phase_shift(
+            fm0,
+            fm0.phase_shift_frames(truth, "x", 8),
+            fm0.phase_shift_frames(truth, "y", 8),
+            remove_offset=False,
+        )
         f = reconstruct(fm0, d, indices=INDICES, offset_mode="model")
     else:
-        d = demodulate_phase_shift(fm0, fm0.phase_shift_frames(truth, "x", 8),
-                                   fm0.phase_shift_frames(truth, "y", 8))
+        d = demodulate_phase_shift(
+            fm0,
+            fm0.phase_shift_frames(truth, "x", 8),
+            fm0.phase_shift_frames(truth, "y", 8),
+            remove_offset=False,
+        )
         f = reconstruct(fm0, d, indices=INDICES, offset_mode="estimate")
     t = table(f)
     print(f"  offset handling '{mode:8s}': Z2 = {t[2]:+9.4f}, Z7 = {t[7]:.6f}, cond = {f.cond:.1e}")

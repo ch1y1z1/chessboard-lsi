@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import json
 from pathlib import Path
 from typing import Sequence
@@ -13,6 +14,8 @@ __all__ = [
     "rms",
     "wavefront_error",
     "coefficient_comparison",
+    "coefficient_errors",
+    "coefficient_error_metrics",
     "summary_table",
     "dump_json",
 ]
@@ -79,6 +82,65 @@ def coefficient_comparison(
             {"j": int(j), "fitted": float(a), "true": float(b), "error": float(a - b)}
         )
     return out
+
+
+def coefficient_errors(
+    fitted: Mapping[int, float],
+    truth_indices: Sequence[int],
+    truth_coeffs: Sequence[float],
+) -> dict[int, float]:
+    """Error for every fitted mode, with omitted truth modes treated as zero."""
+    truth_indices = [int(j) for j in truth_indices]
+    truth_coeffs = [float(c) for c in truth_coeffs]
+    if len(truth_indices) != len(truth_coeffs):
+        raise ValueError(
+            "truth_indices and truth_coeffs must have the same length, got "
+            f"{len(truth_indices)} and {len(truth_coeffs)}"
+        )
+    if len(set(truth_indices)) != len(truth_indices):
+        raise ValueError("truth_indices must not contain duplicates")
+    truth = dict(zip(truth_indices, truth_coeffs))
+    return {
+        int(j): float(value) - truth.get(int(j), 0.0)
+        for j, value in fitted.items()
+    }
+
+
+def coefficient_error_metrics(
+    fitted: Mapping[int, float],
+    truth_indices: Sequence[int],
+    truth_coeffs: Sequence[float],
+    *,
+    exclude_indices: Sequence[int] = (),
+) -> dict[str, float]:
+    """Summarize fitted-mode error, including leakage into zero-truth modes."""
+    excluded = {int(j) for j in exclude_indices}
+    selected = {
+        int(j): float(value)
+        for j, value in fitted.items()
+        if int(j) not in excluded
+    }
+    errors = coefficient_errors(selected, truth_indices, truth_coeffs)
+    truth = {
+        int(j): float(c)
+        for j, c in zip(truth_indices, truth_coeffs)
+        if int(j) not in excluded
+    }
+    signal_errors = [
+        abs(error)
+        for j, error in errors.items()
+        if truth.get(j, 0.0) != 0.0
+    ]
+    leakage = [
+        abs(error)
+        for j, error in errors.items()
+        if truth.get(j, 0.0) == 0.0
+    ]
+    return {
+        "max_error_all_modes": max(map(abs, errors.values()), default=0.0),
+        "max_error_nonzero_truth_modes": max(signal_errors, default=0.0),
+        "max_leakage_into_zero_modes": max(leakage, default=0.0),
+    }
 
 
 def summary_table(rows: dict[str, dict[str, float]], title: str = "") -> str:

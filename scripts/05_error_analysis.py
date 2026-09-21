@@ -2,10 +2,10 @@
 
 Studied here:
 
-* grating duty cycle error (4.1.1) -- changes efficiency, not the phase,
+* grating duty cycle error (4.1.1) -- changes complex order coefficients,
 * phase-shift step error delta (4.2 / the 4-step algorithm is much more
   sensitive than 8-step),
-* shear (grating pitch) error -- the classic Zernike-fit scale error,
+* shear-ratio error -- separated from the inverse grating-period error,
 * detector noise,
 * number of phase steps.
 
@@ -14,6 +14,7 @@ Run:  python3 scripts/05_error_analysis.py
 
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 import os
 import sys
@@ -25,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from lsi.config import Grid, SystemConfig
 from lsi.forward import ForwardModel, ZernikeWavefront, add_noise
 from lsi.grating import analytic_orders, bitmap_orders
+from lsi.metrics import coefficient_error_metrics, coefficient_errors
 from lsi.pipeline import phase_shift_to_wavefront
 from lsi.plotting import new_fig, savefig
 
@@ -41,7 +43,7 @@ def section(title):
 
 
 def run(cfg, truth, *, n_steps=8, orders=None, fit_orders=None, delta_error_deg=0.0,
-        shear_error=0.0, noise_db=None, seed=0):
+        shear_rel_error=0.0, noise_db=None, seed=0):
     fm = ForwardModel(cfg, orders) if orders is not None else ForwardModel(cfg)
     fm_fit = fm if fit_orders is None else ForwardModel(cfg, fit_orders)
     def frames(direction, jitter=False):
@@ -70,15 +72,16 @@ def run(cfg, truth, *, n_steps=8, orders=None, fit_orders=None, delta_error_deg=
         diff = demodulate_phase_shift(fm_fit, fx, fy)
         fit = reconstruct(fm_fit, diff, indices=INDICES)
         return {int(j): float(v) for j, v in zip(fit.indices, fit.coeffs)}
-    # the shear is proportional to the grating pitch: a pitch error is a
-    # relative shear error ds/s
-    fm_fit = ForwardModel(SystemConfig(grid=cfg.grid, period_um=cfg.period_um * (1.0 + shear_error)))
     fit, _ = phase_shift_to_wavefront(fm, fx, fy, indices=INDICES)
-    if shear_error:
+    if shear_rel_error:
         # reconstruction uses the wrong shear: rebuild the differential data
-        # with the nominal shear but fit with the perturbed one
+        # with the true shear but fit with s_fit = s_true * (1 + eps_s).
         from lsi.pipeline import demodulate_phase_shift, reconstruct
 
+        cfg_fit = replace(
+            cfg, shear_ratio=cfg.s * (1.0 + shear_rel_error)
+        )
+        fm_fit = ForwardModel(cfg_fit)
         diff = demodulate_phase_shift(fm, fx, fy)
         fit = reconstruct(fm_fit, diff, indices=INDICES)
     return {int(j): float(v) for j, v in zip(fit.indices, fit.coeffs)}
@@ -100,20 +103,23 @@ def run_jitter(cfg, truth, n_steps, ddeg):
     return {int(j): float(v) for j, v in zip(fit.indices, fit.coeffs)}
 
 
+def error_metrics(tab, truth, skip_tilt=True):
+    """Errors over every fitted mode; tilt is optionally reported separately."""
+    return coefficient_error_metrics(
+        tab,
+        truth.indices,
+        truth.coeffs,
+        exclude_indices=(2, 3) if skip_tilt else (),
+    )
+
+
 def maxerr(tab, truth, skip_tilt=True):
-    """max |coefficient error|; the tilt terms (Z2, Z3) are reported separately
-    because they are degenerate with the half-fringe constant of the grating."""
-    terms = [(j, c) for j, c in zip(truth.indices, truth.coeffs)
-             if not (skip_tilt and int(j) in (2, 3))]
-    return max(abs(tab[int(j)] - float(c)) for j, c in terms)
+    return error_metrics(tab, truth, skip_tilt)["max_error_all_modes"]
 
 
 def tilterr(tab, truth):
-    out = 0.0
-    for j, c in zip(truth.indices, truth.coeffs):
-        if int(j) in (2, 3):
-            out = max(out, abs(tab[int(j)] - float(c)))
-    return out
+    errors = coefficient_errors(tab, truth.indices, truth.coeffs)
+    return max((abs(errors[j]) for j in (2, 3) if j in errors), default=0.0)
 
 
 cfg = SystemConfig(grid=Grid(n=96, extent=1.10))
@@ -138,21 +144,33 @@ for duty in (0.40, 0.45, 0.50, 0.55, 0.60):
     eff = 4.0 * abs(a1) ** 2
     tab = run(cfg, truth, orders=five)
     tab_no = run(cfg, truth, orders=five, fit_orders=NOMINAL)
-    e, tl = maxerr(tab, truth), tilterr(tab, truth)
-    en, tln = maxerr(tab_no, truth), tilterr(tab_no, truth)
+    metric, tl = error_metrics(tab, truth), tilterr(tab, truth)
+    metric_no, tln = error_metrics(tab_no, truth), tilterr(tab_no, truth)
+    e = metric["max_error_all_modes"]
+    en = metric_no["max_error_all_modes"]
     # every integer/half-integer detector harmonic (not only the five beams),
     # including orders that appear away from 50 % duty -> higher-order crosstalk
     tab_all = run(cfg, truth, orders=analytic_orders(max_index=3, duty=duty))
     tiny = lambda z: 0.0 if abs(z) < 1e-12 else float(z)
-    rows.append({"duty": duty, "A00": dc, "A10": abs(a1), "eff_pct": eff * 100,
-                 "arg_A10": tiny(np.angle(a1)), "arg_A01": tiny(np.angle(a2)),
-                 "max_coef_error": e, "tilt_error": tl,
-                 "max_coef_error_nominal_prior": en, "tilt_error_nominal_prior": tln,
-                 "max_coef_error_all_orders": maxerr(tab_all, truth),
-                 "tilt_error_all_orders": tilterr(tab_all, truth)})
+    metric_all = error_metrics(tab_all, truth)
+    rows.append({
+        "duty": duty, "A00": dc, "A10": abs(a1), "eff_pct": eff * 100,
+        "arg_A10": tiny(np.angle(a1)), "arg_A01": tiny(np.angle(a2)),
+        "max_coef_error": e,
+        "max_leakage": metric["max_leakage_into_zero_modes"],
+        "tilt_error": tl,
+        "max_coef_error_nominal_prior": en,
+        "max_leakage_nominal_prior": metric_no["max_leakage_into_zero_modes"],
+        "tilt_error_nominal_prior": tln,
+        "max_coef_error_all_orders": metric_all["max_error_all_modes"],
+        "max_leakage_all_orders": metric_all["max_leakage_into_zero_modes"],
+        "tilt_error_all_orders": tilterr(tab_all, truth),
+    })
     print(f"  {duty:.2f}   {dc:.4f}   {abs(a1):.5f}   {tiny(np.angle(a1)):+8.4f}    {tiny(np.angle(a2)):+8.4f}"
           f"   {eff*100:6.2f}   | {e:.2e} {tl:7.2f} | {en:.2e}  {tln:6.2f}")
-print("  -> the duty error changes only the *amplitudes*; the wavefront shape is exact")
+print("  -> duty changes the complex order coefficients: efficiency and, under")
+print("     this fixed-edge unit-cell convention, an order-dependent constant phase.")
+print("     The recovered wavefront shape is exact")
 print(f"     (<= {max(r['max_coef_error'] for r in rows):.1e} wave) whenever the amplitudes used for the")
 print("     demodulation match the real grating.  The constant that a two-sided")
 print("     shearing interferogram cannot separate from tilt moves as arg A_10 =")
@@ -205,17 +223,28 @@ print("     (no advantage for more steps); random step jitter is comparable.")
 REPORT["delta_error"] = rows
 
 # --------------------------------------------------------------------------- #
-section("3. Shear / grating-pitch error (scale error of the Zernike fit)")
+section("3. Shear-ratio error (distinct from inverse grating-period error)")
 rows = []
 for eps in (-0.05, -0.02, -0.01, 0.0, 0.01, 0.02, 0.05):
-    tab = run(cfg, truth, shear_error=eps)
-    e = maxerr(tab, truth)
+    tab = run(cfg, truth, shear_rel_error=eps)
+    metric = error_metrics(tab, truth)
+    e = metric["max_error_all_modes"]
     rel = np.linalg.norm([tab[int(j)] for j in INDICES]) / np.linalg.norm([float(c) for c in truth.coeffs])
-    rows.append({"shear_rel_error": eps, "max_coef_error": e, "coef_norm_ratio": float(rel)})
+    rows.append({
+        "shear_rel_error": eps,
+        "max_coef_error": e,
+        "max_error_nonzero_truth_modes": metric["max_error_nonzero_truth_modes"],
+        "max_leakage_into_zero_modes": metric["max_leakage_into_zero_modes"],
+        "coef_norm_ratio": float(rel),
+        "first_order_scale_prediction": 1.0 / (1.0 + eps),
+    })
     print(f"  ds/s = {eps:+.3f} : max |coeff error| = {e:.4f} wave, "
+          f"leakage = {metric['max_leakage_into_zero_modes']:.4f}, "
           f"coefficient-norm ratio = {rel:.4f}")
-print("  -> a shear error scales the whole coefficient vector (the shear is the")
-print("     ruler of the measurement); the dominant term follows Z7 -> Z7(1+eps).")
+print("  -> to first order the dominant coefficient follows 1/(1+eps_s), but")
+print("     finite shear and the full differential basis also permit modal coupling.")
+print("     A grating-period error eps_p is a different variable:")
+print("     eps_s = -eps_p/(1+eps_p), because s is proportional to 1/p.")
 REPORT["shear_error"] = rows
 
 # --------------------------------------------------------------------------- #
@@ -244,7 +273,7 @@ axes[0, 0].legend(), axes[0, 0].grid(alpha=0.3), axes[0, 0].set_title("step erro
 sh = [r["shear_rel_error"] for r in REPORT["shear_error"]]
 axes[0, 1].plot(sh, [r["max_coef_error"] for r in REPORT["shear_error"]], "o-")
 axes[0, 1].set_xlabel("relative shear error"), axes[0, 1].set_ylabel("max |coeff error| (wave)")
-axes[0, 1].grid(alpha=0.3), axes[0, 1].set_title("shear (period) error")
+axes[0, 1].grid(alpha=0.3), axes[0, 1].set_title("reconstruction shear error")
 
 du = [r["duty"] for r in REPORT["duty"]]
 axes[1, 0].plot(du, [r["eff_pct"] for r in REPORT["duty"]], "o-", color="tab:blue",

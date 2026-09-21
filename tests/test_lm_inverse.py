@@ -64,8 +64,11 @@ def test_lm_recovers_wavefront_from_phase_shift_frames():
         config=LMConfig(max_iter=60, verbose=False),
     )
     table = {int(j): v for j, v in zip(INDICES, res.x)}
-    for j, c in zip(truth.indices, truth.coeffs):
-        assert table[int(j)] == pytest.approx(float(c), abs=2e-4), j
+    expected = {
+        int(j): float(c) for j, c in zip(truth.indices, truth.coeffs)
+    }
+    for j in INDICES:
+        assert table[j] == pytest.approx(expected.get(j, 0.0), abs=2e-4), j
     assert res.converged or res.cost < 1e-12
     assert res.rank == res.n_parameters
 
@@ -81,8 +84,9 @@ def test_lm_works_from_a_single_carrier_frame():
         fm, proto, I, samples=8000, config=LMConfig(max_iter=80),
     )
     table = {int(j): v for j, v in zip(INDICES, res.x)}
-    assert table[7] == pytest.approx(0.8, abs=5e-3)
-    assert abs(table[4]) < 5e-3
+    for j in INDICES:
+        expected = 0.8 if j == 7 else 0.0
+        assert table[j] == pytest.approx(expected, abs=5e-3), j
 
 
 def test_lm_beats_phase_shift_route_for_large_aberration():

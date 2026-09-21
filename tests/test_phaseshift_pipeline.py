@@ -54,8 +54,11 @@ def test_recovers_mixed_aberration():
     _, fit, _ = _run(_mixed())
     truth = _mixed()
     got = fit.as_dict()
-    for j, c in zip(truth.indices, truth.coeffs):
-        assert got[int(j)] == pytest.approx(float(c), abs=1e-9), j
+    expected = {
+        int(j): float(c) for j, c in zip(truth.indices, truth.coeffs)
+    }
+    for j in INDICES:
+        assert got[j] == pytest.approx(expected.get(j, 0.0), abs=1e-9), j
 
 
 def test_wavefront_matches_truth_on_pupil():
@@ -123,18 +126,28 @@ def test_tilt_is_degenerate_with_the_constant_offset():
     """
     cfg = CFG
     _, fit_ok, _ = _run(_coma(), cfg)                      # offset removed
-    _, fit_raw, _ = _run(_coma(), cfg, remove_offset=False)  # offset ignored
+    # Raw data must explicitly request the model correction.  Silently ignoring
+    # the offset used to produce a spurious 1/(2s) tilt.
+    with pytest.raises(ValueError, match="would leave the model grating offset"):
+        _run(_coma(), cfg, remove_offset=False)
+    _, fit_model, _ = _run(
+        _coma(), cfg, remove_offset=False, offset_mode="model"
+    )
+    with pytest.raises(ValueError, match="subtract the grating offset twice"):
+        _run(_coma(), cfg, offset_mode="model")
     # fitting the offset makes the design matrix rank deficient; the fit warns
     # instead of silently returning a min-norm answer
     with pytest.warns(UserWarning, match="rank deficient"):
-        _, fit_est, _ = _run(_coma(), cfg, offset_mode="estimate")
+        _, fit_est, _ = _run(
+            _coma(), cfg, remove_offset=False, offset_mode="estimate"
+        )
     assert abs(fit_ok.as_dict()[2]) < 1e-9
-    assert fit_raw.as_dict()[2] == pytest.approx(1.0 / (2 * cfg.s), rel=1e-6)
+    assert fit_model.coeffs == pytest.approx(fit_ok.coeffs, abs=1e-9)
     # a free constant is exactly collinear with the tilt column: the system
     # becomes singular and the tilt is simply not determined by the data
     assert fit_est.cond > 1e6
     assert fit_ok.cond < 1e3
-    for fit in (fit_ok, fit_raw, fit_est):
+    for fit in (fit_ok, fit_model, fit_est):
         assert fit.as_dict()[7] == pytest.approx(1.0, abs=1e-8)
 
 
@@ -147,7 +160,13 @@ def test_noise_sensitivity():
         fx = add_noise(fm.phase_shift_frames(truth, "x", 8), snr_db=snr, seed=1)
         fy = add_noise(fm.phase_shift_frames(truth, "y", 8), snr_db=snr, seed=2)
         fit, _ = phase_shift_to_wavefront(
-            fm, fx, fy, indices=INDICES, offset_mode="model", unwrap="poisson"
+            fm,
+            fx,
+            fy,
+            indices=INDICES,
+            offset_mode="model",
+            remove_offset=False,
+            unwrap="poisson",
         )
         results[snr] = fit.as_dict()[7]
     assert results[60] == pytest.approx(1.0, abs=0.02)
