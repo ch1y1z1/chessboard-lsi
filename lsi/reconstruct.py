@@ -32,6 +32,7 @@ from typing import Sequence
 import numpy as np
 import warnings
 
+from .config import _as_int_array, check_difference_model
 from .zernike import differential_zernike_matrix
 
 __all__ = ["ZernikeFit", "fit_differential_zernike", "wavefront_on_grid"]
@@ -141,16 +142,64 @@ def fit_differential_zernike(
     tilt coefficients become meaningless unless the beam amplitudes are
     genuinely unknown.
     """
+    check_difference_model(difference_model)
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    if x.shape != y.shape or x.size == 0:
+        raise ValueError(
+            f"x and y must have the same non-empty shape, got {x.shape} and {y.shape}"
+        )
+    if not np.all(np.isfinite(x)) or not np.all(np.isfinite(y)):
+        raise ValueError("x and y must contain only finite values")
+    if not np.isfinite(shear) or shear <= 0.0:
+        raise ValueError(f"shear must be positive and finite, got {shear!r}")
+
+    indices = _as_int_array(list(indices), "indices", ndim=1, minimum=1)
+    if indices.size == 0:
+        raise ValueError("indices must contain at least one fitted mode")
+    if len(np.unique(indices)) != len(indices):
+        raise ValueError("indices must not contain duplicates")
+    if 1 in indices:
+        raise ValueError(
+            "piston Z1 has zero differential signal; remove it from indices"
+        )
+
+    def data_array(value, name, *, boolean=False):
+        if value is None:
+            return None
+        array = np.asarray(value, dtype=bool if boolean else float)
+        if array.shape != x.shape:
+            raise ValueError(f"{name} must have shape {x.shape}, got {array.shape}")
+        return array
+
+    dW_x = data_array(dW_x, "dW_x")
+    dW_y = data_array(dW_y, "dW_y")
+    mask_x = data_array(mask_x, "mask_x", boolean=True)
+    mask_y = data_array(mask_y, "mask_y", boolean=True)
+    weights_x = data_array(weights_x, "weights_x")
+    weights_y = data_array(weights_y, "weights_y")
+    for name, weight in (("weights_x", weights_x), ("weights_y", weights_y)):
+        if weight is not None and (
+            not np.all(np.isfinite(weight)) or np.any(weight < 0.0)
+        ):
+            raise ValueError(f"{name} must contain finite non-negative values")
+    if known_offsets is not None:
+        unknown = set(known_offsets) - {"x", "y"}
+        if unknown:
+            raise ValueError(f"unknown known_offsets directions: {sorted(unknown)}")
+        if not all(np.isfinite(value) for value in known_offsets.values()):
+            raise ValueError("known_offsets values must be finite")
+
     dW, masks = {}, {}
     if dW_x is not None:
-        dW["x"] = np.asarray(dW_x, dtype=float)
+        dW["x"] = dW_x
         masks["x"] = (
-            np.ones_like(dW_x, dtype=bool) if mask_x is None else np.asarray(mask_x, bool)
+            np.ones_like(dW_x, dtype=bool) if mask_x is None else mask_x
         )
     if dW_y is not None:
-        dW["y"] = np.asarray(dW_y, dtype=float)
+        dW["y"] = dW_y
         masks["y"] = (
-            np.ones_like(dW_y, dtype=bool) if mask_y is None else np.asarray(mask_y, bool)
+            np.ones_like(dW_y, dtype=bool) if mask_y is None else mask_y
         )
     if known_offsets:
         for direction in ("x", "y"):
@@ -162,7 +211,6 @@ def fit_differential_zernike(
     if weights_y is not None:
         weights["y"] = weights_y
 
-    indices = np.asarray(list(indices), dtype=int)
     A, b, w, n_off, tags = _build_system(
         dW, masks, shear, indices, fit_offsets, weights or None, x, y,
         difference_model,

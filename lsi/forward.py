@@ -48,7 +48,7 @@ from typing import Callable, Iterable, Sequence
 import numpy as np
 import warnings
 
-from .config import Grid, SystemConfig, check_direction
+from .config import Grid, SystemConfig, _as_int, _as_int_array, check_direction
 from .grating import OrderSet, analytic_orders
 from .zernike import zernike_value
 
@@ -68,8 +68,10 @@ DEFAULT_ORDERS_5: tuple[tuple[int, int], ...] = (
     (0, 1),
     (0, -1),
 )
+# Dissertation section 3.1.2 retains only the four physical (3, 3)-family
+# third orders.  In the detector frame these lie on the coordinate axes.
 DEFAULT_ORDERS_9: tuple[tuple[int, int], ...] = DEFAULT_ORDERS_5 + (
-    (2, 1), (2, -1), (-2, 1), (-2, -1),
+    (3, 0), (-3, 0), (0, 3), (0, -3),
 )
 
 
@@ -89,9 +91,17 @@ class ZernikeWavefront:
 
     def __post_init__(self) -> None:
         self.coeffs = np.atleast_1d(np.asarray(self.coeffs, dtype=float))
-        self.indices = np.atleast_1d(np.asarray(self.indices, dtype=int))
+        self.indices = np.atleast_1d(
+            _as_int_array(self.indices, "indices", minimum=1)
+        )
+        if self.coeffs.ndim != 1 or self.indices.ndim != 1:
+            raise ValueError("coeffs and indices must be one-dimensional")
         if len(self.coeffs) != len(self.indices):
             raise ValueError("coeffs and indices must have the same length")
+        if not np.all(np.isfinite(self.coeffs)):
+            raise ValueError("coeffs must contain only finite values")
+        if len(np.unique(self.indices)) != len(self.indices):
+            raise ValueError("indices must not contain duplicates")
 
     # -- evaluation ----------------------------------------------------- #
     def w(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -402,7 +412,9 @@ class ForwardModel:
         least-squares algorithm of dissertation eq. (2-20).
         """
         check_direction(direction)
-        n_steps = n_steps or self.config.phase_steps
+        if n_steps is None:
+            n_steps = self.config.phase_steps
+        n_steps = _as_int(n_steps, "n_steps", minimum=3)
         frames = []
         for i in range(n_steps):
             t = i / float(n_steps)
@@ -416,7 +428,9 @@ class ForwardModel:
 
     def phase_shift_stack(self, wf, n_steps: int | None = None):
         """Return ``(frames_x, frames_y)`` for the two shear directions."""
-        n_steps = n_steps or self.config.phase_steps
+        if n_steps is None:
+            n_steps = self.config.phase_steps
+        n_steps = _as_int(n_steps, "n_steps", minimum=3)
         return (
             self.phase_shift_frames(wf, "x", n_steps),
             self.phase_shift_frames(wf, "y", n_steps),
@@ -425,7 +439,9 @@ class ForwardModel:
     def phase_shift_delta_table(self, n_steps: int | None = None, direction="x"):
         """The per-step phase applied to the (+1, 0) (or (0, +1)) order."""
         check_direction(direction)
-        n_steps = n_steps or self.config.phase_steps
+        if n_steps is None:
+            n_steps = self.config.phase_steps
+        n_steps = _as_int(n_steps, "n_steps", minimum=3)
         return np.array([2.0 * np.pi * i / n_steps for i in range(n_steps)])
 
     # ------------------------------------------------------ Fourier mode
@@ -646,8 +662,9 @@ def paper_region_intensity(
             np.cos(two_pi * (w["xp"] - w["0"])) + np.cos(two_pi * (w["xm"] - w["0"]))
         )
         I = I + 2.0 * A1**2 * np.cos(two_pi * (w["xp"] - w["xm"]))
-        for shift in ("0", "xp", "xm"):
-            I = I + 4.0 * A0 * A1 * np.cos(
+        for coeff, shift in ((4.0 * A0 * A1, "0"), (4.0 * A1**2, "xp"),
+                             (4.0 * A1**2, "xm")):
+            I = I + coeff * np.cos(
                 two_pi * (half_sum_y - w[shift])
             ) * np.cos(two_pi * half_diff_y + delta)
         I = I + 2.0 * A1**2 * np.cos(two_pi * 2.0 * half_diff_y + 2.0 * delta)

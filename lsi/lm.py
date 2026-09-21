@@ -76,7 +76,6 @@ class LMResult:
     message: str = ""
     scale: float = 1.0
     background: float = 0.0
-    cond: float = np.nan
     #: 2-norm condition number of the Jacobian itself, evaluated at the returned
     #: ``x``: the variable-projection Jacobian when a scale/background is being
     #: fitted, otherwise the raw one.  Same convention as
@@ -84,6 +83,9 @@ class LMResult:
     #: design matrix -- reporting ``cond(J^T J)`` instead would square the
     #: number and make a well-understood ``1e6`` look like total loss of
     #: identifiability.
+    cond: float = np.nan
+    #: Numerical rank of that same final Jacobian.
+    rank: int = 0
     rms_residual: float = 0.0
     n_residual: int = 0
     n_parameters: int = 0
@@ -226,6 +228,7 @@ def levenberg_marquardt(
     # nuisances are already concentrated out and do not inflate this number.
     # Taking the normal matrix instead would report the square of this value.
     cond = float(np.linalg.cond(J)) if J.size else np.nan
+    rank = int(np.linalg.matrix_rank(J)) if J.size else 0
     return LMResult(
         x=x,
         cost=cost,
@@ -239,6 +242,7 @@ def levenberg_marquardt(
         n_parameters=int(x.size),
         lambda_final=float(lam),
         cond=cond,
+        rank=rank,
         rms_residual=float(np.sqrt(cost / max(n_rows, 1))),
     )
 
@@ -368,8 +372,16 @@ def fit_wavefront_from_frames(
     ``frames`` is a sequence of measured intensity arrays (e.g. the N
     phase-shift frames, or a single carrier frame).  ``deltas``/``carriers``
     describe the known per-frame per-order phase modulations; pass ``None``
-    entries for the carrier-mode frames.
+    entries for the carrier-mode frames.  Piston (Z1) is rejected because a
+    common field phase cancels exactly from every intensity observation.
     """
+    if not isinstance(wf_proto, ZernikeWavefront):
+        raise ValueError("wf_proto must be a ZernikeWavefront")
+    if 1 in wf_proto.indices:
+        raise ValueError(
+            "piston Z1 is unobservable from intensity-only LSI data; "
+            "remove it from wf_proto.indices and fix the piston gauge"
+        )
     if isinstance(frames, np.ndarray) and frames.ndim == 2:
         frames = [frames]
     else:

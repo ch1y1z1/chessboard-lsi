@@ -23,7 +23,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from lsi.zernike import differential_zernike, radial_polynomial
+from lsi.zernike import (
+    FRINGE_MODES,
+    differential_zernike,
+    fringe_index,
+    radial_polynomial,
+)
 
 S = 0.0731
 
@@ -99,6 +104,32 @@ def test_row16_symmetry():
     x = rng.uniform(-0.8, 0.8, 200)
     y = rng.uniform(-0.8, 0.8, 200)
     assert np.allclose(_d(j, x, y, "x"), _d(j, y, x, "y"))
+
+
+def test_fringe_wyant_high_order_indices_match_dissertation_meanings():
+    expected = {
+        17: (4, 4, "cos"),
+        18: (4, 4, "sin"),
+        25: (8, 0, "radial"),
+        28: (6, 4, "cos"),
+        29: (6, 4, "sin"),
+        36: (10, 0, "radial"),
+    }
+    assert {j: fringe_index(j) for j in expected} == expected
+    assert "quadrafoil" in FRINGE_MODES[16].aberration_name
+    assert "spherical" in FRINGE_MODES[35].aberration_name
+
+
+def test_fringe_sequence_extends_coherently_beyond_explicit_table():
+    assert fringe_index(37) == (6, 6, "cos")
+    assert fringe_index(38) == (6, 6, "sin")
+    assert fringe_index(49) == (12, 0, "radial")
+
+
+@pytest.mark.parametrize("bad", [0, -1, True, 7.0, 7.9])
+def test_fringe_index_rejects_non_positive_or_non_integer_indices(bad):
+    with pytest.raises(ValueError):
+        fringe_index(bad)
 
 
 def test_difference_models_consistency():

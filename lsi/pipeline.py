@@ -16,6 +16,7 @@ from typing import Sequence
 import numpy as np
 
 from .config import (
+    _as_int,
     check_difference_model,
     check_direction,
     check_offset_mode,
@@ -153,13 +154,16 @@ def demodulate_phase_shift(
                 "describe a non-circular custom 'pupil'; use "
                 "region_mode='analytic' with a custom pupil"
             )
-        _, _, edge = zero_order_center_radius(res_x.modulation, cfg.grid, threshold_frac=threshold_frac)
-        x, y = cfg.grid.coords()
-        from .phaseshift import circle_fit
-
-        cx, cy, r = circle_fit(x[edge], y[edge])
-        masks = shear_region_masks(cfg.grid, cfg.s, center=(cx, cy), radius=r)
-        meta = {"circle": (cx, cy, r)}
+        circle = zero_order_center_radius(
+            res_x.modulation, cfg.grid, threshold_frac=threshold_frac
+        )
+        masks = shear_region_masks(
+            cfg.grid,
+            cfg.s,
+            center=(circle.cx, circle.cy),
+            radius=circle.radius,
+        )
+        meta = {"circle": (circle.cx, circle.cy, circle.radius)}
     else:
         masks = shear_region_masks(cfg.grid, cfg.s, aperture=aperture)
         meta = {}
@@ -167,12 +171,11 @@ def demodulate_phase_shift(
     for key in ("region_x", "region_y"):
         _require_nonempty(masks[key], f"the {key[7:]} shear region")
 
+    erode_px = _as_int(erode_px, "erode_px", minimum=0)
     if erode_px:
         from scipy import ndimage
 
-        r = int(erode_px)
-        if r < 1:
-            raise ValueError("erode_px must be a positive number of pixels")
+        r = erode_px
         yy, xx = np.ogrid[-r : r + 1, -r : r + 1]
         structure = (xx * xx + yy * yy) <= r * r
         for key in ("region_x", "region_y"):
@@ -249,6 +252,7 @@ def demodulate_fourier(
     """
     check_direction(direction)
     check_difference_model(difference_model)
+    erode_px = _as_int(erode_px, "erode_px", minimum=0)
     offset = fm.demodulation_offset(direction) if remove_offset else 0.0
     lobe = demodulate_lobe(
         image, fm.config.grid, direction=direction,
@@ -269,7 +273,7 @@ def demodulate_fourier(
         # the low-order Zernike terms.
         from scipy.ndimage import binary_erosion
 
-        mask = binary_erosion(mask, iterations=int(erode_px))
+        mask = binary_erosion(mask, iterations=erode_px)
     _require_nonempty(mask, f"the {direction} demodulation mask")
     factor = 2.0 * np.pi if difference_model == "one_sided" else np.pi
     dW = lobe.phase / factor

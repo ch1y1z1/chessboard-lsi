@@ -32,6 +32,8 @@ from typing import Iterable
 import numpy as np
 import warnings
 
+from .config import _as_int_array
+
 __all__ = [
     "OrderSet",
     "analytic_orders",
@@ -63,8 +65,28 @@ class OrderSet:
     parity: np.ndarray | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "ab", np.asarray(self.ab, dtype=int))
-        object.__setattr__(self, "amp", np.asarray(self.amp, dtype=complex))
+        ab = _as_int_array(self.ab, "ab", ndim=2)
+        amp = np.asarray(self.amp, dtype=complex)
+        if ab.shape[1:] != (2,):
+            raise ValueError(f"ab must have shape (K, 2), got {ab.shape}")
+        if amp.ndim != 1 or amp.shape[0] != ab.shape[0]:
+            raise ValueError(
+                f"amp must have shape ({ab.shape[0]},), got {amp.shape}"
+            )
+        if not np.all(np.isfinite(amp)):
+            raise ValueError("amp must contain only finite values")
+        if len({tuple(row) for row in ab.tolist()}) != len(ab):
+            raise ValueError("ab must not contain duplicate diffraction orders")
+        parity = self.parity
+        if parity is not None:
+            parity = _as_int_array(parity, "parity", ndim=1)
+            if parity.shape != (len(ab),):
+                raise ValueError(
+                    f"parity must have shape ({len(ab)},), got {parity.shape}"
+                )
+        object.__setattr__(self, "ab", ab)
+        object.__setattr__(self, "amp", amp)
+        object.__setattr__(self, "parity", parity)
 
     def __len__(self) -> int:
         return len(self.ab)
@@ -84,7 +106,10 @@ class OrderSet:
         for o in want:
             idx = [i for i, oo in enumerate(self.indices()) if oo == o]
             amps.append(self.amp[idx[0]] if idx else 0.0 + 0.0j)
-        return OrderSet(np.array(want, dtype=int), np.array(amps, dtype=complex))
+        return OrderSet(
+            np.array(want, dtype=int).reshape(-1, 2),
+            np.array(amps, dtype=complex),
+        )
 
     def efficiencies(self) -> dict[tuple[int, int], float]:
         return {
@@ -172,7 +197,10 @@ def analytic_orders(
     if include_zero:
         ab.insert(0, (0, 0))
         amp.insert(0, (1.0 + (2.0 * duty - 1.0) ** 2) / 2.0)
-    return OrderSet(np.array(ab, dtype=int), np.array(amp, dtype=complex))
+    return OrderSet(
+        np.array(ab, dtype=int).reshape(-1, 2),
+        np.array(amp, dtype=complex),
+    )
 
 
 def bitmap_orders(

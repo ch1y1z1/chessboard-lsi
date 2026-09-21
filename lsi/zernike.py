@@ -1,5 +1,4 @@
-"""Zernike polynomials in the index convention actually used by the
-reference dissertation.
+"""Zernike polynomials in the Fringe/Wyant convention used by the dissertation.
 
 The dissertation (表 2-5) lists the first 16 *differential* Zernike
 polynomials ``dZ(x,y) = Z(x+s,y) - Z(x-s,y)``.  Inverting that table shows
@@ -8,8 +7,7 @@ the underlying basis is the classical (un-normalized) real Zernike set
     Z_j(rho,theta) = R_n^|m|(rho) * { cos(m theta)  (even j)
                                      sin(m theta)  (odd  j) }
 
-with the ordering (Noll-like sequence, but the cos/sin pair of j=7/8 is
-swapped with respect to Noll):
+with the Fringe/Wyant ordering:
 
      j  (n,m)      j  (n,m)         j  (n,m)
      1  (0,0)      6  (2,2)sin      11  (3,3)sin
@@ -18,6 +16,11 @@ swapped with respect to Noll):
      4  (2,0)       9  (4,0)         14  (5,1)cos
      5  (2,2)cos   10  (3,3)cos      15  (5,1)sin
                                      16  (6,0)
+
+Unlike Noll ordering, Fringe ordering then continues with the ``m=4`` pair
+at Z17/Z18 and reserves Z25 and Z36 for the next radial spherical terms.
+The complete named table through Z36 below is deliberately explicit because
+those numbers carry physical aberration meanings in chapters 4 and 5.
 
 The radial polynomial is
 
@@ -30,13 +33,18 @@ which is stable at the origin and avoids any explicit atan2.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import lru_cache
+from math import isqrt
 from typing import Iterable, Sequence
 
 import numpy as np
 
 __all__ = [
+    "ZernikeMode",
+    "FRINGE_MODES",
     "PAPER_ORDER",
+    "fringe_index",
     "noll_like_index",
     "radial_polynomial",
     "zernike_value",
@@ -47,56 +55,91 @@ __all__ = [
     "as_wavefront",
 ]
 
-#: (n, m, kind) with kind in {"cos", "sin", "radial"}; 1-based index table.
-PAPER_ORDER: tuple[tuple[int, int, str], ...] = (
-    (0, 0, "radial"),   # 1
-    (1, 1, "cos"),      # 2
-    (1, 1, "sin"),      # 3
-    (2, 0, "radial"),   # 4
-    (2, 2, "cos"),      # 5
-    (2, 2, "sin"),      # 6
-    (3, 1, "cos"),      # 7   (dissertation's "Z7 coma", cos-type)
-    (3, 1, "sin"),      # 8
-    (4, 0, "radial"),   # 9
-    (3, 3, "cos"),      # 10
-    (3, 3, "sin"),      # 11
-    (4, 2, "cos"),      # 12
-    (4, 2, "sin"),      # 13
-    (5, 1, "cos"),      # 14
-    (5, 1, "sin"),      # 15
-    (6, 0, "radial"),   # 16
+@dataclass(frozen=True)
+class ZernikeMode:
+    """One real Fringe/Wyant Zernike mode."""
+
+    n: int
+    m: int
+    kind: str
+    aberration_name: str
+
+
+#: Explicit Fringe/Wyant table used by the dissertation, indexed from one.
+FRINGE_MODES: tuple[ZernikeMode, ...] = (
+    ZernikeMode(0, 0, "radial", "piston"),                    # 1
+    ZernikeMode(1, 1, "cos", "x tilt"),                      # 2
+    ZernikeMode(1, 1, "sin", "y tilt"),                      # 3
+    ZernikeMode(2, 0, "radial", "defocus"),                  # 4
+    ZernikeMode(2, 2, "cos", "primary astigmatism"),         # 5
+    ZernikeMode(2, 2, "sin", "primary astigmatism"),         # 6
+    ZernikeMode(3, 1, "cos", "primary coma"),                # 7
+    ZernikeMode(3, 1, "sin", "primary coma"),                # 8
+    ZernikeMode(4, 0, "radial", "primary spherical"),        # 9
+    ZernikeMode(3, 3, "cos", "primary trefoil"),             # 10
+    ZernikeMode(3, 3, "sin", "primary trefoil"),             # 11
+    ZernikeMode(4, 2, "cos", "secondary astigmatism"),       # 12
+    ZernikeMode(4, 2, "sin", "secondary astigmatism"),       # 13
+    ZernikeMode(5, 1, "cos", "secondary coma"),              # 14
+    ZernikeMode(5, 1, "sin", "secondary coma"),              # 15
+    ZernikeMode(6, 0, "radial", "secondary spherical"),      # 16
+    ZernikeMode(4, 4, "cos", "primary quadrafoil"),          # 17
+    ZernikeMode(4, 4, "sin", "primary quadrafoil"),          # 18
+    ZernikeMode(5, 3, "cos", "secondary trefoil"),           # 19
+    ZernikeMode(5, 3, "sin", "secondary trefoil"),           # 20
+    ZernikeMode(6, 2, "cos", "tertiary astigmatism"),        # 21
+    ZernikeMode(6, 2, "sin", "tertiary astigmatism"),        # 22
+    ZernikeMode(7, 1, "cos", "tertiary coma"),               # 23
+    ZernikeMode(7, 1, "sin", "tertiary coma"),               # 24
+    ZernikeMode(8, 0, "radial", "tertiary spherical"),       # 25
+    ZernikeMode(5, 5, "cos", "primary pentafoil"),           # 26
+    ZernikeMode(5, 5, "sin", "primary pentafoil"),           # 27
+    ZernikeMode(6, 4, "cos", "secondary quadrafoil"),        # 28
+    ZernikeMode(6, 4, "sin", "secondary quadrafoil"),        # 29
+    ZernikeMode(7, 3, "cos", "tertiary trefoil"),            # 30
+    ZernikeMode(7, 3, "sin", "tertiary trefoil"),            # 31
+    ZernikeMode(8, 2, "cos", "quaternary astigmatism"),      # 32
+    ZernikeMode(8, 2, "sin", "quaternary astigmatism"),      # 33
+    ZernikeMode(9, 1, "cos", "quaternary coma"),             # 34
+    ZernikeMode(9, 1, "sin", "quaternary coma"),             # 35
+    ZernikeMode(10, 0, "radial", "quaternary spherical"),    # 36
 )
 
-_NAMES = {
-    "radial": "R_n^0",
-    "cos": "coef",
-    "sin": "coef",
-}
+# Backward-compatible triples for callers that used the old public constant.
+PAPER_ORDER: tuple[tuple[int, int, str], ...] = tuple(
+    (mode.n, mode.m, mode.kind) for mode in FRINGE_MODES
+)
 
 
-def noll_like_index(j: int) -> tuple[int, int, str]:
-    """Return ``(n, m, kind)`` for 1-based index ``j`` (dissertation order)."""
+def fringe_index(j: int) -> tuple[int, int, str]:
+    """Return ``(n, |m|, kind)`` for one-based Fringe/Wyant index ``j``."""
+    if isinstance(j, bool) or not isinstance(j, (int, np.integer)):
+        raise ValueError(f"Zernike index must be an integer, got {j!r}")
+    j = int(j)
     if j < 1:
         raise ValueError("Zernike index is 1-based")
     if j <= len(PAPER_ORDER):
         return PAPER_ORDER[j - 1]
-    return _extend_to(j)[j - 1]
+
+    # Fringe indices form square groups.  Group p contains azimuthal orders
+    # p-1 ... 1 (cos/sin pairs), followed by its radial term at index p**2.
+    p = isqrt(j - 1) + 1
+    offset = j - (p - 1) ** 2 - 1
+    pair = offset // 2
+    m = p - 1 - pair
+    if m == 0:
+        return 2 * (p - 1), 0, "radial"
+    n = 2 * (p - 1) - m
+    return n, m, "cos" if offset % 2 == 0 else "sin"
 
 
-@lru_cache(maxsize=None)
-def _extend_to(j: int) -> tuple[tuple[int, int, str], ...]:
-    """Extend the index table with the standard Noll-like sequence."""
-    table = list(PAPER_ORDER)
-    n = 6
-    while len(table) < j:
-        n += 1
-        for m in range(n % 2, n + 1, 2):
-            if m == 0:
-                table.append((n, 0, "radial"))
-            else:
-                table.append((n, m, "cos"))
-                table.append((n, m, "sin"))
-    return tuple(table)
+def noll_like_index(j: int) -> tuple[int, int, str]:
+    """Compatibility alias for :func:`fringe_index`.
+
+    The historical name was inaccurate: the dissertation uses Fringe/Wyant,
+    not Noll, ordering.
+    """
+    return fringe_index(j)
 
 
 @lru_cache(maxsize=None)
@@ -136,7 +179,7 @@ def radial_polynomial(n: int, m: int, rho: np.ndarray) -> np.ndarray:
 
 def zernike_value(j: int, x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """Real Zernike polynomial ``Z_j(x, y)`` on the unit disk."""
-    n, m, kind = noll_like_index(int(j))
+    n, m, kind = fringe_index(j)
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     rho2 = x * x + y * y

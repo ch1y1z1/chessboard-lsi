@@ -67,6 +67,7 @@ def test_lm_recovers_wavefront_from_phase_shift_frames():
     for j, c in zip(truth.indices, truth.coeffs):
         assert table[int(j)] == pytest.approx(float(c), abs=2e-4), j
     assert res.converged or res.cost < 1e-12
+    assert res.rank == res.n_parameters
 
 
 def test_lm_works_from_a_single_carrier_frame():

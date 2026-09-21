@@ -55,6 +55,23 @@ def _as_int(value, name: str, minimum: int = 1) -> int:
     return value
 
 
+def _as_int_array(
+    value, name: str, *, ndim: int | None = None, minimum: int | None = None
+) -> np.ndarray:
+    """Return an integer ndarray without truncating floats or booleans."""
+    array = np.asarray(value)
+    if array.size == 0:
+        array = array.astype(int)
+    elif array.dtype == bool or not np.issubdtype(array.dtype, np.integer):
+        raise ValueError(f"{name} must contain only integers")
+    if ndim is not None and array.ndim != ndim:
+        raise ValueError(f"{name} must be {ndim}-dimensional, got shape {array.shape}")
+    array = array.astype(int, copy=False)
+    if minimum is not None and np.any(array < minimum):
+        raise ValueError(f"{name} entries must be at least {minimum}")
+    return array
+
+
 def _as_float(value, name: str, *, low: float, high: float | None = None,
               inclusive_low: bool = False, inclusive_high: bool = True) -> float:
     """Return ``value`` as a finite ``float`` inside the requested interval.

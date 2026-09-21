@@ -8,8 +8,11 @@ from typing import Callable
 import numpy as np
 import warnings
 
+from .config import check_direction
+
 __all__ = [
     "PhaseShiftResult",
+    "PupilCircle",
     "lsq_phase_shift",
     "extract_psd_phase",
     "modulation",
@@ -28,6 +31,31 @@ class PhaseShiftResult:
     modulation: np.ndarray     # modulation amplitude (eq. 3-1)
     background: np.ndarray     # DC term
     frames: int
+
+
+@dataclass(frozen=True)
+class PupilCircle:
+    """Detected pupil circle and the edge samples used to fit it.
+
+    Iteration yields the legacy ``(cx, cy, edge)`` triple so existing callers
+    can keep unpacking the result while new code uses the explicit ``radius``.
+    """
+
+    cx: float
+    cy: float
+    radius: float
+    edge: np.ndarray
+
+    def __iter__(self):
+        yield self.cx
+        yield self.cy
+        yield self.edge
+
+    def __len__(self) -> int:
+        return 3
+
+    def __getitem__(self, index):
+        return (self.cx, self.cy, self.edge)[index]
 
 
 def lsq_phase_shift(
@@ -104,21 +132,40 @@ def zero_order_center_radius(
     grid,
     *,
     threshold_frac: float = 0.4,
-) -> tuple[float, float, np.ndarray]:
+) -> PupilCircle:
     """Centre/radius of the zero-order pupil from the modulation map.
 
     Steps (dissertation 3.1.1): threshold the modulation at
     ``threshold_frac * max``, keep the *outermost* edge points of the
     connected zero-order disc, then least-squares fit a circle.
 
-    Returns ``(cx, cy, edge_mask)``.
+    Returns a :class:`PupilCircle`.  For backward compatibility it can still
+    be unpacked as ``cx, cy, edge_mask``; the fitted radius is available as
+    ``result.radius``.
     """
     from scipy import ndimage
 
+    mod = np.asarray(mod, dtype=float)
+    if mod.shape != grid.shape:
+        raise ValueError(f"mod must have shape {grid.shape}, got {mod.shape}")
+    if not np.all(np.isfinite(mod)):
+        raise ValueError("mod must contain only finite values")
+    if (
+        isinstance(threshold_frac, bool)
+        or not isinstance(threshold_frac, (int, float, np.number))
+        or not np.isfinite(threshold_frac)
+        or not 0.0 <= float(threshold_frac) < 1.0
+    ):
+        raise ValueError(
+            f"threshold_frac must lie in [0, 1), got {threshold_frac!r}"
+        )
+    if mod.max() <= 0.0:
+        raise ValueError("mod must contain a positive pupil signal")
+    threshold_frac = float(threshold_frac)
     mask = mod > threshold_frac * mod.max()
     label, n_lab = ndimage.label(mask)
     if n_lab == 0:
-        return 0.0, 0.0, mask
+        raise ValueError("thresholding found no zero-order pupil")
     sizes = ndimage.sum(mask, label, index=np.arange(1, n_lab + 1))
     k = int(np.argmax(sizes)) + 1
     blob = label == k
@@ -127,19 +174,26 @@ def zero_order_center_radius(
     edge = blob & ~ndimage.binary_erosion(blob)
     x, y = grid.coords()
     cx, cy, r = circle_fit(x[edge], y[edge])
-    return cx, cy, edge
+    return PupilCircle(cx=cx, cy=cy, radius=r, edge=edge)
 
 
 def circle_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, float]:
     """Algebraic (Kasa) least-squares circle fit."""
     x = np.asarray(x, dtype=float).ravel()
     y = np.asarray(y, dtype=float).ravel()
+    if x.shape != y.shape or x.size < 3:
+        raise ValueError("circle fitting needs at least three paired x/y samples")
+    if not np.all(np.isfinite(x)) or not np.all(np.isfinite(y)):
+        raise ValueError("circle samples must be finite")
     A = np.stack([x, y, np.ones_like(x)], axis=1)
     b = x**2 + y**2
     sol, *_ = np.linalg.lstsq(A, b, rcond=None)
     cx = sol[0] / 2.0
     cy = sol[1] / 2.0
-    r = np.sqrt(sol[2] + cx**2 + cy**2)
+    radius2 = sol[2] + cx**2 + cy**2
+    if radius2 <= 0.0 or not np.isfinite(radius2):
+        raise ValueError("circle samples do not define a positive finite radius")
+    r = np.sqrt(radius2)
     return float(cx), float(cy), float(r)
 
 
@@ -270,9 +324,23 @@ def extract_psd_phase(
     region: np.ndarray | None = None,
 ) -> tuple[PhaseShiftResult, np.ndarray]:
     """Demodulate one phase-shift stack and return phase + shear-region mask."""
+    check_direction(direction)
     res = lsq_phase_shift(frames)
     if region is None:
-        mode = zero_order_center_radius(res.modulation, grid, threshold_frac=threshold_frac)
-        masks = shear_region_masks(grid, config.s)
+        circle = zero_order_center_radius(
+            res.modulation, grid, threshold_frac=threshold_frac
+        )
+        masks = shear_region_masks(
+            grid,
+            config.s,
+            center=(circle.cx, circle.cy),
+            radius=circle.radius,
+        )
         region = masks[f"region_{direction}"]
+    else:
+        region = np.asarray(region, dtype=bool)
+        if region.shape != grid.shape:
+            raise ValueError(
+                f"region must have shape {grid.shape}, got {region.shape}"
+            )
     return res, region
