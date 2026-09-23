@@ -142,6 +142,9 @@ for mode in ("raw", "model", "estimate"):
         fm, fm.phase_shift_frames(truth, "x", 8), fm.phase_shift_frames(truth, "y", 8),
         remove_offset=False,
     )
+    if mode == "raw":
+        # 故意把含常数的数据声明为"已校正"：演示不做任何偏移处理的后果
+        d.offset_removed = {"x": True, "y": True}
     f = reconstruct(
         fm, d, indices=INDICES,
         offset_mode="none" if mode == "raw" else mode,

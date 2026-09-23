@@ -66,6 +66,16 @@ def fit_differential_zernike(
     数据中扣除；对物理棋盘可用 ``ForwardModel.demodulation_offset(d)/pi``。
     """
     indices = np.asarray(list(indices), dtype=int)
+    if indices.size == 0:
+        raise ValueError("indices 不能为空")
+    if len(np.unique(indices)) != len(indices):
+        raise ValueError("indices 不能有重复")
+    if 1 in indices:
+        raise ValueError("Z1 平移没有差分信号，请从 indices 中去掉")
+    if not np.isfinite(s) or s <= 0.0:
+        raise ValueError(f"shear s 必须为正，得到 {s!r}")
+    if known_offsets is not None and not set(known_offsets) <= {"x", "y"}:
+        raise ValueError("known_offsets 的键只能是 'x'/'y'")
 
     rows, rhs, wts, tags = [], [], [], []
     for direction, d, mask, wgt in (
@@ -75,6 +85,8 @@ def fit_differential_zernike(
         if d is None:
             continue
         mask = np.asarray(mask, dtype=bool) & np.isfinite(d)
+        if not np.any(mask):
+            continue
         Z = differential_zernike_matrix(indices, x[mask], y[mask], s, direction)
         rows.append(Z)
         rhs.append(np.asarray(d, dtype=float)[mask])

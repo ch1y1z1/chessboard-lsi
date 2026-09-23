@@ -47,8 +47,14 @@ def lsq_phase_shift(
     if deltas is None:
         deltas = 2.0 * np.pi * np.arange(n) / n
     deltas = np.asarray(deltas, dtype=float)
+    if deltas.shape != (n,):
+        raise ValueError(f"deltas 形状必须是 ({n},)，得到 {deltas.shape}")
 
     design = np.column_stack([np.ones(n), np.cos(deltas), np.sin(deltas)])
+    if np.linalg.matrix_rank(design) < 3:
+        raise ValueError(
+            "deltas 不能张成 截距/cos/sin 基（如步长重复或只差 pi），相位不可解"
+        )
     coef = np.linalg.pinv(design) @ frames.reshape(n, -1)
     shape = frames.shape[1:]
     background = coef[0].reshape(shape)
@@ -67,10 +73,15 @@ def lsq_phase_shift(
 def circle_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, float]:
     """Kasa 代数最小二乘圆拟合，返回 (cx, cy, r)。"""
     x, y = np.asarray(x, float).ravel(), np.asarray(y, float).ravel()
+    if x.shape != y.shape or x.size < 3:
+        raise ValueError("圆拟合至少需要 3 对 x/y 采样")
     A = np.stack([x, y, np.ones_like(x)], axis=1)
     sol, *_ = np.linalg.lstsq(A, x**2 + y**2, rcond=None)
     cx, cy = sol[0] / 2.0, sol[1] / 2.0
-    return float(cx), float(cy), float(np.sqrt(sol[2] + cx**2 + cy**2))
+    r2 = sol[2] + cx**2 + cy**2
+    if not np.isfinite(r2) or r2 <= 0.0:
+        raise ValueError("圆拟合采样不能给出正的有限半径")
+    return float(cx), float(cy), float(np.sqrt(r2))
 
 
 def find_pupil_circle(

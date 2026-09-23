@@ -266,14 +266,27 @@ def fit_wavefront_from_frames(
         raise ValueError("samples 必须是正整数（None 表示全图）")
     frames = [np.asarray(fr, dtype=float) for fr in frames]
     n_frames = len(frames)
+    if n_frames == 0:
+        raise ValueError("frames 至少需要一帧")
+    for i, fr in enumerate(frames):
+        if fr.shape != forward.shape:
+            raise ValueError(
+                f"frames[{i}] 形状必须是 {forward.shape}，得到 {fr.shape}"
+            )
     deltas = list(deltas) if deltas is not None else [None] * n_frames
     carriers = list(carriers) if carriers is not None else [None] * n_frames
+    if len(deltas) != n_frames or len(carriers) != n_frames:
+        raise ValueError("deltas/carriers 必须与 frames 一一对应")
 
     n_pix = forward.shape[0] * forward.shape[1]
     if samples is not None and samples < n_pix:
         rows = np.sort(np.random.default_rng(seed).choice(n_pix, samples, replace=False))
     else:
         rows = np.arange(n_pix)
+    if n_frames * rows.size < len(indices):
+        raise ValueError(
+            f"观测数 {n_frames * rows.size} 少于待拟合系数 {len(indices)}：欠定"
+        )
     meas = np.concatenate([fr.ravel()[rows] for fr in frames])
     carriers_s = [
         None if c is None else np.asarray(c).reshape(len(forward.order_list), -1)[:, rows]

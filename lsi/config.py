@@ -23,6 +23,14 @@ class Grid:
     n: int = 256
     extent: float = 1.10
 
+    def __post_init__(self) -> None:
+        if isinstance(self.n, bool) or not isinstance(self.n, (int, np.integer)):
+            raise ValueError(f"n 必须是整数，得到 {self.n!r}")
+        if self.n < 1:
+            raise ValueError(f"n 必须为正，得到 {self.n!r}")
+        if not np.isfinite(self.extent) or self.extent <= 0.0:
+            raise ValueError(f"extent 必须为正的有限值，得到 {self.extent!r}")
+
     @property
     def dx(self) -> float:
         return 2.0 * self.extent / self.n

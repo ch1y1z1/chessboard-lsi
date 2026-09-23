@@ -87,6 +87,8 @@ class ZernikeWavefront:
         if not np.all(indices == np.round(indices)) or (indices < 1).any():
             raise ValueError("indices 必须是正整数")
         self.indices = indices.astype(int)
+        if len(np.unique(self.indices)) != len(self.indices):
+            raise ValueError("indices 不能有重复")
 
     def w(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         out = np.zeros_like(np.asarray(x, dtype=float))
@@ -159,6 +161,8 @@ class ForwardModel:
 
     def carrier_phases(self, f0: float) -> np.ndarray:
         """各级载频相位 2 pi f0 (a x + b y)，形状 (n_orders, n, n)。"""
+        if not np.isfinite(f0) or f0 <= 0.0:
+            raise ValueError(f"f0 必须是正的有限频率，得到 {f0!r}")
         max_ab = max(max(abs(a), abs(b)) for a, b in self.order_list)
         if max_ab * abs(f0) >= self.grid.nyquist:
             raise ValueError(
@@ -237,6 +241,8 @@ class ForwardModel:
         两个剪切对正好相差半条纹。占空比误差使该常数随光栅相位漂移
         （arg A_10 = pi - 2 pi (d - 1/2)）—— 论文 4.1.1 节。
         """
+        if direction not in ("x", "y"):
+            raise ValueError(f"direction 必须是 'x' 或 'y'，得到 {direction!r}")
         amps = dict(zip(self.order_list, self.amplitudes))
         a0 = amps.get((0.0, 0.0), 0.0)
         ap, am = (

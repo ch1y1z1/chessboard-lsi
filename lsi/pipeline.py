@@ -54,6 +54,8 @@ def _require_symmetric_pair(fm: ForwardModel, direction: str) -> None:
     解调出的频率-1 相位等于 pi * [W(x+s) - W(x-s)] 仅当两个对称 beat
     系数模相等；缺一边时实际是单边差分 2[W(x+s) - W(x)]，不能除以 pi。
     """
+    if direction not in ("x", "y"):
+        raise ValueError(f"direction 必须是 'x' 或 'y'，得到 {direction!r}")
     a, b = (1.0, 0.0) if direction == "x" else (0.0, 1.0)
     amps = dict(zip(fm.order_list, fm.amplitudes))
     ap, am = amps.get((a, b), 0.0), amps.get((-a, -b), 0.0)
@@ -112,6 +114,12 @@ def demodulate_phase_shift(
     cfg = fm.config
     _require_symmetric_pair(fm, "x")
     _require_symmetric_pair(fm, "y")
+    for name, frames in (("frames_x", frames_x), ("frames_y", frames_y)):
+        if np.ndim(frames) != 3 or frames.shape[1:] != fm.shape:
+            raise ValueError(
+                f"{name} 形状必须是 (N, {fm.shape[0]}, {fm.shape[1]})，"
+                f"得到 {np.shape(frames)}"
+            )
     res = {"x": lsq_phase_shift(frames_x), "y": lsq_phase_shift(frames_y)}
 
     if region_mode == "modulation":
@@ -166,6 +174,8 @@ def demodulate_fourier(
     """
     from scipy import ndimage
 
+    if direction not in ("x", "y"):
+        raise ValueError(f"direction 必须是 'x' 或 'y'，得到 {direction!r}")
     if not 0.0 <= threshold_frac < 1.0:
         raise ValueError("threshold_frac 必须在 [0, 1) 内")
     _require_symmetric_pair(fm, direction)
@@ -218,6 +228,14 @@ def reconstruct(
     if offset_mode not in ("none", "model", "estimate"):
         raise ValueError(
             f"offset_mode 必须是 'none'/'model'/'estimate'，得到 {offset_mode!r}"
+        )
+    if offset_mode == "none" and not all(diff.offset_removed.values()):
+        raise ValueError(
+            "offset_mode='none' 但解调未扣除光栅常数：请用 'model' 或 'estimate'"
+        )
+    if offset_mode == "model" and all(diff.offset_removed.values()):
+        raise ValueError(
+            "offset_mode='model' 会重复扣除：DiffPhase 记录常数已移除"
         )
     x, y = fm.grid.coords()
     wx = wy = None

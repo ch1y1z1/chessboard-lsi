@@ -350,3 +350,82 @@ def test_zernike_input_validation():
         ZernikeWavefront([0.1], [True])
     with pytest.raises(ValueError):
         zernike(7.9, np.array([0.0]), np.array([0.0]))
+
+
+def test_offset_mode_consistent_with_offset_state():
+    """offset_mode 与 DiffPhase.offset_removed 必须一致（旧契约）。"""
+    fm = ForwardModel(CFG)
+    truth = ZernikeWavefront([0.3], [7])
+    raw = demodulate_phase_shift(
+        fm, fm.phase_shift_frames(truth, "x", 4),
+        fm.phase_shift_frames(truth, "y", 4), remove_offset=False)
+    # "none" 但数据仍含常数 -> 报错（漏扣）
+    with pytest.raises(ValueError, match="offset_mode"):
+        reconstruct(fm, raw, offset_mode="none")
+    # "model" 但常数已扣 -> 报错（重复扣）
+    clean = demodulate_phase_shift(
+        fm, fm.phase_shift_frames(truth, "x", 4),
+        fm.phase_shift_frames(truth, "y", 4))
+    with pytest.raises(ValueError, match="offset_mode"):
+        reconstruct(fm, clean, offset_mode="model")
+
+
+def test_direction_and_f0_validation():
+    """非法 direction / 非正 f0 必须报错而不是静默按 y/共轭瓣处理。"""
+    fm = ForwardModel(CFG)
+    truth = ZernikeWavefront([0.3], [7])
+    with pytest.raises(ValueError, match="direction"):
+        fm.demodulation_offset("z")
+    with pytest.raises(ValueError, match="direction"):
+        demodulate_lobe(
+            np.zeros(CFG.grid.shape), CFG.grid, "z", 5.0)
+    with pytest.raises(ValueError, match="f0"):
+        demodulate_lobe(np.zeros(CFG.grid.shape), CFG.grid, "x", -3.0)
+    with pytest.raises(ValueError, match="f0"):
+        fm.carrier_phases(0.0)
+    with pytest.raises(ValueError, match="direction"):
+        demodulate_fourier(fm, fm.carrier_frame(truth), direction="z")
+
+
+def test_fit_differential_zernike_guards():
+    """空掩膜跳过、Z1/重复 indices、非正剪切、未知 known_offsets 键。"""
+    x, y = CFG.grid.coords()
+    mask = CFG.grid.pupil()
+    dW = np.zeros(CFG.grid.shape)
+    empty = np.zeros(CFG.grid.shape, dtype=bool)
+    with pytest.raises(ValueError, match="有效数据"):
+        fit_differential_zernike(
+            dW, dW, empty, empty, CFG.s, x, y)
+    with pytest.raises(ValueError, match="Z1"):
+        fit_differential_zernike(dW, dW, mask, mask, CFG.s, x, y, indices=[1, 2])
+    with pytest.raises(ValueError, match="重复"):
+        fit_differential_zernike(dW, dW, mask, mask, CFG.s, x, y, indices=[2, 2])
+    with pytest.raises(ValueError, match="shear"):
+        fit_differential_zernike(dW, dW, mask, mask, 0.0, x, y)
+    with pytest.raises(ValueError, match="known_offsets"):
+        fit_differential_zernike(
+            dW, dW, mask, mask, CFG.s, x, y, known_offsets={"X": 0.1})
+
+
+def test_lsq_phase_shift_degenerate_deltas():
+    """重复/只差 pi 的步长使相位不可解，必须报错而非 min-norm 静默。"""
+    frames = np.ones((4, 8, 8))
+    with pytest.raises(ValueError, match="deltas"):
+        lsq_phase_shift(frames, deltas=np.array([0.0, 0.0, np.pi, np.pi]))
+    with pytest.raises(ValueError, match="deltas"):
+        lsq_phase_shift(frames, deltas=np.zeros(3))
+
+
+def test_lm_rejects_mismatched_or_underdetermined_inputs():
+    """帧形状不符、deltas 长度不符、欠定观测都必须报错。"""
+    fm = ForwardModel(CFG)
+    truth = ZernikeWavefront([0.3], [7])
+    good = fm.phase_shift_frames(truth, "x", 4)
+    with pytest.raises(ValueError, match="形状"):
+        fit_wavefront_from_frames(fm, [4, 5], [np.zeros((8, 8))], [None])
+    with pytest.raises(ValueError, match="一一对应"):
+        fit_wavefront_from_frames(
+            fm, [4, 5], list(good), [None, None], samples=None)
+    with pytest.raises(ValueError, match="欠定"):
+        fit_wavefront_from_frames(
+            fm, list(range(2, 14)), [good[0]], [None], samples=2)
