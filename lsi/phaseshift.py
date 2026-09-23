@@ -80,6 +80,8 @@ def find_pupil_circle(
     from scipy import ndimage
 
     mask = mod > threshold_frac * mod.max()
+    if not np.any(mask):
+        raise ValueError("调制度阈值分割为空，无法定位光瞳")
     label, n_lab = ndimage.label(mask)
     sizes = ndimage.sum(mask, label, index=np.arange(1, n_lab + 1))
     blob = ndimage.binary_fill_holes(label == int(np.argmax(sizes)) + 1)

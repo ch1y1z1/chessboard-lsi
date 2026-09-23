@@ -141,13 +141,14 @@ def demodulate_fourier(
     )
     a, b = (1.0, 0.0) if direction == "x" else (0.0, 1.0)
     support = fm.order_support(0.0, 0.0) & fm.order_support(a, b) & fm.order_support(-a, -b)
+    if not np.any(support):
+        raise ValueError("剪切支撑为空：0 级与 ±1 级光瞳没有交集")
     mask = (lobe.amplitude > threshold_frac * lobe.amplitude[support].max()) & support
     if erode_px > 0:
         mask = ndimage.binary_erosion(mask, iterations=erode_px)
     phase = _unwrap_in_region(lobe.phase, mask)
     if not remove_offset:
         phase = phase + offset
-    lobe.unwrapped_phase = phase
     return phase / np.pi, mask, lobe
 
 
@@ -263,7 +264,8 @@ def fourier_to_wavefront(
         mask={"x": mask_x, "y": mask_y},
         confidence={"x": lobe_x.amplitude, "y": lobe_y.amplitude},
         offset_removed={"x": remove_offset, "y": remove_offset},
-        phase={"x": lobe_x.unwrapped_phase, "y": lobe_y.unwrapped_phase},
+        # 解包裹相位（弧度）= dW * pi
+        phase={"x": dWx * np.pi, "y": dWy * np.pi},
         wrapped_phase={"x": lobe_x.phase, "y": lobe_y.phase},
         meta={"route": "fourier", "lobes": {"x": lobe_x, "y": lobe_y}},
     )

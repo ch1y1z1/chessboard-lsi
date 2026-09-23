@@ -123,7 +123,7 @@ class ForwardModel:
 
     def aperture(self) -> np.ndarray:
         """零级光瞳（单位圆盘）。"""
-        return self._x**2 + self._y**2 <= 1.0
+        return self.grid.pupil()
 
     def order_geometry(self):
         """逐级的 (a, b)、移位坐标 xs=x+a*s / ys=y+b*s 及光瞳掩膜。"""
@@ -270,6 +270,7 @@ def paper_region_intensity(
     ``"x5"``  (2-14): 0 + 全部四个一级（五光束）
     ``"y1"``  (2-15): 0 + (+1,+1) + (-1,+1) + (+1,-1)
     ``"y2"``  (2-16): 0 + (+1,+1) + (-1,-1) + (-1,+1)
+    ``"y5"``  ``"x5"`` 的 y 方向对偶（五光束区，论文未单列公式）
     """
     s = shear
     A1 = 2.0 / np.pi**2 if A1 is None else A1

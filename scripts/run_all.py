@@ -1,4 +1,4 @@
-"""Run the whole study: unit tests + all demo scripts.
+"""运行完整流程：单元测试 + 全部实验脚本。
 
     python3 scripts/run_all.py
 """

@@ -97,7 +97,7 @@ def fit_differential_zernike(
     b = np.concatenate(rhs)
     w = np.concatenate(wts)
     if known_offsets:
-        # 在装 b 之前按方向扣除已知常数
+        # 按方向从数据中扣除已知常数
         offset = np.concatenate([
             np.full(len(r), known_offsets.get(t, 0.0)) for r, t in zip(rhs, tags)
         ])

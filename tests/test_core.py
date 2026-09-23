@@ -22,7 +22,7 @@ from lsi.ftmode import demodulate_lobe
 from lsi.grating import chessboard_orders, diffraction_efficiency
 from lsi.lm import LMConfig, fit_wavefront_from_frames
 from lsi.phaseshift import lsq_phase_shift, shear_regions
-from lsi.pipeline import phase_shift_to_wavefront
+from lsi.pipeline import fourier_to_wavefront, phase_shift_to_wavefront
 from lsi.reconstruct import fit_differential_zernike
 from lsi.unwrap import unwrap_poisson, wrap
 from lsi.zernike import differential_zernike_matrix, zernike
@@ -60,6 +60,8 @@ def test_forward_matches_paper_region_formulas():
         "x2": [(0, 0), (1, 0), (-1, 0), (0, -1)],
         "x5": [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)],
         "y1": [(0, 0), (0, 1), (0, -1), (1, 0)],
+        "y2": [(0, 0), (0, 1), (0, -1), (-1, 0)],
+        "y5": [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)],
     }
     for region, orders in cases.items():
         amps = {tuple(map(float, o)): (0.5 if o == (0, 0) else 2.0 / np.pi**2)
@@ -171,6 +173,36 @@ def test_lm_recovers_coefficients_from_frames():
     assert tab[7] == pytest.approx(0.42, abs=1e-8)
     assert tab[4] == pytest.approx(0.31, abs=1e-8)
     assert res.rms_residual < 1e-10
+
+
+def test_lm_recovers_scale_and_background():
+    """变量投影：光强仿射增益/背景未知时系数与 (alpha, beta) 同时恢复。"""
+    fm = ForwardModel(CFG)
+    truth = ZernikeWavefront([0.31, -0.12, 0.42], [4, 6, 7])
+    frames = np.concatenate(
+        [fm.phase_shift_frames(truth, "x", 8),
+         fm.phase_shift_frames(truth, "y", 8)], axis=0)
+    deltas = [fm.phase_shift_deltas(k / 8, 0.0) for k in range(8)]
+    deltas += [fm.phase_shift_deltas(0.0, k / 8) for k in range(8)]
+    res = fit_wavefront_from_frames(
+        fm, INDICES, 2.3 * frames + 0.17, deltas, samples=4000,
+        config=LMConfig(max_iter=60, fit_scale_background=True))
+    assert res.scale == pytest.approx(2.3, rel=1e-6)
+    assert res.background == pytest.approx(0.17, abs=1e-6)
+    tab = dict(zip(INDICES, res.x.tolist()))
+    assert tab[7] == pytest.approx(0.42, abs=1e-8)
+    assert tab[4] == pytest.approx(0.31, abs=1e-8)
+
+
+def test_fourier_pipeline_recovers_wavefront():
+    """端到端：单帧载频图 -> 瓣解调 -> 解包裹 -> 差分 Zernike。"""
+    cfg = SystemConfig(grid=Grid(n=128, extent=1.10), period_um=30.0)
+    fm = ForwardModel(cfg)
+    truth = ZernikeWavefront([0.5], [7])
+    fit, _ = fourier_to_wavefront(fm, fm.carrier_frame(truth), indices=INDICES)
+    tab = dict(zip(fit.indices.tolist(), fit.coeffs.tolist()))
+    assert tab[7] == pytest.approx(0.5, abs=0.05)
+    assert max(abs(v) for j, v in tab.items() if j != 7) < 0.05
 
 
 def test_fourier_lobe_is_two_sided_difference():

@@ -9,7 +9,7 @@
 LM 迭代（Marquardt 阻尼 + Nielsen 更新）：
 
     (J^T J + lambda diag(J^T J)) delta = -J^T f,   c <- c + delta
-    rho = (F(c) - F(c + delta)) / delta^T (lambda D delta - J^T f)
+    rho = (F(c) - F(c + delta)) / (0.5 * delta^T (lambda D delta - J^T f))
 
 阻尼步用增广最小二乘求解而不是显式法方程，避免 cond(J)^2 的数值损失：
 
@@ -130,7 +130,8 @@ def levenberg_marquardt(
         f_new, J_new, a_new, b_new = evaluate(x + delta)
         cost_new = float(f_new @ f_new)
         # Nielsen 增益比：实际下降 / 阻尼模型预测下降
-        predicted = float(delta @ (lam * diag * delta - g))
+        # L(0) - L(delta) = 0.5 * delta^T (lam D delta - g)
+        predicted = 0.5 * float(delta @ (lam * diag * delta - g))
         rho = (cost - cost_new) / predicted if predicted > 0 else -1.0
         history["rho"].append(rho)
 

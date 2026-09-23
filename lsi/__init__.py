@@ -18,6 +18,7 @@ from .forward import (
     paper_region_intensity,
 )
 from .grating import chessboard_orders, diffraction_efficiency
+from .ftmode import LobeResult, demodulate_lobe, spectrum
 from .lm import (
     LMConfig,
     LMResult,
@@ -25,6 +26,20 @@ from .lm import (
     fit_wavefront_from_frames,
     levenberg_marquardt,
     multistart_fit,
+)
+from .metrics import (
+    coefficient_error_metrics,
+    coefficient_errors,
+    pv,
+    rms,
+    wavefront_error,
+)
+from .phaseshift import (
+    PhaseShiftResult,
+    circle_fit,
+    find_pupil_circle,
+    lsq_phase_shift,
+    shear_regions,
 )
 from .pipeline import (
     DiffPhase,
@@ -35,6 +50,7 @@ from .pipeline import (
     reconstruct,
 )
 from .reconstruct import ZernikeFit, fit_differential_zernike, wavefront_on_grid
+from .unwrap import unwrap_poisson, wrap
 from .zernike import (
     differential_zernike,
     differential_zernike_matrix,
