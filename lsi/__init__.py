@@ -1,51 +1,47 @@
-"""chessboard_lsi -- 45-degree chessboard-grating shearing interferometry.
+"""lsi -- 45° 棋盘光栅剪切干涉：前向模型 + 两条波前反演路线。
 
-Two wavefront-sensing routes from measured intensities to the wavefront:
-
-* dissertation route:
-  ``I --(phase-shift / Fourier transform)--> differential wavefront
-     --(differential Zernike least squares)--> W``
-* direct non-linear route:
-  ``I --(Levenberg-Marquardt on the non-linear forward model)--> W``
+* 论文路线:
+  ``I --(相移 / 傅里叶变换)--> 差分波前 --(差分 Zernike 最小二乘)--> W``
+* 直接非线性路线:
+  ``I --(非线性前向模型上的 Levenberg-Marquardt)--> W``
 """
 
 from __future__ import annotations
 
-from .config import (
-    PRESET_FOURIER,
-    PRESET_PHASE_SHIFT,
-    Grid,
-    SystemConfig,
-    preset_fourier,
-    preset_phase_shift,
-)
+from .config import Grid, SystemConfig, PRESET_FOURIER, PRESET_PHASE_SHIFT
 from .forward import (
-    DEFAULT_ORDERS_5,
+    DEFAULT_ORDERS,
     DEFAULT_ORDERS_9,
     ForwardModel,
     ZernikeWavefront,
     add_noise,
     paper_region_intensity,
 )
-from .grating import OrderSet, analytic_orders, bitmap_orders
+from .grating import chessboard_orders, diffraction_efficiency
+from .lm import (
+    LMConfig,
+    LMResult,
+    fit_wavefront_from_carrier_frame,
+    fit_wavefront_from_frames,
+    levenberg_marquardt,
+    multistart_fit,
+)
+from .pipeline import (
+    DiffPhase,
+    demodulate_fourier,
+    demodulate_phase_shift,
+    fourier_to_wavefront,
+    phase_shift_to_wavefront,
+    reconstruct,
+)
+from .reconstruct import ZernikeFit, fit_differential_zernike, wavefront_on_grid
+from .zernike import (
+    differential_zernike,
+    differential_zernike_matrix,
+    fringe_index,
+    wavefront,
+    zernike,
+    zernike_matrix,
+)
 
 __version__ = "1.0.0"
-
-__all__ = [
-    "Grid",
-    "SystemConfig",
-    "PRESET_PHASE_SHIFT",
-    "PRESET_FOURIER",
-    "preset_phase_shift",
-    "preset_fourier",
-    "ForwardModel",
-    "ZernikeWavefront",
-    "add_noise",
-    "paper_region_intensity",
-    "OrderSet",
-    "analytic_orders",
-    "bitmap_orders",
-    "DEFAULT_ORDERS_5",
-    "DEFAULT_ORDERS_9",
-    "__version__",
-]

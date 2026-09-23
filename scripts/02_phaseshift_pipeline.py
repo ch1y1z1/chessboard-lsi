@@ -1,16 +1,14 @@
-"""02 - dissertation route A: multi-step phase shifting.
+"""02 - 论文路线 A：多步相移。
 
-    I(x,y)  --8-step phase-shift demodulation-->  wrapped dW
-            --region selection-->  --unwrap-->  dW  --differential Zernike-->  W
+    I(x,y)  --8 步相移解调-->  缠绕 dW
+            --区域选择-->  --解包裹-->  dW  --差分 Zernike-->  W
 
-Also demonstrates two things the dissertation's own route has to live with:
+同时演示论文路线必须面对的两件事：
 
-* the half-fringe offset of the chessboard (the x pair and the y pair sit
-  half a fringe apart) -- a constant that is collinear with tilt,
-* the break-down for large aberrations, where the modulation
-  ``4 A0 A1 cos(pi[...])`` changes sign inside a shear region (2.3.2).
+* 棋盘光栅的半条纹偏移（x 对与 y 对相差半条纹）——与 tilt 共线的常数，
+* 大像差时的失效：调制度 4 A0 A1 cos(pi[...]) 在剪切区内变号（2.3.2）。
 
-Run:  python3 scripts/02_phaseshift_pipeline.py
+运行：  python3 scripts/02_phaseshift_pipeline.py
 """
 
 from __future__ import annotations
@@ -26,11 +24,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lsi.config import Grid, SystemConfig
 from lsi.forward import ForwardModel, ZernikeWavefront, add_noise
-from lsi.metrics import coefficient_error_metrics, pv, rms, wavefront_error
-from lsi.phaseshift import lsq_phase_shift, zero_order_center_radius
-from lsi.pipeline import demodulate_phase_shift, phase_shift_to_wavefront
+from lsi.metrics import coefficient_error_metrics, pv, rms
+from lsi.phaseshift import find_pupil_circle, lsq_phase_shift
+from lsi.pipeline import demodulate_phase_shift, phase_shift_to_wavefront, reconstruct
 from lsi.plotting import imshow, new_fig, savefig
 from lsi.reconstruct import wavefront_on_grid
+from lsi.unwrap import wrap
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
 os.makedirs(OUT, exist_ok=True)
@@ -47,7 +46,7 @@ def table(fit) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-section("1. Single Zernike term: W = Z7 (coma), 1 wave, 8-step phase shift")
+section("1. 单 Zernike 项：W = Z7（彗差），1 波长，8 步相移")
 
 cfg = SystemConfig(grid=Grid(n=128, extent=1.10))
 fm = ForwardModel(cfg)
@@ -59,54 +58,48 @@ fit, diff = phase_shift_to_wavefront(fm, fx, fy, indices=INDICES)
 dt = time.time() - t0
 tab = table(fit)
 print(f"  {cfg.describe()}")
-print(f"  {len(INDICES)} Zernike terms fitted from {2*8} frames in {dt*1e3:.0f} ms")
-print("  recovered coefficients (waves):")
+print(f"  从 {2*8} 帧拟合 {len(INDICES)} 个 Zernike 项，耗时 {dt*1e3:.0f} ms")
+print("  恢复的系数（waves）：")
 for j, v in tab.items():
-    flag = "   <-- input" if j == 7 else ""
+    flag = "   <-- 输入" if j == 7 else ""
     print(f"    Z{j:2d} : {v:+.16e}{flag}")
-print(f"  max |coefficient error| : {max(abs(v - (1.0 if j==7 else 0.0)) for j, v in tab.items()):.3e} wave")
-print(f"  max |differential residual| : {fit.max_abs_residual:.3e} wave")
-print(f"  condition number of the LSQ system : {fit.cond:.1f}")
-REPORT["single_term"] = {"fit": tab, "max_residual": float(fit.max_abs_residual),
+print(f"  最大 |系数误差| : {max(abs(v - (1.0 if j==7 else 0.0)) for j, v in tab.items()):.3e} wave")
+print(f"  最大 |差分残差| : {fit.rms_residual:.3e} wave (rms)")
+print(f"  最小二乘系统条件数 : {fit.cond:.1f}")
+REPORT["single_term"] = {"fit": tab, "rms_residual": float(fit.rms_residual),
                          "cond": float(fit.cond), "time_ms": dt * 1e3}
 
 # --------------------------------------------------------------------------- #
-section("2. PV / RMS against the dissertation (its 表3-2/3-4: PV 1.985, RMS 0.354)")
+section("2. PV / RMS 对照论文（表 3-2/3-4：PV 1.985，RMS 0.354）")
 
 x, y = cfg.grid.coords()
 pupil = cfg.grid.pupil()
 W_fit = wavefront_on_grid(fit.coeffs, fit.indices, x, y, pupil)
-print(f"  sampled PV  = {pv(W_fit, pupil):.4f} wave   (paper 1.985)")
-print(f"  sampled RMS = {rms(W_fit, pupil):.4f} wave   (paper 0.354)")
+print(f"  采样 PV  = {pv(W_fit, pupil):.4f} wave   (论文 1.985)")
+print(f"  采样 RMS = {rms(W_fit, pupil):.4f} wave   (论文 0.354)")
 fine = SystemConfig(grid=Grid(n=512, extent=1.10))
 Wf = ZernikeWavefront(np.array([1.0]), np.array([7])).w(*fine.grid.coords())
-print(f"  analytic basis PV = {pv(Wf, fine.grid.pupil()):.4f}, RMS = {rms(Wf, fine.grid.pupil()):.5f} "
-      f"(Z7 = (3rho^3-2rho)cos(theta): PV = 2 exactly, RMS = 1/sqrt(8))")
+print(f"  解析基 PV = {pv(Wf, fine.grid.pupil()):.4f}, RMS = {rms(Wf, fine.grid.pupil()):.5f} "
+      f"(Z7 = (3rho^3-2rho)cos(theta): PV = 2 精确, RMS = 1/sqrt(8))")
 REPORT["pv_rms"] = {"pv_sampled": pv(W_fit, pupil), "rms_sampled": rms(W_fit, pupil)}
 
 # --------------------------------------------------------------------------- #
-section("3. Shear-region selection from the modulation (3.1.1, eqs. 3-1 ... 3-5)")
+section("3. 由调制度判定剪切区域（3.1.1，式 3-1 ... 3-5）")
 
 res = lsq_phase_shift(fx)
-from lsi.phaseshift import circle_fit
-
-cx0, cy0, edge = zero_order_center_radius(res.modulation, cfg.grid, threshold_frac=0.4)
-x_, y_ = cfg.grid.coords()
-cx, cy, radius = circle_fit(x_[edge], y_[edge])
+cx, cy, radius = find_pupil_circle(res.modulation, cfg.grid, threshold_frac=0.4)
 fit_m, diff_m = phase_shift_to_wavefront(fm, fx, fy, indices=INDICES, region_mode="modulation")
-print(f"  thresholded edge pixels  : {int(edge.sum())}")
-print(f"  fitted zero-order circle : centre = ({cx:+.5f}, {cy:+.5f}), radius = {radius:.5f} "
-      f"(true values 0, 0, 1.000)")
-print(f"  analytic region pixels   : {int(diff.mask['x'].sum())}")
-print(f"  circle-fit region pixels : {int(diff_m.mask['x'].sum())}")
-print(f"  region overlap (IoU)     : {float((diff.mask['x'] & diff_m.mask['x']).sum() / (diff.mask['x'] | diff_m.mask['x']).sum()):.4f}")
-print(f"  Z7 from circle-fit region: {table(fit_m)[7]:+.10f}   (analytic region: {tab[7]:+.10f})")
-REPORT["circle_fit"] = {"cx": cx, "cy": cy, "r": radius,
-                        "iou_with_analytic": float((diff.mask['x'] & diff_m.mask['x']).sum()
-                                                   / (diff.mask['x'] | diff_m.mask['x']).sum())}
+print(f"  拟合的零级圆 : 圆心 = ({cx:+.5f}, {cy:+.5f}), 半径 = {radius:.5f} "
+      f"(真值 0, 0, 1.000)")
+print(f"  解析区域像素     : {int(diff.mask['x'].sum())}")
+print(f"  圆拟合区域像素   : {int(diff_m.mask['x'].sum())}")
+iou = float((diff.mask['x'] & diff_m.mask['x']).sum() / (diff.mask['x'] | diff_m.mask['x']).sum())
+print(f"  区域重叠 (IoU)   : {iou:.4f}")
+print(f"  圆拟合区域的 Z7  : {table(fit_m)[7]:+.10f}   (解析区域: {tab[7]:+.10f})")
+REPORT["circle_fit"] = {"cx": cx, "cy": cy, "r": radius, "iou_with_analytic": iou}
 
 # --------------------------------------------------------------------------- #
-section("4. Mixed aberration + noise sensitivity")
+section("4. 混合像差 + 噪声敏感性")
 
 truth_mix = ZernikeWavefront(np.array([0.0, 0.0, 0.22, -0.05, 0.11, 0.31, -0.12, 0.07, 0.04]),
                              np.array([2, 3, 4, 5, 6, 7, 8, 9, 10]))
@@ -114,23 +107,17 @@ fx = fm.phase_shift_frames(truth_mix, "x", 8)
 fy = fm.phase_shift_frames(truth_mix, "y", 8)
 fit_mix, _ = phase_shift_to_wavefront(fm, fx, fy, indices=INDICES)
 tab_mix = table(fit_mix)
-worst = coefficient_error_metrics(
-    tab_mix, truth_mix.indices, truth_mix.coeffs
-)["max_error_all_modes"]
-print(f"  mixed wavefront: max |coefficient error| = {worst:.3e} wave "
-      f"({len(INDICES)} fitted modes)")
+worst = coefficient_error_metrics(tab_mix, truth_mix.indices, truth_mix.coeffs)["max_error_all_modes"]
+print(f"  混合波前: 最大 |系数误差| = {worst:.3e} wave （{len(INDICES)} 个拟合模式）")
 
 snr_list = [60, 50, 40, 30, 20, 10]
 errs = []
 for snr in snr_list:
     fx = add_noise(fm.phase_shift_frames(truth_mix, "x", 8), snr_db=snr, seed=1)
     fy = add_noise(fm.phase_shift_frames(truth_mix, "y", 8), snr_db=snr, seed=2)
-    f, _ = phase_shift_to_wavefront(fm, fx, fy, indices=INDICES, unwrap="poisson")
-    t = table(f)
-    errs.append(coefficient_error_metrics(
-        t, truth_mix.indices, truth_mix.coeffs
-    )["max_error_all_modes"])
-    print(f"  SNR {snr:3d} dB : max |coefficient error| = {errs[-1]:.4f} wave")
+    f, _ = phase_shift_to_wavefront(fm, fx, fy, indices=INDICES)
+    errs.append(coefficient_error_metrics(table(f), truth_mix.indices, truth_mix.coeffs)["max_error_all_modes"])
+    print(f"  SNR {snr:3d} dB : 最大 |系数误差| = {errs[-1]:.4f} wave")
 REPORT["noise"] = {"snr_db": snr_list, "max_coeff_error": errs}
 
 fig, ax = new_fig(1, 1, figsize=(6.5, 4.5))
@@ -143,75 +130,51 @@ ax.invert_xaxis()
 savefig(fig, "02_noise_sweep.png")
 
 # --------------------------------------------------------------------------- #
-section("5. The half-fringe offset: indistinguishable from tilt")
+section("5. 半条纹偏移：与 tilt 不可区分")
 
-fm0 = ForwardModel(cfg)
-fd = demodulate_phase_shift(fm0, fm0.phase_shift_frames(truth, "x", 8),
-                            fm0.phase_shift_frames(truth, "y", 8), remove_offset=False)
-print(f"  demodulated phase of the x pair carries a constant of "
-      f"{fm0.demodulation_offset('x'):.6f} rad = half a fringe")
-print(f"  demodulated phase of the y pair carries "
-      f"{fm0.demodulation_offset('y'):.6f} rad")
-from lsi.pipeline import reconstruct
+fd = demodulate_phase_shift(fm, fm.phase_shift_frames(truth, "x", 8),
+                            fm.phase_shift_frames(truth, "y", 8), remove_offset=False)
+print(f"  x 对的解调相位携带常数 {fm.demodulation_offset('x'):.6f} rad = 半条纹")
+print(f"  y 对的解调相位携带常数 {fm.demodulation_offset('y'):.6f} rad")
 
-for mode in ("none", "model", "estimate"):
-    if mode == "none":
-        d = demodulate_phase_shift(
-            fm0,
-            fm0.phase_shift_frames(truth, "x", 8),
-            fm0.phase_shift_frames(truth, "y", 8),
-        )
-        f = reconstruct(fm0, d, indices=INDICES, offset_mode="none")
-    elif mode == "model":
-        d = demodulate_phase_shift(
-            fm0,
-            fm0.phase_shift_frames(truth, "x", 8),
-            fm0.phase_shift_frames(truth, "y", 8),
-            remove_offset=False,
-        )
-        f = reconstruct(fm0, d, indices=INDICES, offset_mode="model")
-    else:
-        d = demodulate_phase_shift(
-            fm0,
-            fm0.phase_shift_frames(truth, "x", 8),
-            fm0.phase_shift_frames(truth, "y", 8),
-            remove_offset=False,
-        )
-        f = reconstruct(fm0, d, indices=INDICES, offset_mode="estimate")
+for mode in ("raw", "model", "estimate"):
+    d = demodulate_phase_shift(
+        fm, fm.phase_shift_frames(truth, "x", 8), fm.phase_shift_frames(truth, "y", 8),
+        remove_offset=False,
+    )
+    f = reconstruct(
+        fm, d, indices=INDICES,
+        offset_mode="none" if mode == "raw" else mode,
+        # raw 分支关掉整数波规范修正，否则半条纹恰好是整数个波长被自动吸收
+        resolve_tilt_gauge=(mode != "raw"),
+    )
     t = table(f)
-    print(f"  offset handling '{mode:8s}': Z2 = {t[2]:+9.4f}, Z7 = {t[7]:.6f}, cond = {f.cond:.1e}")
-print(f"  (with s = {cfg.s:.5f}, a one-wave constant in dW_x maps onto Z2 as 1/(2s) = {1/(2*cfg.s):.2f})")
+    print(f"  偏移处理 '{mode:8s}': Z2 = {t[2]:+9.4f}, Z7 = {t[7]:.6f}, cond = {f.cond:.1e}")
+print(f"  (s = {cfg.s:.5f} 时，dW_x 中一波长的常数映射到 Z2 为 1/(2s) = {1/(2*cfg.s):.2f})")
 
 # --------------------------------------------------------------------------- #
-section("6. Known limitation: large aberration breaks the demodulated phase")
+section("6. 已知限制：大像差破坏解调相位")
 
 big = ZernikeWavefront(np.array([6.0]), np.array([7]))
-fb = ForwardModel(cfg)
-db = demodulate_phase_shift(fb, fb.phase_shift_frames(big, "x", 8),
-                            fb.phase_shift_frames(big, "y", 8))
-from lsi.unwrap import wrap
+db = demodulate_phase_shift(fm, fm.phase_shift_frames(big, "x", 8),
+                            fm.phase_shift_frames(big, "y", 8))
 
-x, y = cfg.grid.coords()
 pred = np.pi * (big.w(x + cfg.s, y) - big.w(x - cfg.s, y))
 resid = wrap(db.phase["x"] - pred)[db.mask["x"]]
 frac = float(np.mean(np.abs(wrap(resid - np.angle(np.mean(np.exp(1j * resid))))) > 1.0))
-print(f"  W = 6 x Z7 : {100*frac:.1f} % of the x-region pixels are more than 1 rad off a")
-print("  *single* constant -> the modulation term changes sign inside the region and the")
-print("  demodulated phase picks up jumps of pi; a global offset cannot repair it.")
-fit_big, _ = phase_shift_to_wavefront(fb, fb.phase_shift_frames(big, "x", 8),
-                                      fb.phase_shift_frames(big, "y", 8), indices=INDICES)
-print(f"  this route returns Z7 = {table(fit_big)[7]:.4f} instead of 6.0 "
-      f"(see script 04: LM has no such problem)")
-print("  mechanism (README 4.1): the demodulation route is exact (<1e-9) for a single")
-print("  Z7 up to ~3 waves; past ~3.1 waves the (+-1,0).(0,-+1)* cross term")
-print("  modulation |Z| through a null, the wrapped phase picks up 4 vortices and")
-print("  unwrapping drops whole waves (1 wave at 3.5, 2 waves at >= 4).  The")
-print("  coefficient deficit therefore depends on grid/mask/sampling (~5.6-5.8 here),")
-print("  unlike the exact loss bookkeeping of the differential itself.")
+print(f"  W = 6 x Z7 : x 区域 {100*frac:.1f} % 的像素偏离 *单一* 常数超过 1 rad；")
+print("  调制度项在区域内变号，解调相位出现 pi 跳变，全局偏移无法修复。")
+fit_big, _ = phase_shift_to_wavefront(fm, fm.phase_shift_frames(big, "x", 8),
+                                      fm.phase_shift_frames(big, "y", 8), indices=INDICES)
+print(f"  该路线返回 Z7 = {table(fit_big)[7]:.4f} 而非 6.0 "
+      f"(见脚本 04：LM 无此问题)")
+print("  机理：对单个 Z7，解调路线在 ~3 波长内精确 (<1e-9)；超过 ~3.1 波长后")
+print("  (±1,0)·(0,∓1)* 交叉项把调制度 |Z| 带过零点，缠绕相位出现涡旋，")
+print("  解包裹丢失整波（3.5 波长丢 1 波，>= 4 丢 2 波）。")
 REPORT["large_aberration"] = {"frac_bad_pixels": frac, "Z7_phase_shift": table(fit_big)[7]}
 
 # --------------------------------------------------------------------------- #
-section("7. Figures")
+section("7. 图")
 
 d = demodulate_phase_shift(fm, fm.phase_shift_frames(truth, "x", 8),
                            fm.phase_shift_frames(truth, "y", 8))
