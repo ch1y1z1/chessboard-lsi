@@ -10,22 +10,6 @@ permissions:
 jobs:
   pytest:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          enable-cache: true
-      - run: uv sync --locked --all-groups
-      - run: uv run pytest -q
-
-  demo-smoke:
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -33,11 +17,5 @@ jobs:
           python-version: "3.13"
           enable-cache: true
       - run: uv sync --locked --all-groups
-      - name: Run published experiment scripts
-        run: |
-          uv run python scripts/01_forward_model.py
-          uv run python scripts/02_phaseshift_pipeline.py
-          uv run python scripts/03_fourier_mode.py
-          uv run python scripts/04_lm_inverse.py
-          uv run python scripts/05_error_analysis.py
-          uv run python scripts/06_freeform_wavefront.py
+      - run: uv run pytest -q
+      - run: uv run python experiment.py

@@ -13,8 +13,6 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-__all__ = ["Grid", "SystemConfig", "PRESET_PHASE_SHIFT", "PRESET_FOURIER"]
-
 
 @dataclass(frozen=True)
 class Grid:
@@ -23,14 +21,6 @@ class Grid:
     n: int = 256
     extent: float = 1.10
 
-    def __post_init__(self) -> None:
-        if isinstance(self.n, bool) or not isinstance(self.n, (int, np.integer)):
-            raise ValueError(f"n 必须是整数，得到 {self.n!r}")
-        if self.n < 1:
-            raise ValueError(f"n 必须为正，得到 {self.n!r}")
-        if not np.isfinite(self.extent) or self.extent <= 0.0:
-            raise ValueError(f"extent 必须为正的有限值，得到 {self.extent!r}")
-
     @property
     def dx(self) -> float:
         return 2.0 * self.extent / self.n
@@ -38,11 +28,6 @@ class Grid:
     @property
     def shape(self) -> tuple[int, int]:
         return (self.n, self.n)
-
-    @property
-    def nyquist(self) -> float:
-        """网格奈奎斯特频率 1/(2 dx)，单位：周期/归一化坐标。"""
-        return 1.0 / (2.0 * self.dx)
 
     def coords(self) -> tuple[np.ndarray, np.ndarray]:
         v = (np.arange(self.n) - (self.n - 1) / 2.0) * self.dx
@@ -56,14 +41,12 @@ class Grid:
 
 @dataclass(frozen=True)
 class SystemConfig:
-    """物理参数。``shear_ratio`` 为 None 时由波长/NA/光栅周期推导。"""
+    """物理参数：波长 / NA / 光栅周期 -> 剪切量 s 与载频 f0。"""
 
     wavelength_nm: float = 632.8
     na: float = 0.34
     period_um: float = 18.0
-    shear_ratio: float | None = None
     phase_steps: int = 8        # 每个方向的相移步数（论文用 8）
-    talbot_number: int = 1      # 傅里叶模式的泰伯级次 m
     grid: Grid = field(default_factory=Grid)
 
     @property
@@ -73,24 +56,17 @@ class SystemConfig:
         s = sqrt(2) * lambda / (2 NA p) —— sqrt(2) 来自棋盘光栅的 45° 旋转；
         论文表 2-5 直接以此作为单位圆坐标下的位移量。
         """
-        if self.shear_ratio is not None:
-            return float(self.shear_ratio)
         lam_um = self.wavelength_nm * 1e-3
         return float(np.sqrt(2.0) * lam_um / (2.0 * self.period_um * self.na))
 
     @property
     def carrier_f0(self) -> float:
-        """空间载频 f0 = m / (2s)，单位：周期/归一化坐标。
+        """空间载频 f0 = m / (2s)（m = 1），单位：周期/归一化坐标。
 
-        这是论文式 (2-48) f0 = 2m/s 的四分之一：完整载频超出默认网格的
-        奈奎斯特频率，默认值是采样驱动的折中，解调数学不变。
+        论文式 (2-48) 为 f0 = 2m/s；完整载频超出默认网格的奈奎斯特频率，
+        默认值是采样驱动的折中，解调数学不变。
         """
-        return self.talbot_number / (2.0 * self.s)
-
-    @property
-    def carrier_f0_paper(self) -> float:
-        """论文式 (2-48) 的载频 f0 = 2m/s（需要更细的网格）。"""
-        return 2.0 * self.talbot_number / self.s
+        return 1.0 / (2.0 * self.s)
 
     def describe(self) -> str:
         return (
@@ -99,8 +75,3 @@ class SystemConfig:
             f"f0={self.carrier_f0:.3f} cyc/unit  "
             f"grid={self.grid.n}x{self.grid.n}"
         )
-
-
-#: 论文第三章模拟的两套配置。
-PRESET_PHASE_SHIFT = SystemConfig()
-PRESET_FOURIER = SystemConfig(period_um=30.0)

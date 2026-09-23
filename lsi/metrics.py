@@ -7,14 +7,6 @@ from typing import Sequence
 
 import numpy as np
 
-__all__ = [
-    "pv",
-    "rms",
-    "wavefront_error",
-    "coefficient_errors",
-    "coefficient_error_metrics",
-]
-
 
 def pv(W: np.ndarray, pupil: np.ndarray | None = None) -> float:
     """峰谷值（忽略 NaN）。"""
@@ -31,8 +23,6 @@ def rms(W: np.ndarray, pupil: np.ndarray | None = None) -> float:
     if pupil is not None:
         v = v[pupil]
     v = v[np.isfinite(v)]
-    if not v.size:
-        return float("nan")
     return float(np.sqrt(np.mean((v - v.mean()) ** 2)))
 
 
@@ -69,18 +59,10 @@ def coefficient_error_metrics(
     fitted: Mapping[int, float],
     truth_indices: Sequence[int],
     truth_coeffs: Sequence[float],
-    *,
-    exclude_indices: Sequence[int] = (),
 ) -> dict[str, float]:
     """汇总拟合模式误差，含向零真值模式的泄漏。"""
-    excluded = {int(j) for j in exclude_indices}
-    selected = {int(j): float(v) for j, v in fitted.items() if int(j) not in excluded}
-    errors = coefficient_errors(selected, truth_indices, truth_coeffs)
-    truth = {
-        int(j): float(c)
-        for j, c in zip(truth_indices, truth_coeffs)
-        if int(j) not in excluded
-    }
+    errors = coefficient_errors(fitted, truth_indices, truth_coeffs)
+    truth = dict(zip((int(j) for j in truth_indices), (float(c) for c in truth_coeffs)))
     signal = [abs(e) for j, e in errors.items() if truth.get(j, 0.0) != 0.0]
     leakage = [abs(e) for j, e in errors.items() if truth.get(j, 0.0) == 0.0]
     return {

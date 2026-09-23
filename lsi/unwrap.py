@@ -6,15 +6,12 @@ Ghiglia–Romero 方法：在掩膜内求 psi 使其梯度在最小二乘意义�
     sum_{掩膜内4邻域 j} (psi_i - psi_j) = -rho_i
 
 rho 为缠绕梯度场的散度。每个 4-连通分量有一个自由常数，把每个分量
-最靠近中心的像素钉到其缠绕值上（与 pipeline 的锚定约定一致）。
-掩膜外为 NaN。
+最靠近中心的像素钉到其缠绕值上。掩膜外为 NaN。
 """
 
 from __future__ import annotations
 
 import numpy as np
-
-__all__ = ["wrap", "unwrap_poisson"]
 
 
 def wrap(x: np.ndarray) -> np.ndarray:
@@ -47,8 +44,6 @@ def unwrap_poisson(phi: np.ndarray, mask: np.ndarray) -> np.ndarray:
     phi = np.asarray(phi, dtype=float)
     mask = np.asarray(mask, dtype=bool)
     out = np.full(phi.shape, np.nan)
-    if not np.any(mask):
-        return out
 
     rho = _masked_divergence(phi, mask)
     labels, n_comp = ndimage.label(mask)
