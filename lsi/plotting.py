@@ -1,4 +1,4 @@
-"""Shared plotting helpers (Agg backend, files land in ``output/``)."""
+"""绘图辅助（Agg 后端，图片写入 ``output/``）。"""
 
 from __future__ import annotations
 
@@ -50,8 +50,9 @@ def imshow(ax, data, grid=None, *, title="", cmap="viridis", mask_nan=True,
     if np.ma.isMaskedArray(arr):
         im.cmap.set_bad(nan_color)
     ax.set_title(title, fontsize=9)
-    ax.set_xticks([]) if grid is not None else None
-    ax.set_yticks([]) if grid is not None else None
+    if grid is not None:
+        ax.set_xticks([])
+        ax.set_yticks([])
     if colorbar:
         plt.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
     return im

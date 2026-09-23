@@ -1,42 +1,27 @@
-"""End-to-end dissertation pipeline:
+"""端到端论文流程：
 
-    I(x, y)  --(phase shift / Fourier transform)-->  dW  --(differential
-    Zernike least squares)-->  W
+    I(x, y) --(相移 / 傅里叶变换)--> dW --(差分 Zernike 最小二乘)--> W
 
-Both routes share the same reconstruction stage; only the demodulation of
-``I`` differs.  Everything is driven by a :class:`~lsi.forward.ForwardModel`
-so that simulations stay consistent with the model used for reconstruction.
+两条路线共用同一个重构级，只有 I 的解调不同。
 """
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass, field
 from typing import Sequence
 
 import numpy as np
 
-from .config import (
-    _as_float,
-    _as_int,
-    check_difference_model,
-    check_direction,
-    check_offset_mode,
-    check_region_mode,
-    check_unwrap_method,
-)
 from .forward import ForwardModel
 from .ftmode import LobeResult, demodulate_lobe
-from .phaseshift import lsq_phase_shift, shear_region_masks, zero_order_center_radius
+from .phaseshift import find_pupil_circle, lsq_phase_shift, shear_regions
 from .reconstruct import ZernikeFit, fit_differential_zernike
-from .unwrap import unwrap_masked_poisson, unwrap_seed_growth
-from .zernike import differential_zernike
+from .unwrap import unwrap_poisson, wrap
 
 __all__ = [
     "DiffPhase",
     "demodulate_phase_shift",
     "demodulate_fourier",
-    "offset_in_dW",
     "reconstruct",
     "phase_shift_to_wavefront",
     "fourier_to_wavefront",
@@ -45,223 +30,65 @@ __all__ = [
 DEFAULT_INDICES = tuple(range(2, 17))
 
 
-# --------------------------------------------------------------------------- #
 @dataclass
 class DiffPhase:
-    """Demodulated differential phase data for both shear directions.
+    """两个剪切方向的解调差分数据。
 
-    ``phase`` is the final unwrapped phase used to form ``dW``.
-    ``wrapped_phase`` is the branch-safe wrapped map after removal of the known
-    grating offset; it remains offset-corrected even when ``phase`` requests
-    the raw constant via ``remove_offset=False``.
-
-    ``difference_model`` is part of the data contract: reconstruction defaults
-    to it and rejects an explicitly conflicting model.  ``confidence`` is the
-    route-specific signal strength used for weighted reconstruction (phase-
-    shift modulation or Fourier-lobe amplitude).
-
-    ``grating_offset_removed`` records whether each direction has already had
-    the model-predicted grating phase removed.  Reconstruction uses this state
-    to reject both a missing correction and a duplicate correction.
+    ``dW`` 为差分波前（waves）；``mask`` 为剪切区域；``confidence`` 为
+    路线相关的信号强度（相移调制度 / 载频瓣幅值），供加权重构；
+    ``offset_removed`` 记录各方向是否已扣除光栅模型的常数相位。
     """
 
     dW: dict[str, np.ndarray]
-    phase: dict[str, np.ndarray]
     mask: dict[str, np.ndarray]
-    difference_model: str
-    grating_offset_removed: dict[str, bool]
+    confidence: dict[str, np.ndarray]
+    offset_removed: dict[str, bool]
+    phase: dict[str, np.ndarray] = field(default_factory=dict)
     wrapped_phase: dict[str, np.ndarray] = field(default_factory=dict)
-    modulation: dict[str, np.ndarray] = field(default_factory=dict)
-    amplitude: dict[str, np.ndarray] = field(default_factory=dict)
-    confidence: dict[str, np.ndarray] = field(default_factory=dict)
     meta: dict = field(default_factory=dict)
-    lobes: dict[str, LobeResult] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        self.difference_model = check_difference_model(self.difference_model)
-
-        required = {"x", "y"}
-        for name in ("dW", "phase", "mask"):
-            mapping = dict(getattr(self, name))
-            if set(mapping) != required:
-                raise ValueError(f"{name} must contain exactly the 'x' and 'y' directions")
-            setattr(self, name, mapping)
-
-        shapes: set[tuple[int, ...]] = set()
-        for direction in ("x", "y"):
-            mask = np.asarray(self.mask[direction])
-            if mask.dtype.kind != "b":
-                raise ValueError(f"mask[{direction!r}] must have boolean dtype")
-            if mask.ndim != 2 or mask.size == 0:
-                raise ValueError(
-                    f"mask[{direction!r}] must be a non-empty 2-D array, got {mask.shape}"
-                )
-            self.mask[direction] = mask
-            shapes.add(mask.shape)
-            for name in ("dW", "phase"):
-                value = np.asarray(getattr(self, name)[direction])
-                if np.iscomplexobj(value):
-                    raise ValueError(f"{name}[{direction!r}] must be real-valued")
-                value = np.asarray(value, dtype=float)
-                if value.shape != mask.shape:
-                    raise ValueError(
-                        f"{name}[{direction!r}] must have shape {mask.shape}, "
-                        f"got {value.shape}"
-                    )
-                if not np.all(np.isfinite(value[mask])):
-                    raise ValueError(
-                        f"{name}[{direction!r}] must be finite inside its mask"
-                    )
-                getattr(self, name)[direction] = value
-        if len(shapes) != 1:
-            raise ValueError(
-                f"x and y differential maps must have the same shape, got {sorted(shapes)}"
-            )
-        shape = next(iter(shapes))
-
-        for name in ("wrapped_phase", "modulation", "amplitude", "confidence"):
-            mapping = dict(getattr(self, name))
-            if mapping and set(mapping) != required:
-                raise ValueError(
-                    f"{name} must be empty or contain exactly the 'x' and 'y' directions"
-                )
-            for direction, raw in mapping.items():
-                value = np.asarray(raw)
-                if np.iscomplexobj(value):
-                    raise ValueError(f"{name}[{direction!r}] must be real-valued")
-                value = np.asarray(value, dtype=float)
-                if value.shape != shape:
-                    raise ValueError(
-                        f"{name}[{direction!r}] must have shape {shape}, got {value.shape}"
-                    )
-                mask = self.mask[direction]
-                if not np.all(np.isfinite(value[mask])):
-                    raise ValueError(
-                        f"{name}[{direction!r}] must be finite inside its mask"
-                    )
-                if name in ("modulation", "amplitude", "confidence") and np.any(
-                    value[mask] < 0.0
-                ):
-                    raise ValueError(
-                        f"{name}[{direction!r}] must be non-negative inside its mask"
-                    )
-                mapping[direction] = value
-            setattr(self, name, mapping)
-
-        state = dict(self.grating_offset_removed)
-        if set(state) != required or not all(
-            isinstance(value, (bool, np.bool_)) for value in state.values()
-        ):
-            raise ValueError(
-                "grating_offset_removed must map both 'x' and 'y' to booleans"
-            )
-        self.grating_offset_removed = {
-            direction: bool(state[direction]) for direction in ("x", "y")
-        }
-
-    def regions(self) -> tuple[np.ndarray, np.ndarray]:
-        return self.mask["x"], self.mask["y"]
 
 
-def offset_in_dW(fm: ForwardModel, direction: str, difference_model: str) -> float:
-    """Predicted constant offset of a difference map, in waves."""
-    check_direction(direction)
-    check_difference_model(difference_model)
-    off = fm.demodulation_offset(direction)
-    if difference_model == "one_sided":
-        return off / (2.0 * np.pi)
-    return off / np.pi
+def _require_symmetric_pair(fm: ForwardModel, direction: str) -> None:
+    """two-sided 差分解读的物理前提：±1 级对都存在且与 0 级的 beat 等幅。
 
-
-def _require_nonempty(mask: np.ndarray, what: str) -> np.ndarray:
-    """Reject an empty demodulation region instead of returning an empty fit."""
-    if not np.any(mask):
+    解调出的频率-1 相位等于 pi * [W(x+s) - W(x-s)] 仅当两个对称 beat
+    系数模相等；缺一边时实际是单边差分 2[W(x+s) - W(x)]，不能除以 pi。
+    """
+    if direction not in ("x", "y"):
+        raise ValueError(f"direction 必须是 'x' 或 'y'，得到 {direction!r}")
+    a, b = (1.0, 0.0) if direction == "x" else (0.0, 1.0)
+    amps = dict(zip(fm.order_list, fm.amplitudes))
+    ap, am = amps.get((a, b), 0.0), amps.get((-a, -b), 0.0)
+    if amps.get((0.0, 0.0), 0.0) == 0.0:
+        raise ValueError("缺少 (0,0) 级：无法构成 ±1 拍频")
+    if ap == 0.0 or am == 0.0:
+        raise ValueError(f"{direction} 方向缺少 ±1 级对的一边，无法按双边差分解释")
+    if not np.isclose(abs(ap), abs(am), rtol=1e-3, atol=0.0):
         raise ValueError(
-            f"{what} is empty: the demodulation found no usable pixels. Check "
-            "that the model aperture and shear match the data (a custom "
-            "'pupil' that does not overlap its own shear-shifted copies gives "
-            "no interference region)."
+            f"±1 级振幅不对称：|A+| = {abs(ap):.4g}, |A-| = {abs(am):.4g}"
         )
-    return mask
 
 
-def _require_connected(mask: np.ndarray, what: str) -> np.ndarray:
-    """Reject independent phase gauges that the reconstruction cannot model."""
-    from scipy.ndimage import label
+def _unwrap_in_region(wrapped: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """掩膜内 Poisson 解包裹，并把相位锚定到掩膜中心像素的缠绕值。
 
-    _, n_components = label(np.asarray(mask, dtype=bool))
-    if n_components > 1:
+    掩膜必须单连通：每个连通分量各自携带一个不可观测的 2pi 规范，
+    多分量时它们之间的整数相位差会被重构当成真实像差。
+    """
+    from scipy import ndimage
+
+    _, n_comp = ndimage.label(mask)
+    if n_comp == 0:
+        raise ValueError("解包裹掩膜为空")
+    if n_comp > 1:
         raise ValueError(
-            f"{what} has {n_components} disconnected components. Each component "
-            "has an independent phase gauge, but differential-Zernike "
-            "reconstruction models only one gauge per direction; reconstruct "
-            "the components separately or supply a connected mask."
+            f"解包裹掩膜有 {n_comp} 个连通分量：分量间相位规范不可观测"
         )
-    return mask
-
-
-def _require_bool(value, name: str) -> bool:
-    if not isinstance(value, (bool, np.bool_)):
-        raise ValueError(f"{name} must be a boolean, got {value!r}")
-    return bool(value)
-
-
-def _validate_pair_orders(
-    fm: ForwardModel,
-    direction: str,
-    difference_model: str,
-) -> tuple[tuple[int, int], tuple[int, int]]:
-    """Validate the zero/first-order beats represented by a difference model."""
-    positive = (1, 0) if direction == "x" else (0, 1)
-    negative = (-positive[0], -positive[1])
-    amplitudes = dict(zip(fm.indices, fm.amplitudes))
-    a0 = amplitudes.get((0, 0), 0.0j)
-    a_plus = amplitudes.get(positive, 0.0j)
-    a_minus = amplitudes.get(negative, 0.0j)
-    beat_plus = a_plus * np.conj(a0)
-    beat_minus = a0 * np.conj(a_minus)
-    scale = max(abs(beat_plus), abs(beat_minus), 1.0)
-    tol = 1e-12 * scale
-
-    if abs(beat_plus) <= tol:
-        raise ValueError(
-            f"the {direction} differential signal needs non-zero (0, 0) and "
-            f"{positive} diffraction orders"
-        )
-    if difference_model == "two_sided":
-        if abs(beat_minus) <= tol:
-            raise ValueError(
-                f"difference_model='two_sided' needs the symmetric {negative} "
-                f"order in the {direction} differential signal"
-            )
-        if not np.isclose(beat_plus, beat_minus, rtol=1e-10, atol=tol):
-            raise ValueError(
-                f"the {direction} beat coefficients are asymmetric, so "
-                "their summed phase is not an exact two-sided difference"
-            )
-    elif abs(beat_minus) > tol:
-        raise ValueError(
-            f"difference_model={difference_model!r} requires the opposite "
-            f"{negative} order to be optically removed; it contributes to the "
-            f"same {direction} +f0 lobe in this ForwardModel"
-        )
-    return positive, negative
-
-
-def _unwrap_phase(wrapped: np.ndarray, mask: np.ndarray, method: str, grid) -> np.ndarray:
-    """Unwrap one phase map and pin its additive gauge at the pupil centre."""
-    if method == "seed":
-        phase = unwrap_seed_growth(wrapped, mask)
-    elif method == "poisson":
-        phase = unwrap_masked_poisson(wrapped, mask)
-    elif method == "none":
-        phase = wrapped.copy()
+    phase = unwrap_poisson(wrapped, mask)
     ys, xs = np.nonzero(mask)
-    k = int(
-        np.argmin(
-            (ys - grid.n / 2.0) ** 2 + (xs - grid.n / 2.0) ** 2
-        )
-    )
+    k = int(np.argmin(
+        (ys - wrapped.shape[0] / 2.0) ** 2 + (xs - wrapped.shape[1] / 2.0) ** 2
+    ))
     return phase + (wrapped[ys[k], xs[k]] - phase[ys[k], xs[k]])
 
 
@@ -271,156 +98,64 @@ def demodulate_phase_shift(
     frames_x: np.ndarray,
     frames_y: np.ndarray,
     *,
-    n_steps: int | None = None,
-    deltas_x: Sequence[float] | None = None,
-    deltas_y: Sequence[float] | None = None,
     region_mode: str = "analytic",
-    unwrap: str = "seed",
     threshold_frac: float = 0.4,
     remove_offset: bool = True,
-    erode_px: int = 0,
 ) -> DiffPhase:
-    """N-step phase-shift demodulation + shear-region extraction.
+    """N 步相移解调 + 剪切区提取，返回两个方向的 dW（waves）。
 
-    ``region_mode="analytic"``
-        shear regions from the known pupil (0-order disc intersected with the
-        +-1 order discs, i.e. the dissertation's "circle offset by the shear"
-        construction).
-    ``region_mode="modulation"``
-        the dissertation's experimental procedure: threshold the modulation,
-        take the outermost edge of the zero-order disc, least-squares fit a
-        circle (eqs. 3-1 ... 3-5) and offset that circle by the shear.
+    ``region_mode="analytic"`` 用已知光瞳（单位圆）与 ±s 移位圆的交；
+    ``"modulation"`` 走论文实验做法：调制度阈值 -> 边缘 -> 圆拟合 ->
+    按剪切量平移（式 3-1 ... 3-5）。
 
-    ``n_steps`` is a cross-check against the data: it must equal the number of
-    frames supplied, and the metadata records the number of frames actually
-    demodulated.  ``deltas_x`` / ``deltas_y`` pass calibrated phase steps to
-    the least-squares demodulation (default ``2*pi*i/N``); supplying the
-    measured steps is the only way to keep a phase-step calibration error out
-    of the demodulated phase.  ``erode_px`` shrinks both shear regions by that
-    many pixels before unwrapping, which rejects the boundary pixels where
-    the demodulated phase is unreliable.
-
-    The returned data uses a two-sided difference model.  The zero and
-    symmetric ``+-1`` diffraction orders must therefore all be present and
-    their two beat coefficients must match; asymmetric custom order sets are
-    rejected instead of being silently divided by ``pi``.
+    解调相位先减去光栅常数项再解包裹：理想棋盘的 x 对偏移恰为 pi，
+    直接在 ±pi 分支切线附近解包裹会产生整帧 2 pi 抖动。
     """
     cfg = fm.config
-    frames_x = np.asarray(frames_x, dtype=float)
-    frames_y = np.asarray(frames_y, dtype=float)
-    for name, frames in (("frames_x", frames_x), ("frames_y", frames_y)):
-        if frames.ndim != 3 or frames.shape[1:] != fm.shape:
-            raise ValueError(
-                f"{name} must have shape (N, {fm.shape[0]}, {fm.shape[1]}), "
-                f"got {frames.shape}"
-            )
-    check_region_mode(region_mode)
-    check_unwrap_method(unwrap)
-    remove_offset = _require_bool(remove_offset, "remove_offset")
-    n_frames = int(frames_x.shape[0])
-    if frames_y.shape[0] != n_frames:
+    if region_mode not in ("analytic", "modulation"):
         raise ValueError(
-            "frames_x and frames_y must hold the same number of phase steps, "
-            f"got {n_frames} and {frames_y.shape[0]}"
+            f"region_mode 必须是 'analytic'/'modulation'，得到 {region_mode!r}"
         )
-    if n_steps is not None:
-        n_steps = _as_int(n_steps, "n_steps", minimum=3)
-        if n_steps != n_frames:
+    _require_symmetric_pair(fm, "x")
+    _require_symmetric_pair(fm, "y")
+    for name, frames in (("frames_x", frames_x), ("frames_y", frames_y)):
+        if np.ndim(frames) != 3 or frames.shape[1:] != fm.shape:
             raise ValueError(
-                f"n_steps={n_steps} does not match the {n_frames} frames supplied"
+                f"{name} 形状必须是 (N, {fm.shape[0]}, {fm.shape[1]})，"
+                f"得到 {np.shape(frames)}"
             )
-    for name, d in (("deltas_x", deltas_x), ("deltas_y", deltas_y)):
-        if d is not None and len(d) != n_frames:
-            raise ValueError(
-                f"{name} holds {len(d)} steps but {n_frames} frames were "
-                "supplied"
-            )
-    for direction in ("x", "y"):
-        _validate_pair_orders(fm, direction, "two_sided")
-    res_x = lsq_phase_shift(frames_x, deltas_x)
-    res_y = lsq_phase_shift(frames_y, deltas_y)
+    res = {"x": lsq_phase_shift(frames_x), "y": lsq_phase_shift(frames_y)}
 
-    # The regions have to follow the exit pupil actually used by the forward
-    # model.  Without a custom pupil the analytic unit-disk construction below
-    # is exact and sub-pixel accurate, so it stays the default; with one, the
-    # shifted pupils must be taken from the model or the regions would claim
-    # signal outside the aperture.  The *definition* is passed through, not the
-    # sampled mask, so a callable pupil keeps its exact edges here too.
-    aperture = fm.pupil_definition
     if region_mode == "modulation":
-        if aperture is not None:
-            raise ValueError(
-                "region_mode='modulation' fits a single circle, so it cannot "
-                "describe a non-circular custom 'pupil'; use "
-                "region_mode='analytic' with a custom pupil"
-            )
-        circle = zero_order_center_radius(
-            res_x.modulation, cfg.grid, threshold_frac=threshold_frac
+        cx, cy, r = find_pupil_circle(
+            res["x"].modulation, cfg.grid, threshold_frac=threshold_frac
         )
-        masks = shear_region_masks(
-            cfg.grid,
-            cfg.s,
-            center=(circle.cx, circle.cy),
-            radius=circle.radius,
-        )
-        meta = {"circle": (circle.cx, circle.cy, circle.radius)}
+        masks = shear_regions(cfg.grid, cfg.s, cx, cy, r)
+        meta = {"circle": (cx, cy, r)}
     else:
-        masks = shear_region_masks(cfg.grid, cfg.s, aperture=aperture)
+        masks = shear_regions(cfg.grid, cfg.s)
         meta = {}
 
-    for key in ("region_x", "region_y"):
-        _require_nonempty(masks[key], f"the {key[7:]} shear region")
-
-    erode_px = _as_int(erode_px, "erode_px", minimum=0)
-    if erode_px:
-        from scipy import ndimage
-
-        r = erode_px
-        yy, xx = np.ogrid[-r : r + 1, -r : r + 1]
-        structure = (xx * xx + yy * yy) <= r * r
-        for key in ("region_x", "region_y"):
-            eroded = ndimage.binary_erosion(masks[key], structure=structure)
-            if not eroded.any():
-                raise ValueError(
-                    f"erode_px={r} erodes the whole {key} shear region away"
-                )
-            masks[key] = eroded
-        meta["erode_px"] = r
-
-    for key in ("region_x", "region_y"):
-        _require_connected(masks[key], f"the {key[7:]} shear region")
-
-    dW, phase, wrapped_phase, mod, amplitude = {}, {}, {}, {}, {}
-    for res, direction in ((res_x, "x"), (res_y, "y")):
+    dW, phase, wrapped_phase, mod = {}, {}, {}, {}
+    for direction in ("x", "y"):
         mask = masks[f"region_{direction}"]
-        model_offset = fm.demodulation_offset(direction)
-        # Remove the known grating phase on the unit circle *before*
-        # unwrapping.  The ideal x-order offset is exactly pi, so anchoring the
-        # raw wrapped phase first makes an arbitrarily small noise perturbation
-        # choose between +pi and -pi and can shift the whole result by -2*pi.
-        wrapped = np.angle(np.exp(1j * (res.phase - model_offset)))
-        ph = _unwrap_phase(wrapped, mask, unwrap, cfg.grid)
+        offset = fm.demodulation_offset(direction)
+        wrapped = wrap(res[direction].phase - offset)
+        ph = _unwrap_in_region(wrapped, mask)
         if not remove_offset:
-            # Preserve the public "raw phase" option, but add the model offset
-            # back only after unwrapping so its exact pi value cannot choose the
-            # wrong wrapped branch.
-            ph = ph + model_offset
-        dW[direction] = ph / np.pi
+            ph = ph + offset   # 常数在解包裹后加回，避免选错缠绕分支
+        dW[direction] = ph / np.pi          # 相位 = pi * 双边差分（waves）
         phase[direction] = ph
         wrapped_phase[direction] = wrapped
-        mod[direction] = res.modulation
-        amplitude[direction] = res.modulation
+        mod[direction] = res[direction].modulation
     return DiffPhase(
         dW=dW,
-        phase=phase,
-        difference_model="two_sided",
-        grating_offset_removed={"x": remove_offset, "y": remove_offset},
-        wrapped_phase=wrapped_phase,
         mask={"x": masks["region_x"], "y": masks["region_y"]},
-        modulation=mod,
-        amplitude=amplitude,
         confidence=mod,
-        meta={**meta, "n_steps": n_frames, "route": "phase_shift"},
+        offset_removed={"x": remove_offset, "y": remove_offset},
+        phase=phase,
+        wrapped_phase=wrapped_phase,
+        meta={**meta, "route": "phase_shift", "n_steps": int(frames_x.shape[0])},
     )
 
 
@@ -431,253 +166,116 @@ def demodulate_fourier(
     direction: str = "x",
     f0: float | None = None,
     threshold_frac: float = 0.5,
-    difference_model: str = "two_sided",
-    window_radius: float | None = None,
-    remove_offset: bool = True,
     erode_px: int = 4,
-    unwrap: str = "seed",
-    **lobe_kwargs,
+    remove_offset: bool = True,
+    window_radius: float | None = None,
 ) -> tuple[np.ndarray, np.ndarray, LobeResult]:
-    """Single-frame carrier demodulation for one shear direction.
+    """单帧载频解调一个方向，返回 (dW, mask, lobe)。
 
-    Returns ``(dW, mask, lobe)`` with the unwrapped phase converted according to
-    ``difference_model`` (``phase / 2 pi`` for a one-sided difference,
-    ``phase / pi`` for a two-sided one).  ``lobe.phase`` remains the wrapped
-    phase after removal of the model offset.  ``lobe.unwrapped_phase`` records
-    the final phase used for ``dW``: when ``remove_offset=False`` the model
-    offset is added back only *after* unwrapping, avoiding the ideal
-    chessboard's ``+-pi`` branch cut.
-
-    With the model's symmetric ``+-1`` orders, the same carrier lobe contains
-    both zero/first-order beats and its phase is the dissertation's two-sided
-    difference.  A one-sided model is valid only when the opposite first order
-    has physically been removed from ``fm.orders``.
+    mask = 载频瓣幅值超过峰值 threshold_frac 且落在物理剪切支撑
+    （0 级与 ±1 级光瞳的交）内；``erode_px`` 把掩膜边缘腐蚀掉若干像素，
+    去掉滤波核混入暗区造成的边界畸变。
     """
-    check_direction(direction)
-    check_difference_model(difference_model)
-    check_unwrap_method(unwrap)
-    remove_offset = _require_bool(remove_offset, "remove_offset")
-    positive, negative = _validate_pair_orders(
-        fm, direction, difference_model
-    )
-    threshold_frac = _as_float(
-        threshold_frac,
-        "threshold_frac",
-        low=0.0,
-        high=1.0,
-        inclusive_low=True,
-        inclusive_high=False,
-    )
-    erode_px = _as_int(erode_px, "erode_px", minimum=0)
-    model_offset = fm.demodulation_offset(direction)
-    lobe = demodulate_lobe(
-        image, fm.config.grid, direction=direction,
-        f0=fm.config.carrier_f0 if f0 is None else f0,
-        phase_offset=model_offset, window_radius=window_radius, **lobe_kwargs,
-    )
-    # Support of the isolated lobe, taken from the model so that a custom pupil
-    # is honored.  A two-sided reading needs all three pupils; near an edge
-    # where one symmetric first order is absent, the same carrier becomes
-    # one-sided and cannot be fitted with a two-sided Zernike basis.
-    a, b = positive
-    support = fm.order_support(0, 0) & fm.order_support(a, b)
-    if difference_model == "two_sided":
-        support &= fm.order_support(*negative)
-    _require_nonempty(support, f"the physical {direction} shear support")
-    amp = lobe.amplitude
-    peak = float(np.max(amp[support]))
-    mask = (amp > threshold_frac * peak) & support
-    if erode_px > 0:
-        # The demodulated lobe is distorted in a ring at the region border
-        # (the filter kernel mixes in the dark area).  Eroding the mask by a
-        # few kernel widths removes that bias, which otherwise projects onto
-        # the low-order Zernike terms.
-        from scipy.ndimage import binary_erosion
+    from scipy import ndimage
 
-        mask = binary_erosion(mask, iterations=erode_px)
-    _require_nonempty(mask, f"the {direction} demodulation mask")
-    _require_connected(mask, f"the {direction} demodulation mask")
-    phase = _unwrap_phase(lobe.phase, mask, unwrap, fm.config.grid)
+    if direction not in ("x", "y"):
+        raise ValueError(f"direction 必须是 'x' 或 'y'，得到 {direction!r}")
+    if not 0.0 <= threshold_frac < 1.0:
+        raise ValueError("threshold_frac 必须在 [0, 1) 内")
+    _require_symmetric_pair(fm, direction)
+    offset = fm.demodulation_offset(direction)
+    lobe = demodulate_lobe(
+        image, fm.grid, direction,
+        f0=fm.config.carrier_f0 if f0 is None else f0,
+        phase_offset=offset,
+        window_radius=window_radius,
+    )
+    a, b = (1.0, 0.0) if direction == "x" else (0.0, 1.0)
+    support = fm.order_support(0.0, 0.0) & fm.order_support(a, b) & fm.order_support(-a, -b)
+    if not np.any(support):
+        raise ValueError("剪切支撑为空：0 级与 ±1 级光瞳没有交集")
+    mask = (lobe.amplitude > threshold_frac * lobe.amplitude[support].max()) & support
+    if erode_px > 0:
+        mask = ndimage.binary_erosion(mask, iterations=erode_px)
+    if not mask.any():
+        raise ValueError("掩膜为空：降低 threshold_frac 或 erode_px")
+    phase = _unwrap_in_region(lobe.phase, mask)
     if not remove_offset:
-        phase = phase + model_offset
-    lobe.unwrapped_phase = phase
-    factor = 2.0 * np.pi if difference_model == "one_sided" else np.pi
-    dW = phase / factor
-    return dW, mask, lobe
+        phase = phase + offset
+    return phase / np.pi, mask, lobe
 
 
 # --------------------------------------------------------------------------- #
-def _tilt_gauge_constants(
-    shear: float, difference_model: str
-) -> tuple[float, float]:
-    """Constant value of the tilt columns in each difference direction.
-
-    ``dZx(2)`` (x tilt in the x-difference) and ``dZy(3)`` (y tilt in the
-    y-difference) are spatially constant for every difference model: ``2 s``
-    for ``"two_sided"`` and ``"one_sided_doubled"``, ``s`` for
-    ``"one_sided"``.  They are taken from the differential basis itself so
-    the gauge correction stays correct for all ``difference_model`` values.
-    """
-    c_x = float(
-        differential_zernike(2, 0.0, 0.0, shear, "x", difference_model)
-    )
-    c_y = float(
-        differential_zernike(3, 0.0, 0.0, shear, "y", difference_model)
-    )
-    return c_x, c_y
-
-
 def reconstruct(
     fm: ForwardModel,
     diff: DiffPhase,
     *,
     indices: Sequence[int] = DEFAULT_INDICES,
-    difference_model: str | None = None,
     offset_mode: str = "none",
     weight_by_confidence: bool = True,
-    weight_by_modulation: bool | None = None,
     resolve_tilt_gauge: bool = True,
 ) -> ZernikeFit:
-    """Differential-Zernike least squares on demodulated data.
+    """对解调差分数据做差分 Zernike 最小二乘（式 2-28 ... 2-31）。
 
-    ``difference_model`` defaults to the model carried by ``diff``.  An
-    explicit conflicting value is rejected rather than silently fitting the
-    data with the wrong differential-Zernike basis.
+    ``offset_mode``：
+      ``"none"``     解调时已扣除模型常数（默认）；
+      ``"model"``    在此减去模型预测常数（配合 remove_offset=False）；
+      ``"estimate"`` 每方向估计一个自由常数（与 tilt 列共线，仅在振幅
+                     未知时有意义）。
 
-    ``weight_by_confidence=True`` uses the route-specific signal strength:
-    phase-shift modulation or Fourier lobe amplitude.
-
-    ``weight_by_modulation`` is the deprecated name of
-    ``weight_by_confidence`` and is retained for API compatibility.
-
-    ``offset_mode``
-        ``"none"``     default: the demodulator already removed the
-                       model-predicted half-fringe constant; rejected if the
-                       :class:`DiffPhase` says otherwise,
-        ``"model"``    subtract the grating-model prediction here (use when
-                       the demodulation was run with ``remove_offset=False``);
-                       rejected when every direction was already corrected,
-        ``"estimate"`` estimate one free constant per direction -- only useful
-                       when the beam amplitudes are unknown; note that such a
-                       constant is collinear with the tilt column, so the tilt
-                       coefficients lose their meaning (see
-                       ``fit_differential_zernike``).
-
-    ``resolve_tilt_gauge``
-        Correct the residual integer-wave gauge of the unwrapped phase.  The
-        demodulator pins the seed pixel's unwrapped phase to its wrapped
-        value, so whenever the true phase at that pixel sits more than half a
-        fringe away from its wrapped value the whole difference map is off by
-        an integer number of waves; a constant in ``dW_x`` (``dW_y``) is
-        absorbed by the tilt coefficient ``Z2`` (``Z3``), producing a
-        spurious tilt of ``k / c`` waves where ``c`` is the constant value of
-        the tilt column (``2 s`` for the two-sided model).  With this option
-        the fitted tilt is multiplied by the column constant, rounded to the
-        nearest integer ``k``, and -- when nonzero -- subtracted from the
-        difference map before a second fit.  This encodes the prior that the
-        true tilt satisfies ``|Z2|, |Z3| < 1 / (2 c)`` waves; switch it off
-        when that prior does not hold (e.g. a genuinely large tilt).
-
-        The gauge error is *exactly* an integer number of waves, so the
-        correction is applied only when the estimated constant is within a
-        quarter wave of an integer; a larger fractional part means the
-        constant is dominated by real tilt or noise rather than the unwrap
-        gauge, and rounding it would inject a whole-wave error.  The option
-        is also skipped when ``offset_mode="estimate"`` because the free
-        constant makes the tilt column unidentifiable anyway.  The applied
-        integers are recorded in ``diff.meta["tilt_gauge"]`` as
-        ``k_x`` / ``k_y``.
+    ``resolve_tilt_gauge``：修正解包裹的整数波规范。解包裹把种子像素钉到
+    其缠绕值，若真实相位距缠绕值超过半条纹，整张 dW 图差整数个波长；
+    该常数被 tilt 列（dZx(2) = 2s 为常数）吸收，表现为虚假 tilt。
+    开启后把拟合 tilt 乘列常数、四舍五入到整数 k，非零则扣除后重拟合。
+    相当于先验 |Z2|, |Z3| < 1/(4s)；大 tilt 波前请关闭。
     """
-    x, y = fm.config.grid.coords()
-    check_offset_mode(offset_mode)
-    if weight_by_modulation is not None:
-        warnings.warn(
-            "weight_by_modulation is deprecated; use weight_by_confidence",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        weight_by_confidence = bool(weight_by_modulation)
-    if difference_model is None:
-        difference_model = diff.difference_model
-    else:
-        check_difference_model(difference_model)
-        if difference_model != diff.difference_model:
-            raise ValueError(
-                f"difference_model={difference_model!r} conflicts with "
-                f"DiffPhase.difference_model={diff.difference_model!r}"
-            )
-    check_difference_model(difference_model)
-    for direction, mask in diff.mask.items():
-        _require_nonempty(mask, f"the {direction} reconstruction mask")
-        _require_connected(mask, f"the {direction} reconstruction mask")
-    removed = diff.grating_offset_removed
-    if offset_mode == "none" and not all(removed.values()):
-        pending = [direction for direction, done in removed.items() if not done]
+    if offset_mode not in ("none", "model", "estimate"):
         raise ValueError(
-            "offset_mode='none' would leave the model grating offset in "
-            f"direction(s) {pending}; use offset_mode='model' or 'estimate'"
+            f"offset_mode 必须是 'none'/'model'/'estimate'，得到 {offset_mode!r}"
         )
-    known = None
-    if offset_mode == "model":
-        if all(removed.values()):
-            raise ValueError(
-                "offset_mode='model' would subtract the grating offset twice; "
-                "the DiffPhase already records it as removed"
-            )
-        known = {
-            d: (
-                0.0
-                if removed[d]
-                else fm.demodulation_offset(d)
-                / (
-                    np.pi
-                    if difference_model != "one_sided"
-                    else 2 * np.pi
-                )
-            )
-            for d in ("x", "y")
-        }
+    if offset_mode == "none" and not all(diff.offset_removed.values()):
+        raise ValueError(
+            "offset_mode='none' 但解调未扣除光栅常数：请用 'model' 或 'estimate'"
+        )
+    if offset_mode == "model" and all(diff.offset_removed.values()):
+        raise ValueError(
+            "offset_mode='model' 会重复扣除：DiffPhase 记录常数已移除"
+        )
+    x, y = fm.grid.coords()
     wx = wy = None
     if weight_by_confidence and diff.confidence:
-        wx = np.clip(np.abs(diff.confidence["x"]), 1e-6, None)
-        wy = np.clip(np.abs(diff.confidence["y"]), 1e-6, None)
-    resolve_tilt_gauge = _require_bool(resolve_tilt_gauge, "resolve_tilt_gauge")
+        wx = np.clip(diff.confidence["x"], 1e-6, None)
+        wy = np.clip(diff.confidence["y"], 1e-6, None)
+    known = None
+    if offset_mode == "model":
+        known = {
+            d: 0.0 if diff.offset_removed[d]
+            else fm.demodulation_offset(d) / np.pi
+            for d in ("x", "y")
+        }
 
-    def _fit(dW_x, dW_y):
+    def _fit(dwx, dwy):
         return fit_differential_zernike(
-            dW_x, dW_y, diff.mask["x"], diff.mask["y"],
-            fm.s, x, y, indices=indices,
+            dwx, dwy, diff.mask["x"], diff.mask["y"], fm.s, x, y,
+            indices=indices,
             fit_offsets=(offset_mode == "estimate"),
             known_offsets=known,
             weights_x=wx, weights_y=wy,
-            difference_model=difference_model,
         )
 
     fit = _fit(diff.dW["x"], diff.dW["y"])
     k_x = k_y = 0
-    # The unwrap gauge pins the seed pixel to its wrapped value, so the whole
-    # map can carry an integer-wave constant that the fit parks in the tilt
-    # coefficient.  Skipped under offset_mode="estimate": the free constant
-    # is exactly collinear with the tilt column there, so the fitted tilt is
-    # already meaningless and no gauge can be read off it.
-    if (
-        resolve_tilt_gauge
-        and offset_mode != "estimate"
-        and isinstance(fit, ZernikeFit)
-    ):
+    if resolve_tilt_gauge and offset_mode != "estimate":
         idx = list(indices)
-        c_x, c_y = _tilt_gauge_constants(fm.s, difference_model)
-        # The gauge error is an exact integer number of waves; a fractional
-        # part far from an integer means the constant is real tilt or noise,
-        # not the unwrap gauge, so the integer hypothesis is rejected.
-        tol_waves = 0.25
-        if 2 in idx and c_x:
-            est = fit.coeffs[idx.index(2)] * c_x
-            if abs(est - np.rint(est)) <= tol_waves:
+        # 规范误差恰为整数个波长；小数部分远离整数说明常数来自真实
+        # tilt 或噪声，此时取整会注入整波误差，故拒绝。
+        if 2 in idx:
+            est = fit.coeffs[idx.index(2)] * 2.0 * fm.s   # dZx(2) = 2s 为常数
+            if abs(est - np.rint(est)) <= 0.25:
                 k_x = int(np.rint(est))
-        if 3 in idx and c_y:
-            est = fit.coeffs[idx.index(3)] * c_y
-            if abs(est - np.rint(est)) <= tol_waves:
+        if 3 in idx:
+            est = fit.coeffs[idx.index(3)] * 2.0 * fm.s   # dZy(3) = 2s
+            if abs(est - np.rint(est)) <= 0.25:
                 k_y = int(np.rint(est))
         if k_x or k_y:
             fit = _fit(diff.dW["x"] - k_x, diff.dW["y"] - k_y)
@@ -686,56 +284,59 @@ def reconstruct(
 
 
 def phase_shift_to_wavefront(
-    fm: ForwardModel, frames_x, frames_y, *, indices=DEFAULT_INDICES,
-    offset_mode: str = "none", resolve_tilt_gauge: bool = True, **kwargs,
+    fm: ForwardModel,
+    frames_x,
+    frames_y,
+    *,
+    indices: Sequence[int] = DEFAULT_INDICES,
+    region_mode: str = "analytic",
+    remove_offset: bool = True,
+    offset_mode: str = "none",
+    resolve_tilt_gauge: bool = True,
+    weight_by_confidence: bool = True,
 ) -> tuple[ZernikeFit, DiffPhase]:
-    diff = demodulate_phase_shift(fm, frames_x, frames_y, **kwargs)
-    return (
-        reconstruct(
-            fm,
-            diff,
-            indices=indices,
-            offset_mode=offset_mode,
-            resolve_tilt_gauge=resolve_tilt_gauge,
-        ),
-        diff,
+    diff = demodulate_phase_shift(
+        fm, frames_x, frames_y,
+        region_mode=region_mode, remove_offset=remove_offset,
     )
+    fit = reconstruct(
+        fm, diff, indices=indices, offset_mode=offset_mode,
+        resolve_tilt_gauge=resolve_tilt_gauge,
+        weight_by_confidence=weight_by_confidence,
+    )
+    return fit, diff
 
 
 def fourier_to_wavefront(
-    fm: ForwardModel, image: np.ndarray, *, indices=DEFAULT_INDICES,
-    difference_model: str = "two_sided", offset_mode: str = "none",
-    resolve_tilt_gauge: bool = True, **kwargs,
+    fm: ForwardModel,
+    image,
+    *,
+    indices: Sequence[int] = DEFAULT_INDICES,
+    remove_offset: bool = True,
+    offset_mode: str = "none",
+    resolve_tilt_gauge: bool = True,
+    weight_by_confidence: bool = True,
+    **demod_kwargs,
 ) -> tuple[ZernikeFit, DiffPhase]:
-    remove_offset = _require_bool(
-        kwargs.get("remove_offset", True), "remove_offset"
+    dWx, mask_x, lobe_x = demodulate_fourier(
+        fm, image, direction="x", remove_offset=remove_offset, **demod_kwargs
     )
-    dWx, mask_x, lobe_x = demodulate_fourier(fm, image, direction="x",
-                                             difference_model=difference_model, **kwargs)
-    dWy, mask_y, lobe_y = demodulate_fourier(fm, image, direction="y",
-                                             difference_model=difference_model, **kwargs)
+    dWy, mask_y, lobe_y = demodulate_fourier(
+        fm, image, direction="y", remove_offset=remove_offset, **demod_kwargs
+    )
     diff = DiffPhase(
         dW={"x": dWx, "y": dWy},
-        phase={
-            "x": lobe_x.unwrapped_phase,
-            "y": lobe_y.unwrapped_phase,
-        },
-        difference_model=difference_model,
-        grating_offset_removed={"x": remove_offset, "y": remove_offset},
-        wrapped_phase={"x": lobe_x.phase, "y": lobe_y.phase},
         mask={"x": mask_x, "y": mask_y},
-        amplitude={"x": lobe_x.amplitude, "y": lobe_y.amplitude},
         confidence={"x": lobe_x.amplitude, "y": lobe_y.amplitude},
-        lobes={"x": lobe_x, "y": lobe_y},
-        meta={"route": "fourier"},
+        offset_removed={"x": remove_offset, "y": remove_offset},
+        # 解包裹相位（弧度）= dW * pi
+        phase={"x": dWx * np.pi, "y": dWy * np.pi},
+        wrapped_phase={"x": lobe_x.phase, "y": lobe_y.phase},
+        meta={"route": "fourier", "lobes": {"x": lobe_x, "y": lobe_y}},
     )
-    return (
-        reconstruct(
-            fm,
-            diff,
-            indices=indices,
-            offset_mode=offset_mode,
-            resolve_tilt_gauge=resolve_tilt_gauge,
-        ),
-        diff,
+    fit = reconstruct(
+        fm, diff, indices=indices, offset_mode=offset_mode,
+        resolve_tilt_gauge=resolve_tilt_gauge,
+        weight_by_confidence=weight_by_confidence,
     )
+    return fit, diff

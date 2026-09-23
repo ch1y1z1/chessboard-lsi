@@ -1,34 +1,28 @@
-"""Levenberg-Marquardt inversion of the non-linear forward model.
+"""Levenberg–Marquardt 对非线性前向模型的直接反演。
 
-The forward model ``I = |sum_ab A_ab exp(i 2 pi W(x+as, y+bs) ...)|^2`` is a
-non-linear function of the Zernike coefficients ``c`` of the wavefront.
-Instead of linearising the *interferogram* (phase-shift / Fourier route), we
-minimise the intensity residual directly:
+前向模型 I = |sum_ab A_ab exp(i[2 pi W(x+as, y+bs) + delta_ab])|^2 对
+波前 Zernike 系数 c 是非线性的。不做干涉图线性化（相移/傅里叶路线），
+而是直接最小化光强残差：
 
     min_c  || I_meas - I_model(c) ||^2
 
-with the Levenberg-Marquardt iteration
+LM 迭代（Marquardt 阻尼 + Nielsen 更新）：
 
-    (J^T J + lambda diag(J^T J)) delta = -J^T f,      c <- c + delta
-    rho = (F(c) - F(c+delta)) / delta^T (lambda diag(J^T J) delta - J^T f)
+    (J^T J + lambda diag(J^T J)) delta = -J^T f,   c <- c + delta
+    rho = (F(c) - F(c + delta)) / delta^T (lambda D delta - J^T f)
 
-The damped step is computed as an augmented least-squares problem rather than
-by explicitly solving these normal equations, avoiding the numerical
-``cond(J)^2`` penalty.
+其中 F(c) = ||f(c)||^2（不是 1/2||f||^2），分子分母因子一致。
 
-and Nielsen's damping update.  The Jacobian is analytic:
+阻尼步用增广最小二乘求解而不是显式法方程，避免 cond(J)^2 的数值损失：
 
-    dI/dc_j = 2 Re{ E* dE/dc_j },
-    dE/dc_j = sum_ab A_ab exp(i phi_ab) * i 2 pi * Z_j(x+as, y+bs)
+    [ J           ] delta ~= [ -f ]
+    [ sqrt(lam D) ]          [  0 ]
 
-so each iteration costs one order-superposition pass, no finite differences.
+雅可比是解析的：dE/dc_j = sum_ab A_ab e^{i phi_ab} i 2 pi Z_j(x+as, y+bs)，
+dI/dc_j = 2 Re{ E* dE/dc_j }，每次迭代一次级次叠加，无有限差分。
 
-Advantages over the dissertation pipeline (see ``scripts/03_lm_inverse.py``):
-no unwrapping, no shear-region detection, no modulation-sign problem, works
-with a single carrier frame, and the affine nuisance parameters (intensity
-scale and background) can be estimated jointly by variable projection.  The
-phase steps and the shear are *not* fitted here: the parameter vector holds
-the Zernike coefficients only, and both are taken from the forward model.
+相比论文流程的优势：不解包裹、不做剪切区判定、无调制度变号问题、
+单帧载频图即可反演；光强仿射参数（增益 + 背景）可用变量投影一并估计。
 """
 
 from __future__ import annotations
@@ -38,8 +32,8 @@ from typing import Callable, Sequence
 
 import numpy as np
 
-from .config import _as_float, _as_int
-from .forward import ForwardModel, ZernikeWavefront
+from .forward import ForwardModel
+from .zernike import check_indices
 
 __all__ = [
     "LMConfig",
@@ -54,99 +48,41 @@ __all__ = [
 @dataclass
 class LMConfig:
     max_iter: int = 120
-    lambda0: float = 1e-3
+    lambda0: float = 1e-3        # 初始阻尼
     lambda_min: float = 1e-12
     lambda_max: float = 1e10
-    nu0: float = 2.0
-    ftol: float = 1e-14
-    xtol: float = 1e-12
-    gtol: float = 1e-12
+    nu0: float = 2.0             # 拒绝步时 lambda 的增长因子初值
+    ftol: float = 1e-14          # 代价相对变化收敛阈
+    xtol: float = 1e-12          # 步长收敛阈
+    gtol: float = 1e-12          # 梯度范数收敛阈
     verbose: bool = False
-    #: estimate an affine intensity model ``alpha * I_model + beta`` in the
-    #: loop (variable projection) -- protects against unknown exposure/offset
+    #: 在迭代内用变量投影估计仿射光强模型 alpha*I_model + beta
     fit_scale_background: bool = False
-
-    def __post_init__(self) -> None:
-        self.max_iter = _as_int(self.max_iter, "max_iter", minimum=1)
-        self.lambda_min = _as_float(self.lambda_min, "lambda_min", low=0.0)
-        self.lambda_max = _as_float(self.lambda_max, "lambda_max", low=0.0)
-        if self.lambda_min > self.lambda_max:
-            raise ValueError("lambda_min must not exceed lambda_max")
-        self.lambda0 = _as_float(
-            self.lambda0,
-            "lambda0",
-            low=self.lambda_min,
-            high=self.lambda_max,
-            inclusive_low=True,
-        )
-        self.nu0 = _as_float(self.nu0, "nu0", low=1.0)
-        for name in ("ftol", "xtol", "gtol"):
-            setattr(
-                self,
-                name,
-                _as_float(
-                    getattr(self, name),
-                    name,
-                    low=0.0,
-                    inclusive_low=True,
-                ),
-            )
-        if not isinstance(self.verbose, bool):
-            raise ValueError(f"verbose must be a bool, got {self.verbose!r}")
-        if not isinstance(self.fit_scale_background, bool):
-            raise ValueError(
-                "fit_scale_background must be a bool, got "
-                f"{self.fit_scale_background!r}"
-            )
 
 
 @dataclass
 class LMResult:
-    x: np.ndarray
-    cost: float
+    x: np.ndarray                # 拟合的 Zernike 系数
+    cost: float                  # ||f||^2
     history: dict = field(default_factory=dict)
     n_iter: int = 0
     converged: bool = False
     message: str = ""
-    scale: float = 1.0
-    background: float = 0.0
-    #: 2-norm condition number of the Jacobian itself, evaluated at the returned
-    #: ``x``: the variable-projection Jacobian when a scale/background is being
-    #: fitted, otherwise the raw one.  Same convention as
-    #: ``reconstruct.fit_differential_zernike``, which reports ``cond`` of its
-    #: design matrix -- reporting ``cond(J^T J)`` instead would square the
-    #: number and make a well-understood ``1e6`` look like total loss of
-    #: identifiability.
-    cond: float = np.nan
-    #: Numerical rank of that same final Jacobian.
-    rank: int = 0
+    scale: float = 1.0           # 拟合的光强增益（变量投影）
+    background: float = 0.0      # 拟合的背景
+    cond: float = np.nan         # 解处雅可比的 2-范数条件数（可辨识性）
     rms_residual: float = 0.0
-    n_residual: int = 0
-    n_parameters: int = 0
-    lambda_final: float = float("nan")
 
 
-def _solve_damped(J: np.ndarray, f: np.ndarray, lam: float):
-    """Solve the damped step without explicitly forming normal equations.
-
-    The augmented least-squares system has the same minimizer as
-    ``(J.T J + lam D) delta = -J.T f`` but avoids squaring ``cond(J)``::
-
-        [ J             ] delta ~= [ -f ]
-        [ sqrt(lam D)   ]          [  0 ]
-    """
-    JtJ = J.T @ J
+def _solve_damped(
+    J: np.ndarray, f: np.ndarray, lam: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """增广最小二乘求阻尼步，返回 (delta, g = J^T f)。"""
+    diag = np.clip(np.diag(J.T @ J), 1e-30, None)
     g = J.T @ f
-    diag = np.clip(np.diag(JtJ), 1e-30, None)
-    if lam > 0.0:
-        damping = np.diag(np.sqrt(lam * diag))
-        A = np.vstack([J, damping])
-        rhs = np.concatenate([-f, np.zeros(J.shape[1])])
-    else:
-        A = J
-        rhs = -f
-    delta = np.linalg.lstsq(A, rhs, rcond=None)[0]
-    return delta, g, JtJ
+    A = np.vstack([J, np.diag(np.sqrt(lam * diag))])
+    delta = np.linalg.lstsq(A, np.concatenate([-f, np.zeros(J.shape[1])]), rcond=None)[0]
+    return delta, g, diag
 
 
 def levenberg_marquardt(
@@ -159,157 +95,269 @@ def levenberg_marquardt(
     ]
     | None = None,
 ) -> LMResult:
-    """LM minimisation of ``||f(x)||^2`` with an analytic Jacobian.
+    """最小化 ||f(x)||^2；``residual_and_jac(x) -> (f, J)`` 用解析雅可比。
 
-    ``residual_and_jac(x)`` must return ``(f, J)`` with ``f`` the residual
-    vector and ``J`` its Jacobian.  If ``scale_background`` is given, it maps
-    ``(f_raw, J_raw)`` onto ``(f, J, alpha, beta)`` for the affine intensity
-    model (variable projection).
+    ``scale_background`` 若给出，把原始 (f, J) 映射为变量投影后的
+    (f, J, alpha, beta)（仿射光强模型的精简残差/雅可比）。
     """
     cfg = config or LMConfig()
     if cfg.fit_scale_background and scale_background is None:
         raise ValueError(
-            "LMConfig(fit_scale_background=True) requires a "
-            "scale_background callback"
+            "LMConfig(fit_scale_background=True) 需要 scale_background 回调"
         )
     x = np.asarray(x0, dtype=float).copy()
-    if x.ndim != 1 or x.size == 0:
-        raise ValueError("x0 must be a non-empty one-dimensional parameter vector")
-    if not np.all(np.isfinite(x)):
-        raise ValueError("x0 must contain only finite values")
-    lam = cfg.lambda0
-    nu = cfg.nu0
-    history = {"cost": [], "lambda": [], "grad_norm": [], "step_norm": [], "rho": []}
 
-    def evaluate(point):
-        f_eval, J_eval = residual_and_jac(point)
-        f_eval = np.asarray(f_eval, dtype=float)
-        J_eval = np.asarray(J_eval, dtype=float)
-        if f_eval.ndim != 1:
-            raise ValueError(f"residual must be one-dimensional, got {f_eval.shape}")
-        if J_eval.shape != (f_eval.size, point.size):
-            raise ValueError(
-                "Jacobian shape must be (n_residual, n_parameters), got "
-                f"{J_eval.shape} for {f_eval.size} residuals and {point.size} parameters"
-            )
-        if f_eval.size == 0:
-            raise ValueError("cannot run LM with zero residual observations")
-        if not np.all(np.isfinite(f_eval)) or not np.all(np.isfinite(J_eval)):
-            raise ValueError("residual and Jacobian must contain only finite values")
-        a_eval, b_eval = 1.0, 0.0
-        if cfg.fit_scale_background and scale_background is not None:
-            f_eval, J_eval, a_eval, b_eval = scale_background(f_eval, J_eval)
-            f_eval = np.asarray(f_eval, dtype=float)
-            J_eval = np.asarray(J_eval, dtype=float)
-            if J_eval.shape != (f_eval.size, point.size) or f_eval.size == 0:
-                raise ValueError("reduced residual/Jacobian have inconsistent shapes")
-            if not np.all(np.isfinite(f_eval)) or not np.all(np.isfinite(J_eval)):
-                raise ValueError("reduced residual and Jacobian must be finite")
-        return f_eval, J_eval, float(a_eval), float(b_eval)
+    def evaluate(p):
+        f_p, J_p = residual_and_jac(p)
+        if f_p.size == 0:
+            raise ValueError("残差为空：没有可用观测")
+        a_p, b_p = 1.0, 0.0
+        if scale_background is not None:
+            f_p, J_p, a_p, b_p = scale_background(f_p, J_p)
+        return f_p, J_p, a_p, b_p
 
     f, J, alpha, beta = evaluate(x)
     cost = float(f @ f)
-    conv = False
-    msg = "max_iter"
-    n_iter = 0
+    lam, nu = cfg.lambda0, cfg.nu0
+    history = {"cost": [], "lambda": [], "grad_norm": [], "rho": []}
+    converged, msg, n_iter = False, "max_iter", 0
 
     for it in range(cfg.max_iter):
         n_iter = it + 1
-        delta, g, JtJ = _solve_damped(J, f, lam)
-        gnorm = float(np.linalg.norm(g))
-        step = float(np.linalg.norm(delta))
+        delta, g, diag = _solve_damped(J, f, lam)
         history["cost"].append(cost)
         history["lambda"].append(lam)
-        history["grad_norm"].append(gnorm)
-        history["step_norm"].append(step)
+        history["grad_norm"].append(float(np.linalg.norm(g)))
 
-        if gnorm <= cfg.gtol:
-            conv, msg = True, "gradient tolerance"
+        if np.linalg.norm(g) <= cfg.gtol:
+            converged, msg = True, "gradient tolerance"
             break
-        if step <= cfg.xtol * (float(np.linalg.norm(x)) + cfg.xtol):
-            conv, msg = True, "step tolerance"
+        if np.linalg.norm(delta) <= cfg.xtol * (np.linalg.norm(x) + cfg.xtol):
+            converged, msg = True, "step tolerance"
             break
 
-        x_new = x + delta
-        f_new, J_new, a_new, b_new = evaluate(x_new)
+        f_new, J_new, a_new, b_new = evaluate(x + delta)
         cost_new = float(f_new @ f_new)
-
-        diag = np.clip(np.diag(JtJ), 1e-30, None)
+        # Nielsen 增益比：实际下降 / 阻尼模型预测下降
+        # cost = ||f||^2 约定下预测下降 = delta^T (lam D delta - g)
         predicted = float(delta @ (lam * diag * delta - g))
         rho = (cost - cost_new) / predicted if predicted > 0 else -1.0
-        history["rho"].append(float(rho))
+        history["rho"].append(rho)
 
         if rho > 0.0:
-            x, f, J, cost = x_new, f_new, J_new, cost_new
+            x, f, J, cost = x + delta, f_new, J_new, cost_new
             alpha, beta = a_new, b_new
-            lam *= max(1.0 / 3.0, 1.0 - (2.0 * rho - 1.0) ** 3)
+            lam = float(np.clip(
+                lam * max(1.0 / 3.0, 1.0 - (2.0 * rho - 1.0) ** 3),
+                cfg.lambda_min, cfg.lambda_max,
+            ))
             nu = cfg.nu0
-            lam = float(np.clip(lam, cfg.lambda_min, cfg.lambda_max))
-            if abs(cost - history["cost"][-1]) <= cfg.ftol * max(cost, 1e-30):
-                conv, msg = True, "cost tolerance"
+            if abs(history["cost"][-1] - cost) <= cfg.ftol * max(cost, 1e-30):
+                converged, msg = True, "cost tolerance"
                 break
         else:
-            lam *= nu
+            lam = float(np.clip(lam * nu, cfg.lambda_min, cfg.lambda_max))
             nu *= 2.0
-            lam = float(np.clip(lam, cfg.lambda_min, cfg.lambda_max))
             if lam >= cfg.lambda_max:
-                conv, msg = False, "lambda overflow"
+                msg = "lambda overflow"
                 break
-
         if cfg.verbose:
-            print(f"  iter {n_iter:3d}  cost={cost:.6e}  lambda={lam:.2e}  "
-                  f"|g|={gnorm:.3e}  rho={rho:+.3f}")
+            print(f"  iter {n_iter:3d}  cost={cost:.6e}  lambda={lam:.2e}  rho={rho:+.3f}")
 
-    n_rows = f.size
-    # Condition number of the Jacobian at the *solution*, not at the starting
-    # point: it says whether the returned fit is identifiable.  When a
-    # scale/background is fitted, J is the variable-projection Jacobian, so the
-    # nuisances are already concentrated out and do not inflate this number.
-    # Taking the normal matrix instead would report the square of this value.
-    cond = float(np.linalg.cond(J)) if J.size else np.nan
-    rank = int(np.linalg.matrix_rank(J)) if J.size else 0
     return LMResult(
         x=x,
         cost=cost,
         history=history,
         n_iter=n_iter,
-        converged=conv,
+        converged=converged,
         message=msg,
         scale=float(alpha),
         background=float(beta),
-        n_residual=int(n_rows),
-        n_parameters=int(x.size),
-        lambda_final=float(lam),
-        cond=cond,
-        rank=rank,
-        rms_residual=float(np.sqrt(cost / max(n_rows, 1))),
+        cond=float(np.linalg.cond(J)) if J.size else np.nan,
+        rms_residual=float(np.sqrt(cost / max(f.size, 1))),
     )
+
+
+# --------------------------------------------------------------------------- #
+# 从光强帧拟合 Zernike 系数
+# --------------------------------------------------------------------------- #
+def _frame_and_jacobian(
+    cache: list[tuple[int, complex, np.ndarray, np.ndarray]],
+    coeffs: np.ndarray,
+    deltas: np.ndarray | None,
+    carriers: np.ndarray | None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """一帧的模型光强 I(c) 与雅可比 dI/dc（在采样像素上）。
+
+    E = sum_k A_k e^{i phi_k},  phi_k = 2 pi Z_k c + delta_k + carrier_k
+    dE/dc_j = i 2 pi sum_k A_k e^{i phi_k} Z_{k,j}
+    dI/dc_j = 2 Re( conj(E) * dE/dc_j )
+    """
+    n_rows = cache[0][2].size
+    n_terms = coeffs.size
+    E = np.zeros(n_rows, dtype=complex)
+    dE = np.zeros((n_terms, n_rows), dtype=complex)
+    for k, amp, inside, Z in cache:
+        phase = 2.0 * np.pi * (coeffs @ Z)
+        if deltas is not None:
+            phase = phase + deltas[k]
+        if carriers is not None:
+            phase = phase + carriers[k]
+        e = np.where(inside, amp * np.exp(1j * phase), 0.0)
+        E += e
+        dE += (2j * np.pi) * e[None, :] * Z
+    I = np.abs(E) ** 2
+    J = 2.0 * np.real(np.conj(E)[None, :] * dE).T  # (n_rows, n_terms)
+    return I, J
+
+
+def _reduce_scale_background(
+    model: np.ndarray, meas: np.ndarray, J_model: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, float, float]:
+    """变量投影：从残差中消去仿射参数 (a, b)，模型为 a*model + b。
+
+    返回精简残差 f = a*model + b - meas、精确精简雅可比及拟合的 (a, b)。
+    (a, b) 随非线性参数每步重新拟合，故雅可比不是简单的投影
+    (I - Q Q^T)(a J_model)：对 stationarity 条件 A^T f = 0 求导得
+
+        du = (A^T A)^-1 (-dA^T f - A^T dA u),   df = dA u + A du
+
+    在奇异向量基下求 (A^T A)^-1，避免显式构造法方程矩阵（cond 平方），
+    同时检测 [model, 1] 秩亏（增益/背景不可分）。
+    """
+    A = np.stack([model, np.ones_like(model)], axis=1)
+    if A.shape[0] <= 2:
+        raise ValueError(
+            "变量投影需要至少 3 个观测：m <= 2 时 a*model+b 总能精确穿过"
+        )
+    U, s, Vt = np.linalg.svd(A, full_matrices=False)
+    tol = np.finfo(float).eps * max(A.shape) * s[0]
+    if s[-1] <= tol:
+        raise ValueError("增益与背景不可区分：nuisance 基 [model, 1] 秩亏")
+    u = Vt.T @ ((U.T @ meas) / s)
+    a, b = float(u[0]), float(u[1])
+    f = A @ u - meas
+
+    J = np.empty_like(J_model)
+    for j in range(J_model.shape[1]):
+        dA = np.column_stack([J_model[:, j], np.zeros_like(model)])
+        du = Vt.T @ ((Vt @ (-dA.T @ f - A.T @ (dA @ u))) / s**2)
+        J[:, j] = dA @ u + A @ du
+    return f, J, a, b
+
+
+def fit_wavefront_from_frames(
+    forward: ForwardModel,
+    indices: Sequence[int],
+    frames: Sequence[np.ndarray],
+    deltas: Sequence[np.ndarray | None] | None = None,
+    carriers: Sequence[np.ndarray | None] | None = None,
+    *,
+    x0: Sequence[float] | None = None,
+    config: LMConfig | None = None,
+    samples: int | None = 4096,
+    seed: int = 0,
+) -> LMResult:
+    """从光强帧（相移序列或单帧载频图）LM 拟合 Zernike 系数。
+
+    ``deltas`` / ``carriers`` 每帧一项，描述已知的逐级相位调制；载频帧
+    对应 ``deltas=None``。``indices`` 为拟合的 Fringe 序号（Z1 平移不可
+    观测，不应包含）。``samples`` 为每帧随机采样像素数，None 表示全图。
+    """
+    indices = check_indices(indices)
+    if 1 in indices:
+        raise ValueError("Z1 平移对光强不可观测，请从 indices 中去掉")
+    if samples is not None and int(samples) <= 0:
+        raise ValueError("samples 必须是正整数（None 表示全图）")
+    frames = [np.asarray(fr, dtype=float) for fr in frames]
+    n_frames = len(frames)
+    if n_frames == 0:
+        raise ValueError("frames 至少需要一帧")
+    for i, fr in enumerate(frames):
+        if fr.shape != forward.shape:
+            raise ValueError(
+                f"frames[{i}] 形状必须是 {forward.shape}，得到 {fr.shape}"
+            )
+    deltas = list(deltas) if deltas is not None else [None] * n_frames
+    carriers = list(carriers) if carriers is not None else [None] * n_frames
+    if len(deltas) != n_frames or len(carriers) != n_frames:
+        raise ValueError("deltas/carriers 必须与 frames 一一对应")
+    n_orders = len(forward.order_list)
+    for i, d in enumerate(deltas):
+        if d is not None:
+            d = np.asarray(d, dtype=float)
+            if d.shape != (n_orders,) or not np.all(np.isfinite(d)):
+                raise ValueError(
+                    f"deltas[{i}] 必须是长度为 {n_orders} 的有限数组"
+                )
+            deltas[i] = d
+    for i, c in enumerate(carriers):
+        if c is not None:
+            c = np.asarray(c, dtype=float)
+            if c.shape != (n_orders, *forward.shape) or not np.all(np.isfinite(c)):
+                raise ValueError(
+                    f"carriers[{i}] 形状必须是 ({n_orders}, {forward.shape[0]}, "
+                    f"{forward.shape[1]}) 且元素有限，得到 {c.shape}"
+                )
+            carriers[i] = c
+
+    n_pix = forward.shape[0] * forward.shape[1]
+    if samples is not None and samples < n_pix:
+        rows = np.sort(np.random.default_rng(seed).choice(n_pix, samples, replace=False))
+    else:
+        rows = np.arange(n_pix)
+    # 变量投影额外消去 (a, b) 两个自由度：精简残差空间维数至多 m - 2
+    n_free = len(indices) + (2 if (config and config.fit_scale_background) else 0)
+    if n_frames * rows.size < n_free:
+        raise ValueError(
+            f"观测数 {n_frames * rows.size} 少于待拟合自由度 {n_free}：欠定"
+        )
+    meas = np.concatenate([fr.ravel()[rows] for fr in frames])
+    carriers_s = [
+        None if c is None else np.asarray(c).reshape(len(forward.order_list), -1)[:, rows]
+        for c in carriers
+    ]
+    # 每级移位坐标/光瞳/Z 基只算一次
+    cache = forward.zernike_samples(indices, rows)
+
+    def residual_and_jac(c):
+        f_parts, j_parts = [], []
+        for i_frame in range(n_frames):
+            I, J = _frame_and_jacobian(
+                cache, c, deltas[i_frame], carriers_s[i_frame]
+            )
+            f_parts.append(I - meas[i_frame * rows.size : (i_frame + 1) * rows.size])
+            j_parts.append(J)
+        return np.concatenate(f_parts), np.vstack(j_parts)
+
+    scale_fn = None
+    if (config or LMConfig()).fit_scale_background:
+        def scale_fn(f_raw, J_raw):
+            return _reduce_scale_background(f_raw + meas, meas, J_raw)
+
+    x0 = np.zeros(len(indices)) if x0 is None else np.asarray(x0, dtype=float)
+    return levenberg_marquardt(residual_and_jac, x0, config, scale_background=scale_fn)
 
 
 def fit_wavefront_from_carrier_frame(
     forward: ForwardModel,
-    wf_proto: ZernikeWavefront,
+    indices: Sequence[int],
     image: np.ndarray,
     *,
     f0: float | None = None,
     **kwargs,
 ) -> LMResult:
-    """LM fit from a *single* carrier-mode interferogram (no phase shifting).
-
-    Builds the per-order carrier phases ``2 pi f0 (a x + b y)`` internally and
-    forwards everything else to :func:`fit_wavefront_from_frames`.
-    """
-    f0 = forward.config.carrier_f0 if f0 is None else f0
-    x, y = forward.grid.coords()
-    carriers = [forward.carrier_phases(x, y, f0)]
+    """单帧载频干涉图的 LM 拟合（不相移、不解调、不解包裹）。"""
+    f0 = forward.config.carrier_f0 if f0 is None else float(f0)
+    carriers = [forward.carrier_phases(f0)]
     return fit_wavefront_from_frames(
-        forward, wf_proto, [image], [None], carriers, **kwargs
+        forward, indices, [image], [None], carriers, **kwargs
     )
 
 
 def multistart_fit(
     forward: ForwardModel,
-    wf_proto: ZernikeWavefront,
+    indices: Sequence[int],
     frames,
     deltas=None,
     carriers=None,
@@ -320,236 +368,25 @@ def multistart_fit(
     config: LMConfig | None = None,
     **kwargs,
 ) -> LMResult:
-    """LM with a coarse search over one coefficient (default: the first term).
+    """对某一个系数做粗扫描取最优起点再精化（非线性最小二乘只局部收敛）。
 
-    Non-linear least squares on an interferogram is only locally convergent:
-    for strongly aberrated wavefronts (many fringes) the cost landscape has
-    several minima.  This helper scans ``term`` over ``values``, keeps the
-    best starting point and refines it with LM.  For a mildly aberrated
-    wavefront a plain :func:`fit_wavefront_from_frames` with a zero start is
-    enough.
+    大像差（多条纹）代价面有多个极小；对轻微像差用零起点的
+    ``fit_wavefront_from_frames`` 即可。
     """
     cfg = config or LMConfig()
-    term = _as_int(term, "term", minimum=0)
-    if term >= wf_proto.n_terms:
-        raise ValueError(
-            f"term must index one of the {wf_proto.n_terms} fitted coefficients, "
-            f"got {term}"
-        )
-    best_x0, best_cost = np.zeros(wf_proto.n_terms), np.inf
+    n_terms = len(indices)
+    best_x0, best_cost = np.zeros(n_terms), np.inf
     coarse = replace(cfg, max_iter=coarse_iter)
     for v in values:
-        x0 = np.zeros(wf_proto.n_terms)
+        x0 = np.zeros(n_terms)
         x0[term] = float(v)
         res = fit_wavefront_from_frames(
-            forward, wf_proto, frames, deltas, carriers,
+            forward, indices, frames, deltas, carriers,
             x0=x0, config=coarse, **kwargs,
         )
         if res.cost < best_cost:
-            best_cost, best_x0 = res.cost, np.array(res.x, dtype=float)
+            best_cost, best_x0 = res.cost, res.x.copy()
     return fit_wavefront_from_frames(
-        forward, wf_proto, frames, deltas, carriers, x0=best_x0, config=cfg, **kwargs
-    )
-
-
-# --------------------------------------------------------------------------- #
-# convenience wrapper: fit Zernike coefficients from measured frames
-# --------------------------------------------------------------------------- #
-
-def reduced_scale_background(f_raw, J_raw, meas):
-    """Concentrate an affine intensity model out of the residual.
-
-    Removes the nuisance parameters ``(a, b)`` of ``a * m + b`` from the fit by
-    variable projection, where ``m = f_raw + meas`` is the raw model intensity
-    and ``meas`` the measurement.  Returns ``(f, J, a, b)``: the residual of
-    the optimal affine model, the Golub-Pereyra reduced Jacobian, and the
-    fitted scale and background.
-
-    ``a * J_raw`` alone is *not* the reduced Jacobian: it still contains the
-    component of ``d(a * m) / dc`` that the re-optimised ``(a, b)`` absorb.
-    The correct reduced Jacobian projects the model columns onto the
-    orthogonal complement of the nuisance basis ``span{m, 1}``::
-
-        d r~/dc_j = (I - Q Q^T) (a * d m/dc_j),   Q = orth([m, 1])
-
-    which is exact because ``(a, b)`` are re-fitted at every step, so the
-    reduced residual is orthogonal to ``m`` and ``1``.
-    """
-    m = np.asarray(f_raw) + meas
-    A = np.stack([m, np.ones_like(m)], axis=1)
-    # Work in the singular-vector basis instead of forming A.T @ A, which
-    # squares the condition number precisely when scale and background are
-    # difficult to distinguish.  An exactly (or numerically) rank-deficient
-    # nuisance basis has no unique physical scale/background decomposition.
-    U, singular_values, Vt = np.linalg.svd(A, full_matrices=False)
-    tol = np.finfo(float).eps * max(A.shape) * singular_values[0]
-    if singular_values[-1] <= tol:
-        raise ValueError(
-            "scale and background are not separately identifiable: the "
-            "nuisance basis [model, 1] is rank deficient"
-        )
-    u = Vt.T @ ((U.T @ meas) / singular_values)  # [a, b]
-    a, b = float(u[0]), float(u[1])
-    f = A @ u - meas
-    if not J_raw.size:
-        return f, J_raw, a, b
-    # Exact derivative of the normal-equation stationarity condition.  Applying
-    # (A.T A)^-1 in the SVD basis avoids ever forming that normal matrix:
-    #
-    #   du = V diag(1/s^2) V.T [-dA.T f - A.T dA u]
-    #   df = dA u + A du.
-    #
-    # A plain ``a * J_raw`` misses both the projection and the derivative of
-    # the re-fitted nuisance parameters.
-    def apply_normal_inverse(rhs):
-        return Vt.T @ ((Vt @ rhs) / singular_values**2)
-
-    J = np.empty_like(J_raw, dtype=float)
-    for j in range(J_raw.shape[1]):
-        dA = np.zeros_like(A)
-        dA[:, 0] = J_raw[:, j]
-        du = apply_normal_inverse(-dA.T @ f - A.T @ (dA @ u))
-        J[:, j] = dA @ u + A @ du
-    return f, J, a, b
-
-
-def fit_wavefront_from_frames(
-    forward: ForwardModel,
-    wf_proto: ZernikeWavefront,
-    frames: np.ndarray | Sequence[np.ndarray],
-    deltas: Sequence[np.ndarray | None] | None = None,
-    carriers: Sequence[np.ndarray | None] | None = None,
-    *,
-    x0: Sequence[float] | None = None,
-    config: LMConfig | None = None,
-    samples: int | None = 4096,
-    seed: int = 0,
-    pixel_mask: np.ndarray | None = None,
-) -> LMResult:
-    """Fit the Zernike coefficients of a wavefront from intensity frames.
-
-    ``frames`` is a sequence of measured intensity arrays (e.g. the N
-    phase-shift frames, or a single carrier frame).  ``deltas``/``carriers``
-    describe the known per-frame per-order phase modulations; pass ``None``
-    entries for the carrier-mode frames.  Piston (Z1) is rejected because a
-    common field phase cancels exactly from every intensity observation.
-    """
-    if not isinstance(wf_proto, ZernikeWavefront):
-        raise ValueError("wf_proto must be a ZernikeWavefront")
-    if 1 in wf_proto.indices:
-        raise ValueError(
-            "piston Z1 is unobservable from intensity-only LSI data; "
-            "remove it from wf_proto.indices and fix the piston gauge"
-        )
-    if isinstance(frames, np.ndarray) and frames.ndim == 2:
-        frames = [frames]
-    else:
-        frames = list(frames)
-    frames = [np.asarray(f, dtype=float) for f in frames]
-    n_frames = len(frames)
-    if n_frames == 0:
-        raise ValueError("frames must contain at least one measured image")
-    for i, frame in enumerate(frames):
-        if frame.shape != forward.shape:
-            raise ValueError(
-                f"frame {i} must have shape {forward.shape}, got {frame.shape}"
-            )
-        if not np.all(np.isfinite(frame)):
-            raise ValueError(f"frame {i} must contain only finite values")
-    if deltas is None:
-        deltas = [None] * n_frames
-    else:
-        deltas = list(deltas)
-    if carriers is None:
-        carriers = [None] * n_frames
-    else:
-        carriers = list(carriers)
-    if len(deltas) != n_frames or len(carriers) != n_frames:
-        raise ValueError("deltas/carriers must have one entry per frame")
-    n_orders = len(forward.orders.ab)
-    for i, delta in enumerate(deltas):
-        if delta is not None:
-            delta = np.asarray(delta, dtype=float)
-            if delta.shape != (n_orders,) or not np.all(np.isfinite(delta)):
-                raise ValueError(
-                    f"deltas[{i}] must be a finite array with shape ({n_orders},)"
-                )
-            deltas[i] = delta
-    for i, carrier in enumerate(carriers):
-        if carrier is not None:
-            carrier = np.asarray(carrier, dtype=float)
-            expected = (n_orders, *forward.shape)
-            if carrier.shape != expected or not np.all(np.isfinite(carrier)):
-                raise ValueError(
-                    f"carriers[{i}] must be a finite array with shape {expected}"
-                )
-            carriers[i] = carrier
-
-    if samples is not None:
-        if isinstance(samples, bool) or not isinstance(samples, (int, np.integer)):
-            raise ValueError(f"samples must be a positive integer or None, got {samples!r}")
-        samples = int(samples)
-        if samples < 1:
-            raise ValueError(f"samples must be positive, got {samples!r}")
-
-    n_tot = forward.shape[0] * forward.shape[1]
-    if pixel_mask is not None:
-        pixel_mask = np.asarray(pixel_mask, dtype=bool)
-        if pixel_mask.shape != forward.shape:
-            raise ValueError(
-                f"pixel_mask must have shape {forward.shape}, got {pixel_mask.shape}"
-            )
-        rows = np.nonzero(pixel_mask.ravel())[0]
-        if samples is not None and 0 < samples < len(rows):
-            rng = np.random.default_rng(seed)
-            rows = np.sort(rng.choice(rows, size=samples, replace=False))
-    else:
-        rng = np.random.default_rng(seed)
-        if samples is None or samples >= n_tot:
-            rows = np.arange(n_tot)
-        else:
-            rows = np.sort(rng.choice(n_tot, size=samples, replace=False))
-
-    if rows.size == 0:
-        raise ValueError("pixel selection contains no observations")
-
-    meas = np.concatenate([f.reshape(-1)[rows] for f in frames])
-    # carrier maps arrive as 2-D arrays; the model works on the sampled pixels
-    carriers = [
-        None if c is None else np.asarray(c).reshape(np.shape(c)[0], -1)[:, rows]
-        for c in carriers
-    ]
-    n_terms = wf_proto.n_terms
-    coeff0 = (
-        np.asarray(x0, dtype=float)
-        if x0 is not None
-        else np.zeros(n_terms, dtype=float)
-    )
-    if coeff0.shape != (n_terms,):
-        raise ValueError(f"x0 must have shape ({n_terms},), got {coeff0.shape}")
-    if not np.all(np.isfinite(coeff0)):
-        raise ValueError("x0 must contain only finite values")
-    if n_frames * rows.size < n_terms:
-        raise ValueError(
-            f"only {n_frames * rows.size} residuals are available for "
-            f"{n_terms} fitted coefficients"
-        )
-    cache = forward.terms_cache(wf_proto, rows)
-
-    def residual_and_jac(c):
-        I_model, J = forward.model_and_jacobian(
-            c, wf_proto, deltas, carriers, rows=rows, cache=cache
-        )
-        return I_model - meas, J
-
-    scale_fn = None
-    if (config or LMConfig()).fit_scale_background:
-        def scale_fn(f_raw, J_raw):
-            return reduced_scale_background(f_raw, J_raw, meas)
-
-    return levenberg_marquardt(
-        residual_and_jac,
-        coeff0,
-        config,
-        scale_background=scale_fn,
+        forward, indices, frames, deltas, carriers,
+        x0=best_x0, config=cfg, **kwargs,
     )
