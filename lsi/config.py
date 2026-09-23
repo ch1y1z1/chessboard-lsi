@@ -31,6 +31,11 @@ class Grid:
     def shape(self) -> tuple[int, int]:
         return (self.n, self.n)
 
+    @property
+    def nyquist(self) -> float:
+        """网格奈奎斯特频率 1/(2 dx)，单位：周期/归一化坐标。"""
+        return 1.0 / (2.0 * self.dx)
+
     def coords(self) -> tuple[np.ndarray, np.ndarray]:
         v = (np.arange(self.n) - (self.n - 1) / 2.0) * self.dx
         return np.meshgrid(v, v, indexing="xy")

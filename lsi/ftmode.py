@@ -74,6 +74,11 @@ def demodulate_lobe(
     在取辐角前扣除，避免相位正好压在 ±pi 分支切线上。
     """
     I = np.asarray(image, dtype=float)
+    if abs(f0) >= grid.nyquist:
+        raise ValueError(
+            f"载频 |f0| = {abs(f0):.3f} 超过网格奈奎斯特 "
+            f"{grid.nyquist:.3f} cyc/unit，解调的会是混叠峰"
+        )
     x, y = grid.coords()
     n, L = grid.n, 2.0 * grid.extent
     ramp = x if direction == "x" else y

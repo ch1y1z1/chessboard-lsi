@@ -9,7 +9,9 @@
 LM 迭代（Marquardt 阻尼 + Nielsen 更新）：
 
     (J^T J + lambda diag(J^T J)) delta = -J^T f,   c <- c + delta
-    rho = (F(c) - F(c + delta)) / (0.5 * delta^T (lambda D delta - J^T f))
+    rho = (F(c) - F(c + delta)) / delta^T (lambda D delta - J^T f)
+
+其中 F(c) = ||f(c)||^2（不是 1/2||f||^2），分子分母因子一致。
 
 阻尼步用增广最小二乘求解而不是显式法方程，避免 cond(J)^2 的数值损失：
 
@@ -98,10 +100,16 @@ def levenberg_marquardt(
     (f, J, alpha, beta)（仿射光强模型的精简残差/雅可比）。
     """
     cfg = config or LMConfig()
+    if cfg.fit_scale_background and scale_background is None:
+        raise ValueError(
+            "LMConfig(fit_scale_background=True) 需要 scale_background 回调"
+        )
     x = np.asarray(x0, dtype=float).copy()
 
     def evaluate(p):
         f_p, J_p = residual_and_jac(p)
+        if f_p.size == 0:
+            raise ValueError("残差为空：没有可用观测")
         a_p, b_p = 1.0, 0.0
         if scale_background is not None:
             f_p, J_p, a_p, b_p = scale_background(f_p, J_p)
@@ -130,8 +138,8 @@ def levenberg_marquardt(
         f_new, J_new, a_new, b_new = evaluate(x + delta)
         cost_new = float(f_new @ f_new)
         # Nielsen 增益比：实际下降 / 阻尼模型预测下降
-        # L(0) - L(delta) = 0.5 * delta^T (lam D delta - g)
-        predicted = 0.5 * float(delta @ (lam * diag * delta - g))
+        # cost = ||f||^2 约定下预测下降 = delta^T (lam D delta - g)
+        predicted = float(delta @ (lam * diag * delta - g))
         rho = (cost - cost_new) / predicted if predicted > 0 else -1.0
         history["rho"].append(rho)
 
@@ -207,17 +215,30 @@ def _reduce_scale_background(
 ) -> tuple[np.ndarray, np.ndarray, float, float]:
     """变量投影：从残差中消去仿射参数 (a, b)，模型为 a*model + b。
 
-    返回精简残差 f = a*model + b - meas、Kaufman 精简雅可比
-    J = (I - Q Q^T)(a J_model)（Q 为冗余基 [model, 1] 的正交基），
-    以及拟合的 (a, b)。
+    返回精简残差 f = a*model + b - meas、精确精简雅可比及拟合的 (a, b)。
+    (a, b) 随非线性参数每步重新拟合，故雅可比不是简单的投影
+    (I - Q Q^T)(a J_model)：对 stationarity 条件 A^T f = 0 求导得
+
+        du = (A^T A)^-1 (-dA^T f - A^T dA u),   df = dA u + A du
+
+    在奇异向量基下求 (A^T A)^-1，避免显式构造法方程矩阵（cond 平方），
+    同时检测 [model, 1] 秩亏（增益/背景不可分）。
     """
     A = np.stack([model, np.ones_like(model)], axis=1)
-    (a, b), *_ = np.linalg.lstsq(A, meas, rcond=None)
-    f = a * model + b - meas
-    Q, _ = np.linalg.qr(A)
-    J_model_scaled = a * J_model
-    J = J_model_scaled - Q @ (Q.T @ J_model_scaled)
-    return f, J, float(a), float(b)
+    U, s, Vt = np.linalg.svd(A, full_matrices=False)
+    tol = np.finfo(float).eps * max(A.shape) * s[0]
+    if s[-1] <= tol:
+        raise ValueError("增益与背景不可区分：nuisance 基 [model, 1] 秩亏")
+    u = Vt.T @ ((U.T @ meas) / s)
+    a, b = float(u[0]), float(u[1])
+    f = A @ u - meas
+
+    J = np.empty_like(J_model)
+    for j in range(J_model.shape[1]):
+        dA = np.column_stack([J_model[:, j], np.zeros_like(model)])
+        du = Vt.T @ ((Vt @ (-dA.T @ f - A.T @ (dA @ u))) / s**2)
+        J[:, j] = dA @ u + A @ du
+    return f, J, a, b
 
 
 def fit_wavefront_from_frames(
@@ -241,6 +262,8 @@ def fit_wavefront_from_frames(
     indices = np.asarray(list(indices), dtype=int)
     if 1 in indices:
         raise ValueError("Z1 平移对光强不可观测，请从 indices 中去掉")
+    if samples is not None and int(samples) <= 0:
+        raise ValueError("samples 必须是正整数（None 表示全图）")
     frames = [np.asarray(fr, dtype=float) for fr in frames]
     n_frames = len(frames)
     deltas = list(deltas) if deltas is not None else [None] * n_frames

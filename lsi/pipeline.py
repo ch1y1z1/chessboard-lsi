@@ -48,8 +48,40 @@ class DiffPhase:
     meta: dict = field(default_factory=dict)
 
 
+def _require_symmetric_pair(fm: ForwardModel, direction: str) -> None:
+    """two-sided 差分解读的物理前提：±1 级对都存在且与 0 级的 beat 等幅。
+
+    解调出的频率-1 相位等于 pi * [W(x+s) - W(x-s)] 仅当两个对称 beat
+    系数模相等；缺一边时实际是单边差分 2[W(x+s) - W(x)]，不能除以 pi。
+    """
+    a, b = (1.0, 0.0) if direction == "x" else (0.0, 1.0)
+    amps = dict(zip(fm.order_list, fm.amplitudes))
+    ap, am = amps.get((a, b), 0.0), amps.get((-a, -b), 0.0)
+    if amps.get((0.0, 0.0), 0.0) == 0.0:
+        raise ValueError("缺少 (0,0) 级：无法构成 ±1 拍频")
+    if ap == 0.0 or am == 0.0:
+        raise ValueError(f"{direction} 方向缺少 ±1 级对的一边，无法按双边差分解释")
+    if not np.isclose(abs(ap), abs(am), rtol=1e-3):
+        raise ValueError(
+            f"±1 级振幅不对称：|A+| = {abs(ap):.4g}, |A-| = {abs(am):.4g}"
+        )
+
+
 def _unwrap_in_region(wrapped: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    """掩膜内 Poisson 解包裹，并把相位锚定到掩膜中心像素的缠绕值。"""
+    """掩膜内 Poisson 解包裹，并把相位锚定到掩膜中心像素的缠绕值。
+
+    掩膜必须单连通：每个连通分量各自携带一个不可观测的 2pi 规范，
+    多分量时它们之间的整数相位差会被重构当成真实像差。
+    """
+    from scipy import ndimage
+
+    _, n_comp = ndimage.label(mask)
+    if n_comp == 0:
+        raise ValueError("解包裹掩膜为空")
+    if n_comp > 1:
+        raise ValueError(
+            f"解包裹掩膜有 {n_comp} 个连通分量：分量间相位规范不可观测"
+        )
     phase = unwrap_poisson(wrapped, mask)
     ys, xs = np.nonzero(mask)
     k = int(np.argmin(
@@ -78,6 +110,8 @@ def demodulate_phase_shift(
     直接在 ±pi 分支切线附近解包裹会产生整帧 2 pi 抖动。
     """
     cfg = fm.config
+    _require_symmetric_pair(fm, "x")
+    _require_symmetric_pair(fm, "y")
     res = {"x": lsq_phase_shift(frames_x), "y": lsq_phase_shift(frames_y)}
 
     if region_mode == "modulation":
@@ -132,6 +166,9 @@ def demodulate_fourier(
     """
     from scipy import ndimage
 
+    if not 0.0 <= threshold_frac < 1.0:
+        raise ValueError("threshold_frac 必须在 [0, 1) 内")
+    _require_symmetric_pair(fm, direction)
     offset = fm.demodulation_offset(direction)
     lobe = demodulate_lobe(
         image, fm.grid, direction,
@@ -146,6 +183,8 @@ def demodulate_fourier(
     mask = (lobe.amplitude > threshold_frac * lobe.amplitude[support].max()) & support
     if erode_px > 0:
         mask = ndimage.binary_erosion(mask, iterations=erode_px)
+    if not mask.any():
+        raise ValueError("掩膜为空：降低 threshold_frac 或 erode_px")
     phase = _unwrap_in_region(lobe.phase, mask)
     if not remove_offset:
         phase = phase + offset
@@ -176,6 +215,10 @@ def reconstruct(
     开启后把拟合 tilt 乘列常数、四舍五入到整数 k，非零则扣除后重拟合。
     相当于先验 |Z2|, |Z3| < 1/(4s)；大 tilt 波前请关闭。
     """
+    if offset_mode not in ("none", "model", "estimate"):
+        raise ValueError(
+            f"offset_mode 必须是 'none'/'model'/'estimate'，得到 {offset_mode!r}"
+        )
     x, y = fm.grid.coords()
     wx = wy = None
     if weight_by_confidence and diff.confidence:

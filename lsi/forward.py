@@ -78,7 +78,15 @@ class ZernikeWavefront:
 
     def __post_init__(self) -> None:
         self.coeffs = np.atleast_1d(np.asarray(self.coeffs, dtype=float))
-        self.indices = np.atleast_1d(np.asarray(self.indices, dtype=int))
+        indices = np.atleast_1d(np.asarray(self.indices))
+        if indices.dtype == bool:
+            raise ValueError("indices 必须是正整数，不接受布尔值")
+        indices = np.asarray(indices, dtype=float)
+        if self.coeffs.shape != indices.shape:
+            raise ValueError("coeffs 与 indices 长度必须一致")
+        if not np.all(indices == np.round(indices)) or (indices < 1).any():
+            raise ValueError("indices 必须是正整数")
+        self.indices = indices.astype(int)
 
     def w(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         out = np.zeros_like(np.asarray(x, dtype=float))
@@ -151,6 +159,12 @@ class ForwardModel:
 
     def carrier_phases(self, f0: float) -> np.ndarray:
         """各级载频相位 2 pi f0 (a x + b y)，形状 (n_orders, n, n)。"""
+        max_ab = max(max(abs(a), abs(b)) for a, b in self.order_list)
+        if max_ab * abs(f0) >= self.grid.nyquist:
+            raise ValueError(
+                f"载频 |f0| = {abs(f0):.3f} x 最高级次 {max_ab} 超过网格奈奎斯特 "
+                f"{self.grid.nyquist:.3f} cyc/unit，会混叠"
+            )
         ab = np.asarray(self.order_list)
         return (
             2.0 * np.pi * f0
@@ -213,21 +227,27 @@ class ForwardModel:
     def demodulation_offset(self, direction: str = "x") -> float:
         """解调出的频率-1 干涉相位携带的常数项（弧度）。
 
-        +1 级与 0 级的拍频系数为 A_1 conj(A_0)；两个对称拍频合成
+        两个对称 beat 系数 C_+ = A_+ conj(A_0)、C_- = A_0 conj(A_-)；
+        模相等时（``_require_symmetric_pair`` 的前提）合成
 
-            D = 2 A_0 A_1 exp(i pi [W(x+s) - W(x-s)]) cos(Gamma)
+            D = 2 |C| exp(i pi [W(x+s) - W(x-s)] + i beta) cos(Gamma)
 
-        故解调相位等于 pi * dW 加上 arg(A_1 conj(A_0))。对理想棋盘
+        常数项 beta 是两个 beat 辐角的均值 (arg C_+ + arg C_-) / 2。对理想棋盘
         (A_00, A_10, A_01) = (+1/2, -2/pi^2, +2/pi^2)，x 对为 pi、y 对为 0：
         两个剪切对正好相差半条纹。占空比误差使该常数随光栅相位漂移
         （arg A_10 = pi - 2 pi (d - 1/2)）—— 论文 4.1.1 节。
         """
         amps = dict(zip(self.order_list, self.amplitudes))
         a0 = amps.get((0.0, 0.0), 0.0)
-        a1 = amps.get((1.0, 0.0) if direction == "x" else (0.0, 1.0), 0.0)
-        if a0 == 0 or a1 == 0:
+        ap, am = (
+            (amps.get((1.0, 0.0), 0.0), amps.get((-1.0, 0.0), 0.0))
+            if direction == "x"
+            else (amps.get((0.0, 1.0), 0.0), amps.get((0.0, -1.0), 0.0))
+        )
+        if a0 == 0 or ap == 0 or am == 0:
             return 0.0
-        return float(np.angle(a1 * np.conj(a0)))
+        c_p, c_m = ap * np.conj(a0), a0 * np.conj(am)
+        return float(np.angle(c_p) + 0.5 * np.angle(c_m / c_p))
 
     # ------------------------------------------------------------- LM 用
     def zernike_samples(

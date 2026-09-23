@@ -70,9 +70,9 @@ FRINGE_MODES: tuple[tuple[int, int, str, str], ...] = (
 
 def fringe_index(j: int) -> tuple[int, int, str]:
     """1 起 Fringe/Wyant 序号 j -> (n, |m|, 'cos'|'sin'|'radial')。"""
+    if isinstance(j, bool) or not float(j).is_integer() or j < 1:
+        raise ValueError("Zernike 序号必须是正整数")
     j = int(j)
-    if j < 1:
-        raise ValueError("Zernike 序号从 1 开始")
     if j <= len(FRINGE_MODES):
         n, m, kind, _ = FRINGE_MODES[j - 1]
         return n, m, kind

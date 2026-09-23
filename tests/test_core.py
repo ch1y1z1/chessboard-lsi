@@ -14,15 +14,22 @@ import pytest
 
 from lsi.config import Grid, SystemConfig
 from lsi.forward import (
+    DEFAULT_ORDERS,
     ForwardModel,
     ZernikeWavefront,
     paper_region_intensity,
 )
 from lsi.ftmode import demodulate_lobe
 from lsi.grating import chessboard_orders, diffraction_efficiency
-from lsi.lm import LMConfig, fit_wavefront_from_frames
+from lsi.lm import LMConfig, fit_wavefront_from_frames, levenberg_marquardt
 from lsi.phaseshift import lsq_phase_shift, shear_regions
-from lsi.pipeline import fourier_to_wavefront, phase_shift_to_wavefront
+from lsi.pipeline import (
+    demodulate_fourier,
+    demodulate_phase_shift,
+    fourier_to_wavefront,
+    phase_shift_to_wavefront,
+    reconstruct,
+)
 from lsi.reconstruct import fit_differential_zernike
 from lsi.unwrap import unwrap_poisson, wrap
 from lsi.zernike import differential_zernike_matrix, zernike
@@ -220,3 +227,126 @@ def test_fourier_lobe_is_two_sided_difference():
     residual = wrap(lobe.phase - two_sided)
     residual -= np.angle(np.mean(np.exp(1j * residual[inner])))
     assert np.sqrt(np.mean(residual[inner] ** 2)) < 0.05
+
+
+# --------------------------------------------------------------------------- #
+# 数学前提与不可观测自由度的守卫（防静默错误，非 happy-path）
+# --------------------------------------------------------------------------- #
+def test_default_orders_match_grating_table():
+    """DEFAULT_ORDERS 的符号约定必须与 chessboard_orders(duty=0.5) 一致。"""
+    orders = chessboard_orders(max_index=3, duty=0.5)
+    assert len(DEFAULT_ORDERS) == 5
+    for k, v in DEFAULT_ORDERS.items():
+        assert orders[k] == pytest.approx(v)
+
+
+def test_reduced_jacobian_matches_finite_difference():
+    """变量投影的精简雅可比（含 nuisance 参数导数项）对有限差分成立。"""
+    from lsi.lm import _reduce_scale_background
+
+    rng = np.random.default_rng(3)
+    t = np.linspace(0.0, 1.0, 120)
+    meas = rng.normal(size=t.size)
+
+    def model(c):
+        return 1.0 + 0.5 * np.sin(3.0 * c * t) + 0.2 * c**2
+
+    def jac(c):
+        return (1.5 * t * np.cos(3.0 * c * t) + 0.4 * c)[:, None]
+
+    c0, h = 0.7, 1e-6
+    _, J, _, _ = _reduce_scale_background(model(c0), meas, jac(c0))
+    fp = _reduce_scale_background(model(c0 + h), meas, jac(c0 + h))[0]
+    fm_ = _reduce_scale_background(model(c0 - h), meas, jac(c0 - h))[0]
+    np.testing.assert_allclose(J[:, 0], (fp - fm_) / (2 * h), rtol=1e-5, atol=1e-8)
+
+
+def test_lm_rejects_empty_observations():
+    """samples=0 / 空残差不能产生"零数据完美收敛"的假成功。"""
+    fm = ForwardModel(CFG)
+    truth = ZernikeWavefront([0.3], [7])
+    frames = fm.phase_shift_frames(truth, "x", 4)
+    deltas = [fm.phase_shift_deltas(k / 4, 0.0) for k in range(4)]
+    with pytest.raises(ValueError, match="samples"):
+        fit_wavefront_from_frames(fm, [4, 7], frames, deltas, samples=0)
+    with pytest.raises(ValueError, match="观测"):
+        levenberg_marquardt(
+            lambda x: (np.array([]), np.zeros((0, x.size))), np.ones(3)
+        )
+
+
+def test_levenberg_marquardt_requires_scale_callback():
+    """fit_scale_background=True 而不给回调时必须报错。"""
+    with pytest.raises(ValueError, match="scale_background"):
+        levenberg_marquardt(
+            lambda x: (x, np.eye(x.size)), np.ones(3),
+            LMConfig(fit_scale_background=True),
+        )
+
+
+def test_carrier_above_nyquist_rejected():
+    """超奈奎斯特载频在生成与解调两侧都拒绝，而不是解调混叠峰。"""
+    cfg = SystemConfig(grid=Grid(n=16, extent=1.10))
+    fm = ForwardModel(cfg)
+    truth = ZernikeWavefront([0.5], [7])
+    with pytest.raises(ValueError, match="奈奎斯特"):
+        fm.carrier_frame(truth)
+    with pytest.raises(ValueError, match="奈奎斯特"):
+        demodulate_lobe(np.zeros((16, 16)), cfg.grid, "x", cfg.carrier_f0)
+
+
+def test_pipeline_rejects_missing_or_asymmetric_pair():
+    """缺 (-1,0) 级时解调相位是单边差分，不能除以 pi 当双边。"""
+    orders = {(0.0, 0.0): 0.5, (1.0, 0.0): -0.2,
+              (0.0, 1.0): 0.2, (0.0, -1.0): 0.2}
+    fm = ForwardModel(CFG, orders)
+    truth = ZernikeWavefront([0.3], [7])
+    fx = fm.phase_shift_frames(truth, "x", 4)
+    fy = fm.phase_shift_frames(truth, "y", 4)
+    with pytest.raises(ValueError, match="±1"):
+        demodulate_phase_shift(fm, fx, fy)
+
+
+def test_unwrap_rejects_disconnected_mask():
+    """多连通分量各自携带独立的 2pi 规范，必须拒绝。"""
+    from lsi.pipeline import _unwrap_in_region
+
+    mask = np.zeros((20, 20), bool)
+    mask[:5, :5] = True
+    mask[10:, 10:] = True
+    with pytest.raises(ValueError, match="连通"):
+        _unwrap_in_region(np.zeros((20, 20)), mask)
+
+
+def test_fourier_mask_parameter_validation():
+    """threshold_frac >= 1 或腐蚀过度会得到空掩膜，必须明确报错。"""
+    cfg = SystemConfig(grid=Grid(n=128, extent=1.10), period_um=30.0)
+    fm = ForwardModel(cfg)
+    img = fm.carrier_frame(ZernikeWavefront([0.5], [7]))
+    with pytest.raises(ValueError, match="threshold_frac"):
+        demodulate_fourier(fm, img, direction="x", threshold_frac=1.0)
+    with pytest.raises(ValueError, match="掩膜为空"):
+        demodulate_fourier(fm, img, direction="x", erode_px=200)
+
+
+def test_offset_mode_is_strict_enum():
+    """offset_mode 的 typo 必须报错而不是静默按 'none' 处理。"""
+    fm = ForwardModel(CFG)
+    truth = ZernikeWavefront([0.3], [7])
+    diff = demodulate_phase_shift(
+        fm, fm.phase_shift_frames(truth, "x", 4),
+        fm.phase_shift_frames(truth, "y", 4))
+    with pytest.raises(ValueError, match="offset_mode"):
+        reconstruct(fm, diff, offset_mode="modle")
+
+
+def test_zernike_input_validation():
+    """非整数 index、bool、长度不匹配都报错，不静默截断。"""
+    with pytest.raises(ValueError):
+        ZernikeWavefront([0.1, 0.2], [4])
+    with pytest.raises(ValueError):
+        ZernikeWavefront([0.1], [4.5])
+    with pytest.raises(ValueError):
+        ZernikeWavefront([0.1], [True])
+    with pytest.raises(ValueError):
+        zernike(7.9, np.array([0.0]), np.array([0.0]))
