@@ -33,6 +33,7 @@ from typing import Callable, Sequence
 import numpy as np
 
 from .forward import ForwardModel
+from .zernike import check_indices
 
 __all__ = [
     "LMConfig",
@@ -225,6 +226,10 @@ def _reduce_scale_background(
     同时检测 [model, 1] 秩亏（增益/背景不可分）。
     """
     A = np.stack([model, np.ones_like(model)], axis=1)
+    if A.shape[0] <= 2:
+        raise ValueError(
+            "变量投影需要至少 3 个观测：m <= 2 时 a*model+b 总能精确穿过"
+        )
     U, s, Vt = np.linalg.svd(A, full_matrices=False)
     tol = np.finfo(float).eps * max(A.shape) * s[0]
     if s[-1] <= tol:
@@ -259,7 +264,7 @@ def fit_wavefront_from_frames(
     对应 ``deltas=None``。``indices`` 为拟合的 Fringe 序号（Z1 平移不可
     观测，不应包含）。``samples`` 为每帧随机采样像素数，None 表示全图。
     """
-    indices = np.asarray(list(indices), dtype=int)
+    indices = check_indices(indices)
     if 1 in indices:
         raise ValueError("Z1 平移对光强不可观测，请从 indices 中去掉")
     if samples is not None and int(samples) <= 0:
@@ -277,15 +282,35 @@ def fit_wavefront_from_frames(
     carriers = list(carriers) if carriers is not None else [None] * n_frames
     if len(deltas) != n_frames or len(carriers) != n_frames:
         raise ValueError("deltas/carriers 必须与 frames 一一对应")
+    n_orders = len(forward.order_list)
+    for i, d in enumerate(deltas):
+        if d is not None:
+            d = np.asarray(d, dtype=float)
+            if d.shape != (n_orders,) or not np.all(np.isfinite(d)):
+                raise ValueError(
+                    f"deltas[{i}] 必须是长度为 {n_orders} 的有限数组"
+                )
+            deltas[i] = d
+    for i, c in enumerate(carriers):
+        if c is not None:
+            c = np.asarray(c, dtype=float)
+            if c.shape != (n_orders, *forward.shape) or not np.all(np.isfinite(c)):
+                raise ValueError(
+                    f"carriers[{i}] 形状必须是 ({n_orders}, {forward.shape[0]}, "
+                    f"{forward.shape[1]}) 且元素有限，得到 {c.shape}"
+                )
+            carriers[i] = c
 
     n_pix = forward.shape[0] * forward.shape[1]
     if samples is not None and samples < n_pix:
         rows = np.sort(np.random.default_rng(seed).choice(n_pix, samples, replace=False))
     else:
         rows = np.arange(n_pix)
-    if n_frames * rows.size < len(indices):
+    # 变量投影额外消去 (a, b) 两个自由度：精简残差空间维数至多 m - 2
+    n_free = len(indices) + (2 if (config and config.fit_scale_background) else 0)
+    if n_frames * rows.size < n_free:
         raise ValueError(
-            f"观测数 {n_frames * rows.size} 少于待拟合系数 {len(indices)}：欠定"
+            f"观测数 {n_frames * rows.size} 少于待拟合自由度 {n_free}：欠定"
         )
     meas = np.concatenate([fr.ravel()[rows] for fr in frames])
     carriers_s = [

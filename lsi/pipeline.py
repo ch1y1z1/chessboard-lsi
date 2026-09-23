@@ -63,7 +63,7 @@ def _require_symmetric_pair(fm: ForwardModel, direction: str) -> None:
         raise ValueError("缺少 (0,0) 级：无法构成 ±1 拍频")
     if ap == 0.0 or am == 0.0:
         raise ValueError(f"{direction} 方向缺少 ±1 级对的一边，无法按双边差分解释")
-    if not np.isclose(abs(ap), abs(am), rtol=1e-3):
+    if not np.isclose(abs(ap), abs(am), rtol=1e-3, atol=0.0):
         raise ValueError(
             f"±1 级振幅不对称：|A+| = {abs(ap):.4g}, |A-| = {abs(am):.4g}"
         )
@@ -112,6 +112,10 @@ def demodulate_phase_shift(
     直接在 ±pi 分支切线附近解包裹会产生整帧 2 pi 抖动。
     """
     cfg = fm.config
+    if region_mode not in ("analytic", "modulation"):
+        raise ValueError(
+            f"region_mode 必须是 'analytic'/'modulation'，得到 {region_mode!r}"
+        )
     _require_symmetric_pair(fm, "x")
     _require_symmetric_pair(fm, "y")
     for name, frames in (("frames_x", frames_x), ("frames_y", frames_y)):

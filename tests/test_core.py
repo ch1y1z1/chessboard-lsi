@@ -15,6 +15,7 @@ import pytest
 from lsi.config import Grid, SystemConfig
 from lsi.forward import (
     DEFAULT_ORDERS,
+    DEFAULT_ORDERS_9,
     ForwardModel,
     ZernikeWavefront,
     paper_region_intensity,
@@ -22,8 +23,9 @@ from lsi.forward import (
 from lsi.ftmode import demodulate_lobe
 from lsi.grating import chessboard_orders, diffraction_efficiency
 from lsi.lm import LMConfig, fit_wavefront_from_frames, levenberg_marquardt
-from lsi.phaseshift import lsq_phase_shift, shear_regions
+from lsi.phaseshift import find_pupil_circle, lsq_phase_shift, shear_regions
 from lsi.pipeline import (
+    _require_symmetric_pair,
     demodulate_fourier,
     demodulate_phase_shift,
     fourier_to_wavefront,
@@ -32,7 +34,7 @@ from lsi.pipeline import (
 )
 from lsi.reconstruct import fit_differential_zernike
 from lsi.unwrap import unwrap_poisson, wrap
-from lsi.zernike import differential_zernike_matrix, zernike
+from lsi.zernike import differential_zernike_matrix, wavefront, zernike
 
 CFG = SystemConfig(grid=Grid(n=64, extent=1.10))
 INDICES = tuple(range(2, 14))
@@ -429,3 +431,104 @@ def test_lm_rejects_mismatched_or_underdetermined_inputs():
     with pytest.raises(ValueError, match="欠定"):
         fit_wavefront_from_frames(
             fm, list(range(2, 14)), [good[0]], [None], samples=2)
+
+
+def test_carrier_intensity_beat_nyquist():
+    """探测器采样 I=|E|^2：检查应覆盖级次 span（±1 -> 2f0）而非仅 carrier。"""
+    from lsi import DEFAULT_ORDERS, Grid
+
+    fm = ForwardModel(
+        SystemConfig(grid=Grid(n=64, extent=1.10), period_um=30.0),
+        DEFAULT_ORDERS,
+    )
+    # 单束 carrier 11.4 < Nyquist 14.5 过旧检查；拍频 22.8 必然混叠
+    with pytest.raises(ValueError, match="奈奎斯特"):
+        fm.carrier_frame(ZernikeWavefront([0.1], [2]))
+    # 宽 span 的小网格同样触发
+    with pytest.raises(ValueError, match="奈奎斯特"):
+        ForwardModel(
+            SystemConfig(grid=Grid(n=96, extent=1.10), period_um=30.0),
+            DEFAULT_ORDERS_9,
+        ).carrier_frame(ZernikeWavefront([0.1], [2]))
+
+
+def test_variable_projection_needs_two_extra_observations():
+    """m <= p + 2 时 a*model+b 精确穿过所有点 -> 假收敛，必须拒绝。"""
+    fm = ForwardModel(CFG)
+    w = ZernikeWavefront([0.3], [7])
+    frame = fm.phase_shift_frames(w, "x", 4)[0]
+    cfg_lm = LMConfig(max_iter=1, fit_scale_background=True)
+
+    fit_wavefront_from_frames(
+        fm, [7], [frame], [None], x0=[0.2],
+        samples=3, config=cfg_lm)  # m=3 = p+2：恰好可识别
+    with pytest.raises(ValueError, match="欠定"):
+        fit_wavefront_from_frames(
+            fm, [7], [frame], [None],
+            samples=2, config=cfg_lm)
+    # 不开变量投影时 m >= p 即可
+    fit_wavefront_from_frames(fm, [7], [frame], [None], samples=1,
+                             config=LMConfig(max_iter=1))
+
+
+def test_lm_rejects_malformed_deltas_and_carriers():
+    """delta 长度/carrier 形状不符（即使总元素数一致）必须报错。"""
+    fm = ForwardModel(CFG)
+    w = ZernikeWavefront([0.3], [7])
+    frames = fm.phase_shift_frames(w, "x", 4)
+    n_ord = len(fm.order_list)
+    with pytest.raises(ValueError, match="deltas"):
+        fit_wavefront_from_frames(
+            fm, [7], list(frames),
+            [np.zeros(n_ord + 1)] * 4, samples=None)
+    bad_carrier = np.zeros((n_ord * 2, CFG.grid.n // 2, CFG.grid.n))
+    with pytest.raises(ValueError, match="carriers"):
+        fit_wavefront_from_frames(
+            fm, [7], list(frames),
+            carriers=[bad_carrier] * 4, samples=None)
+
+
+def test_zernike_index_validation_shared():
+    """所有 API 拒绝 7.9/bool/重复/长度不等的 index。"""
+    with pytest.raises(ValueError, match="indices"):
+        ZernikeWavefront([0.1], [7.9])
+    with pytest.raises(ValueError, match="indices"):
+        ZernikeWavefront([0.1], [True])
+    with pytest.raises(ValueError, match="indices"):
+        ZernikeWavefront([0.1, 0.2], [2, 2])
+    with pytest.raises(ValueError, match="长度"):
+        ZernikeWavefront([0.1], [2, 3])
+    x, y = CFG.grid.coords()
+    with pytest.raises(ValueError, match="长度"):
+        wavefront([0.1, 0.2], [2], x, y)
+    mask = shear_regions(CFG.grid, CFG.s)["region_x"]
+    w = ZernikeWavefront([0.3], [2])
+    dW = w.w(x + CFG.s, y) - w.w(x - CFG.s, y)
+    with pytest.raises(ValueError, match="indices"):
+        fit_differential_zernike(dW, dW, mask, mask, CFG.s, x, y, indices=[7.9])
+    fm = ForwardModel(CFG)
+    frames = fm.phase_shift_frames(w, "x", 4)
+    with pytest.raises(ValueError, match="indices"):
+        fit_wavefront_from_frames(fm, [7.9], list(frames), [None] * 4)
+
+
+def test_pipeline_region_mode_and_symmetry_strict():
+    """region_mode 必须严格枚举；极小振幅的不对称不可被 atol 掩盖。"""
+    fm = ForwardModel(CFG)
+    w = ZernikeWavefront([0.1], [2])
+    fx = fm.phase_shift_frames(w, "x", 4)
+    fy = fm.phase_shift_frames(w, "y", 4)
+    with pytest.raises(ValueError, match="region_mode"):
+        demodulate_phase_shift(fm, fx, fy, region_mode="modulaton")
+    with pytest.raises(ValueError, match="threshold_frac"):
+        demodulate_phase_shift(
+            fm, fx, fy, region_mode="modulation", threshold_frac=1.5)
+    # 振幅相差 5 倍但都 << atol=1e-8：默认 isclose 会误判对称
+    tiny = {k: (a * 1e-10 if k[0] > 0 else a) for k, a in DEFAULT_ORDERS.items()}
+    with pytest.raises(ValueError, match="不对称"):
+        _require_symmetric_pair(ForwardModel(CFG, tiny), "x")
+    # modulation 模式阈值越界
+    with pytest.raises(ValueError, match="threshold_frac"):
+        find_pupil_circle(np.ones((8, 8)), CFG.grid, threshold_frac=-0.1)
+    with pytest.raises(ValueError, match="threshold_frac"):
+        find_pupil_circle(np.ones((8, 8)), CFG.grid, threshold_frac=1.0)

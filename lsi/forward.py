@@ -35,7 +35,7 @@ from typing import Callable, Sequence
 import numpy as np
 
 from .config import Grid, SystemConfig
-from .zernike import zernike, zernike_matrix
+from .zernike import check_indices, zernike, zernike_matrix
 
 __all__ = [
     "ZernikeWavefront",
@@ -78,17 +78,9 @@ class ZernikeWavefront:
 
     def __post_init__(self) -> None:
         self.coeffs = np.atleast_1d(np.asarray(self.coeffs, dtype=float))
-        indices = np.atleast_1d(np.asarray(self.indices))
-        if indices.dtype == bool:
-            raise ValueError("indices 必须是正整数，不接受布尔值")
-        indices = np.asarray(indices, dtype=float)
-        if self.coeffs.shape != indices.shape:
+        self.indices = check_indices(self.indices)
+        if self.coeffs.shape != self.indices.shape:
             raise ValueError("coeffs 与 indices 长度必须一致")
-        if not np.all(indices == np.round(indices)) or (indices < 1).any():
-            raise ValueError("indices 必须是正整数")
-        self.indices = indices.astype(int)
-        if len(np.unique(self.indices)) != len(self.indices):
-            raise ValueError("indices 不能有重复")
 
     def w(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         out = np.zeros_like(np.asarray(x, dtype=float))
@@ -160,16 +152,21 @@ class ForwardModel:
         return 2.0 * np.pi * (ab[:, 0] * t_x + ab[:, 1] * t_y)
 
     def carrier_phases(self, f0: float) -> np.ndarray:
-        """各级载频相位 2 pi f0 (a x + b y)，形状 (n_orders, n, n)。"""
+        """各级载频相位 2 pi f0 (a x + b y)，形状 (n_orders, n, n)。
+
+        采样约束按光强而非场强给：I = |E|^2 的拍频是级次之差，
+        (a_i - a_j) f0，故要求级次坐标 span 乘 f0 低于奈奎斯特
+        （默认 ±1 级即 2 f0）。
+        """
         if not np.isfinite(f0) or f0 <= 0.0:
             raise ValueError(f"f0 必须是正的有限频率，得到 {f0!r}")
-        max_ab = max(max(abs(a), abs(b)) for a, b in self.order_list)
-        if max_ab * abs(f0) >= self.grid.nyquist:
-            raise ValueError(
-                f"载频 |f0| = {abs(f0):.3f} x 最高级次 {max_ab} 超过网格奈奎斯特 "
-                f"{self.grid.nyquist:.3f} cyc/unit，会混叠"
-            )
         ab = np.asarray(self.order_list)
+        span = float(np.max(ab.max(axis=0) - ab.min(axis=0)))
+        if span * f0 >= self.grid.nyquist:
+            raise ValueError(
+                f"级次 span {span:g} x 载频 {f0:.3f} = {span * f0:.3f} 超过网格"
+                f"奈奎斯特 {self.grid.nyquist:.3f} cyc/unit，拍频会混叠"
+            )
         return (
             2.0 * np.pi * f0
             * (ab[:, 0, None, None] * self._x + ab[:, 1, None, None] * self._y)

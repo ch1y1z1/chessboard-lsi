@@ -33,6 +33,7 @@ import numpy as np
 
 __all__ = [
     "FRINGE_MODES",
+    "check_indices",
     "fringe_index",
     "zernike",
     "zernike_matrix",
@@ -66,6 +67,26 @@ FRINGE_MODES: tuple[tuple[int, int, str, str], ...] = (
     (9, 1, "cos", "quaternary coma"), (9, 1, "sin", "quaternary coma"),
     (10, 0, "radial", "quaternary spherical"),
 )
+
+
+def check_indices(indices: Sequence[int]) -> np.ndarray:
+    """把 Fringe 序号序列规范为一维正整数数组，拒绝 bool/非整数/重复。"""
+    arr = np.atleast_1d(np.asarray(indices))
+    if arr.ndim != 1 or arr.size == 0:
+        raise ValueError("indices 必须是一维非空序列")
+    if arr.dtype == bool:
+        raise ValueError("indices 必须是正整数，不接受布尔值")
+    arr = np.asarray(arr, dtype=float)
+    if (
+        not np.all(np.isfinite(arr))
+        or not np.all(arr == np.round(arr))
+        or (arr < 1).any()
+    ):
+        raise ValueError("indices 必须是正整数")
+    arr = arr.astype(int)
+    if len(np.unique(arr)) != len(arr):
+        raise ValueError("indices 不能有重复")
+    return arr
 
 
 def fringe_index(j: int) -> tuple[int, int, str]:
@@ -152,6 +173,8 @@ def wavefront(
     coeffs: Sequence[float], indices: Sequence[int], x: np.ndarray, y: np.ndarray
 ) -> np.ndarray:
     """W(x, y) = sum_j c_j Z_j（系数单位：波长）。"""
+    if len(coeffs) != len(indices):
+        raise ValueError("coeffs 与 indices 长度必须一致")
     W = np.zeros_like(np.asarray(x, dtype=float))
     for c, j in zip(coeffs, indices):
         if c != 0.0:

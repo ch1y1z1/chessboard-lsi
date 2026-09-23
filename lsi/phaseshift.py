@@ -90,6 +90,8 @@ def find_pupil_circle(
     """调制度图 -> 阈值 -> 最大连通域外缘 -> 圆拟合，得零级光瞳 (cx, cy, r)。"""
     from scipy import ndimage
 
+    if not 0.0 <= threshold_frac < 1.0:
+        raise ValueError("threshold_frac 必须在 [0, 1) 内")
     mask = mod > threshold_frac * mod.max()
     if not np.any(mask):
         raise ValueError("调制度阈值分割为空，无法定位光瞳")

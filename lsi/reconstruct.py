@@ -26,7 +26,7 @@ from typing import Sequence
 
 import numpy as np
 
-from .zernike import differential_zernike_matrix, wavefront
+from .zernike import check_indices, differential_zernike_matrix, wavefront
 
 __all__ = ["ZernikeFit", "fit_differential_zernike", "wavefront_on_grid"]
 
@@ -65,11 +65,7 @@ def fit_differential_zernike(
     ``known_offsets``（键 "x"/"y"，单位与 dW 相同，即波长）在拟合前从
     数据中扣除；对物理棋盘可用 ``ForwardModel.demodulation_offset(d)/pi``。
     """
-    indices = np.asarray(list(indices), dtype=int)
-    if indices.size == 0:
-        raise ValueError("indices 不能为空")
-    if len(np.unique(indices)) != len(indices):
-        raise ValueError("indices 不能有重复")
+    indices = check_indices(indices)
     if 1 in indices:
         raise ValueError("Z1 平移没有差分信号，请从 indices 中去掉")
     if not np.isfinite(s) or s <= 0.0:
