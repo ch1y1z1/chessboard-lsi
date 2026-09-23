@@ -26,24 +26,12 @@ Fringe/Wyant 排序（1 起）：
 from __future__ import annotations
 
 from functools import lru_cache
-from math import factorial, isqrt
+from math import factorial
 from typing import Sequence
 
 import numpy as np
 
-__all__ = [
-    "FRINGE_MODES",
-    "check_indices",
-    "fringe_index",
-    "zernike",
-    "zernike_matrix",
-    "differential_zernike",
-    "differential_zernike_matrix",
-    "wavefront",
-]
-
-#: (n, |m|, kind, 像差名称)，下标从 1 开始。Fringe 排序中 m=4 对在 Z17/Z18，
-#: Z25、Z36 分别是 8 级、10 级径向球差。
+#: (n, |m|, kind, 像差名称)，下标从 1 开始（Fringe/Wyant 序，到 Z36）。
 FRINGE_MODES: tuple[tuple[int, int, str, str], ...] = (
     (0, 0, "radial", "piston"),
     (1, 1, "cos", "x tilt"), (1, 1, "sin", "y tilt"),
@@ -69,42 +57,12 @@ FRINGE_MODES: tuple[tuple[int, int, str, str], ...] = (
 )
 
 
-def check_indices(indices: Sequence[int]) -> np.ndarray:
-    """把 Fringe 序号序列规范为一维正整数数组，拒绝 bool/非整数/重复。"""
-    arr = np.atleast_1d(np.asarray(indices))
-    if arr.ndim != 1 or arr.size == 0:
-        raise ValueError("indices 必须是一维非空序列")
-    if arr.dtype == bool:
-        raise ValueError("indices 必须是正整数，不接受布尔值")
-    arr = np.asarray(arr, dtype=float)
-    if (
-        not np.all(np.isfinite(arr))
-        or not np.all(arr == np.round(arr))
-        or (arr < 1).any()
-    ):
-        raise ValueError("indices 必须是正整数")
-    arr = arr.astype(int)
-    if len(np.unique(arr)) != len(arr):
-        raise ValueError("indices 不能有重复")
-    return arr
-
-
 def fringe_index(j: int) -> tuple[int, int, str]:
     """1 起 Fringe/Wyant 序号 j -> (n, |m|, 'cos'|'sin'|'radial')。"""
-    if isinstance(j, bool) or not float(j).is_integer() or j < 1:
-        raise ValueError("Zernike 序号必须是正整数")
-    j = int(j)
-    if j <= len(FRINGE_MODES):
-        n, m, kind, _ = FRINGE_MODES[j - 1]
-        return n, m, kind
-    # j > 36 的延续：Fringe 序号按平方分组，组 p 含角阶 p-1 ... 1 的
-    # cos/sin 对，径向项落在 j = p^2。
-    p = isqrt(j - 1) + 1
-    offset = j - (p - 1) ** 2 - 1
-    m = p - 1 - offset // 2
-    if m == 0:
-        return 2 * (p - 1), 0, "radial"
-    return 2 * (p - 1) - m, m, "cos" if offset % 2 == 0 else "sin"
+    if not 1 <= j <= len(FRINGE_MODES):
+        raise ValueError(f"Zernike 序号必须在 1..{len(FRINGE_MODES)}，得到 {j!r}")
+    n, m, kind, _ = FRINGE_MODES[j - 1]
+    return n, m, kind
 
 
 @lru_cache(maxsize=None)
@@ -156,9 +114,7 @@ def differential_zernike(
     """
     if direction == "x":
         return zernike(j, x + s, y) - zernike(j, x - s, y)
-    if direction == "y":
-        return zernike(j, x, y + s) - zernike(j, x, y - s)
-    raise ValueError("direction 必须是 'x' 或 'y'")
+    return zernike(j, x, y + s) - zernike(j, x, y - s)
 
 
 def differential_zernike_matrix(
@@ -173,8 +129,6 @@ def wavefront(
     coeffs: Sequence[float], indices: Sequence[int], x: np.ndarray, y: np.ndarray
 ) -> np.ndarray:
     """W(x, y) = sum_j c_j Z_j（系数单位：波长）。"""
-    if len(coeffs) != len(indices):
-        raise ValueError("coeffs 与 indices 长度必须一致")
     W = np.zeros_like(np.asarray(x, dtype=float))
     for c, j in zip(coeffs, indices):
         if c != 0.0:

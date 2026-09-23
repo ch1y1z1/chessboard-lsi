@@ -27,8 +27,6 @@ import numpy as np
 
 from .config import Grid
 
-__all__ = ["LobeResult", "spectrum", "demodulate_lobe"]
-
 
 def spectrum(image: np.ndarray) -> np.ndarray:
     """实图像的移位二维频谱。"""
@@ -40,21 +38,6 @@ class LobeResult:
     phase: np.ndarray          # 去除 phase_offset 后的缠绕相位 (rad)
     amplitude: np.ndarray      # |c(x, y)|
     field: np.ndarray          # 复数 c(x, y)
-    peak_freq: tuple[float, float]  # 实测瓣峰频率 (fx, fy)，单位 cyc/归一化坐标
-
-
-def _find_carrier_peak(
-    mag: np.ndarray, grid: Grid, expected: tuple[float, float], search_px: int = 8
-) -> tuple[int, int]:
-    """在期望位置 ±search_px 窗口内取频谱幅值最大点，返回 (row, col)。"""
-    n = mag.shape[0]
-    L = 2.0 * grid.extent
-    iy = int(round(expected[1] * L)) + n // 2
-    ix = int(round(expected[0] * L)) + n // 2
-    window = np.zeros_like(mag)
-    window[max(0, iy - search_px) : iy + search_px + 1,
-           max(0, ix - search_px) : ix + search_px + 1] = 1.0
-    return np.unravel_index(int(np.argmax(mag * window)), mag.shape)
 
 
 def demodulate_lobe(
@@ -74,28 +57,9 @@ def demodulate_lobe(
     在取辐角前扣除，避免相位正好压在 ±pi 分支切线上。
     """
     I = np.asarray(image, dtype=float)
-    if direction not in ("x", "y"):
-        raise ValueError(f"direction 必须是 'x' 或 'y'，得到 {direction!r}")
-    if not np.isfinite(f0) or f0 <= 0.0:
-        raise ValueError(f"f0 必须是正的有限频率，得到 {f0!r}")
-    if abs(f0) >= grid.nyquist:
-        raise ValueError(
-            f"载频 |f0| = {abs(f0):.3f} 超过网格奈奎斯特 "
-            f"{grid.nyquist:.3f} cyc/unit，解调的会是混叠峰"
-        )
-    if window_radius is not None and not window_radius > 0.0:
-        raise ValueError(f"window_radius 必须为正，得到 {window_radius!r}")
     x, y = grid.coords()
     n, L = grid.n, 2.0 * grid.extent
     ramp = x if direction == "x" else y
-
-    # 实测瓣位置（仅作诊断；解调参考用名义 f0，瓣位移本身是信号）
-    spec = spectrum(I)
-    i0, j0 = _find_carrier_peak(
-        np.abs(spec), grid,
-        (f0, 0.0) if direction == "x" else (0.0, f0),
-    )
-    peak_freq = ((j0 - n // 2) / L, (i0 - n // 2) / L)
 
     # 逐像素去载频 -> 基带含 0 级谱与 +f0 瓣内容 -> Butterworth 低通
     baseband = np.fft.fftshift(np.fft.fft2(I * np.exp(-2j * np.pi * f0 * ramp)))
@@ -107,9 +71,4 @@ def demodulate_lobe(
     if phase_offset:
         c = c * np.exp(-1j * phase_offset)
 
-    return LobeResult(
-        phase=np.angle(c),
-        amplitude=np.abs(c),
-        field=c,
-        peak_freq=peak_freq,
-    )
+    return LobeResult(phase=np.angle(c), amplitude=np.abs(c), field=c)
