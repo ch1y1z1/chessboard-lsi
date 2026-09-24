@@ -7,15 +7,7 @@
 
 模块组织（按计算链条）：
 
-    config       网格与物理参数（lambda/NA/p -> s, f0）
-    zernike      Fringe 序 Zernike 与差分基
-    grating      棋盘光栅衍射级次（表 2-3）
-    forward      级次叠加前向模型 I = |E|^2
-    phaseshift   N 步相移解调 + 剪切区域
-    unwrap       掩膜内 Poisson 解包裹
-    ftmode       单帧载频瓣解调
-    reconstruct  差分 Zernike 最小二乘
-    pipeline     两条解调路线 + 重构的端到端封装
-    lm           LM 直接光强反演
-    metrics      PV / RMS / 系数误差
+    model    网格与物理参数、棋盘光栅级次、Zernike 基、级次叠加前向模型
+    invert   相移解调、载频瓣解调、Poisson 解包裹、差分 Zernike 重构
+    lm       LM 直接光强反演（不经解调/解包裹）
 """

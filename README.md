@@ -8,7 +8,7 @@
 
 ```
 干涉强度 I(x,y)
-    ├─ 相移模式：N 步最小二乘解调   psi = atan2(-S, C)      （论文 2.3）
+    ├─ 相移模式：N 步闭式解调   psi = atan2(-S, C)          （论文 2.3）
     ├─ 傅里叶模式：二维 FFT 提取 +f0 载频瓣 -> arg c(x,y)   （论文 2.4）
     └─ LM 直接反演：min ||I - I(c)||^2（不经解调/解包裹）
             ↓（前两条路线）
@@ -21,19 +21,13 @@
 
 ## 结构
 
+三个模块按计算链条组织，每个文件对应读者脑中的一个阶段：
+
 ```
 lsi/
-├── config.py       # Grid + SystemConfig（波长/NA/光栅周期 -> 剪切量 s、载频 f0）
-├── grating.py      # 棋盘光栅衍射级次闭式振幅（表 2-3）
-├── zernike.py      # Fringe/Wyant 序 Zernike 与双边差分基（式 2-25~2-27）
-├── forward.py      # 前向模型：E = Σ A_ab exp(i[2πW + δ_ab + 载频])，I = |E|²
-├── phaseshift.py   # N 步最小二乘相移解调 + 剪切区（式 2-20、图 2-8/2-9）
-├── unwrap.py       # 掩膜内 Poisson 最小二乘解包裹
-├── ftmode.py       # 单帧载频瓣解调（2.4 节）
-├── reconstruct.py  # 差分 Zernike 最小二乘重构（式 2-28~2-31）
-├── pipeline.py     # 端到端：解调 -> 解包裹 -> 重构
-├── lm.py           # LM 直接光强反演：解析雅可比 + 增广最小二乘阻尼步
-└── metrics.py      # PV/RMS/系数误差
+├── model.py        # 前向物理：网格/系统参数 -> 光栅级次 -> Zernike 基 -> I=|E|²
+├── invert.py       # 论文反演链：解调 -> 解包裹 -> 差分 Zernike 最小二乘
+└── lm.py           # LM 直接光强反演：解析雅可比 + 增广最小二乘阻尼步
 experiment.py       # 三条路线端到端演示（输出到 output/）
 test_lsi.py         # 端到端回归测试
 ```

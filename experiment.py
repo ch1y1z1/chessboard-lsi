@@ -4,9 +4,9 @@
 核心计算链条，三条反演路线共享同一个真值波前：
 
     干涉强度 I(x,y)
-        ├─ 相移模式：8 步最小二乘解调 psi = atan2(-S, C)     （论文 2.3）
-        ├─ 傅里叶模式：二维 FFT 提取 +f0 载频瓣 -> arg c(x,y) （论文 2.4）
-        └─ LM 直接反演：min ||I - I(c)||^2                    （不经解调）
+        ├─ 相移模式：8 步闭式解调 psi = atan2(-S, C)           （论文 2.3）
+        ├─ 傅里叶模式：二维 FFT 提取 +f0 载频瓣 -> arg c(x,y)  （论文 2.4）
+        └─ LM 直接反演：min ||I - I(c)||^2                     （不经解调）
                 ↓（前两条路线）
     差分波前 dW_x = W(x+s,y)-W(x-s,y)，dW_y 同理
                 ↓ 差分 Zernike 最小二乘（式 2-28~2-31）
@@ -25,14 +25,20 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
-from lsi.config import Grid, SystemConfig  # noqa: E402
-from lsi.forward import ForwardModel, add_noise, zernike_wavefront  # noqa: E402
-from lsi.ftmode import spectrum  # noqa: E402
-from lsi.grating import chessboard_orders, diffraction_efficiency  # noqa: E402
+from lsi.invert import (  # noqa: E402
+    fourier_to_wavefront,
+    phase_shift_to_wavefront,
+    wavefront_on_grid,
+)
 from lsi.lm import fit_wavefront_from_carrier_frame, fit_wavefront_from_frames  # noqa: E402
-from lsi.metrics import coefficient_error_metrics, pv, rms  # noqa: E402
-from lsi.pipeline import fourier_to_wavefront, phase_shift_to_wavefront  # noqa: E402
-from lsi.reconstruct import wavefront_on_grid  # noqa: E402
+from lsi.model import (  # noqa: E402
+    ForwardModel,
+    Grid,
+    SystemConfig,
+    chessboard_orders,
+    diffraction_efficiency,
+    zernike_wavefront,
+)
 
 OUT = Path("output")
 OUT.mkdir(exist_ok=True)
@@ -41,6 +47,33 @@ INDICES = np.arange(2, 14)          # 拟合 Z2..Z13（Z1 平移不可观）
 TRUTH_IDX = np.array([4, 5, 6, 7, 8])
 TRUTH_C = np.array([0.31, -0.12, 0.07, 0.42, 0.05])   # waves；Z2/Z3 留零看泄漏
 truth = zernike_wavefront(TRUTH_C, TRUTH_IDX)
+
+
+# --------------------------------------------------------------------------- #
+# 报告工具（仅供本脚本使用）
+# --------------------------------------------------------------------------- #
+def pv(W: np.ndarray, pupil: np.ndarray) -> float:
+    """光瞳内峰谷值（waves）。"""
+    v = np.asarray(W, dtype=float)[pupil]
+    return float(v.max() - v.min())
+
+
+def rms(W: np.ndarray, pupil: np.ndarray) -> float:
+    """光瞳内去平移均方根（waves）。"""
+    v = np.asarray(W, dtype=float)[pupil]
+    return float(np.sqrt(np.mean((v - v.mean()) ** 2)))
+
+
+def add_noise(frames: np.ndarray, snr_db: float, seed: int = 0) -> np.ndarray:
+    """加高斯噪声；``snr_db`` 为峰值光强对噪声标准差之比 20 log10(max I / sigma)。"""
+    rng = np.random.default_rng(seed)
+    sigma = frames.max() / (10.0 ** (snr_db / 20.0))
+    return frames + rng.normal(0.0, sigma, size=frames.shape)
+
+
+def log_spectrum(image: np.ndarray) -> np.ndarray:
+    """实图像的对数幅度谱（画图用）。"""
+    return np.log10(np.abs(np.fft.fftshift(np.fft.fft2(image))) + 1e-9)
 
 
 def section(title: str) -> None:
@@ -56,14 +89,22 @@ def show(ax, data, title="", cmap="viridis"):
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
 
 
-def report(fit, tag: str) -> dict[int, float]:
-    tab = fit.as_dict() if hasattr(fit, "as_dict") else dict(zip(INDICES, fit.x))
-    m = coefficient_error_metrics(tab, TRUTH_IDX, TRUTH_C)
+def report(fit, tag: str) -> None:
+    """打印拟合系数与误差汇总（fit 为 ZernikeFit 或 LMResult）。
+
+    误差对全部拟合模式取 max；真值中缺省的模式按 0 处理（零模泄漏）。
+    """
+    tab = fit.as_dict()
+    truth = dict(zip(TRUTH_IDX.tolist(), TRUTH_C.tolist()))
+    errors = {j: v - truth.get(j, 0.0) for j, v in tab.items()}
+    max_err = max(map(abs, errors.values()), default=0.0)
+    leakage = max(
+        (abs(e) for j, e in errors.items() if j not in truth), default=0.0
+    )
     print(f"  {tag}: " + ", ".join(
         f"Z{j}={tab[j]:+.4f}" for j in TRUTH_IDX))
-    print(f"    最大 |系数误差| = {m['max_error_all_modes']:.2e} wave"
-          f"（零模泄漏 {m['max_leakage_into_zero_modes']:.2e}）")
-    return tab
+    print(f"    最大 |系数误差| = {max_err:.2e} wave"
+          f"（零模泄漏 {leakage:.2e}）")
 
 
 # --------------------------------------------------------------------------- #
@@ -127,8 +168,10 @@ for snr in (60, 40, 20):
     nx = add_noise(fm.phase_shift_frames(truth, "x", 8), snr_db=snr, seed=1)
     ny = add_noise(fm.phase_shift_frames(truth, "y", 8), snr_db=snr, seed=2)
     f, _ = phase_shift_to_wavefront(fm, nx, ny, indices=INDICES)
-    e = coefficient_error_metrics(f.as_dict(), TRUTH_IDX, TRUTH_C)
-    print(f"  SNR {snr:3d} dB : 最大 |系数误差| = {e['max_error_all_modes']:.4f} wave")
+    tab = f.as_dict()
+    truth_map = dict(zip(TRUTH_IDX.tolist(), TRUTH_C.tolist()))
+    err = max(abs(v - truth_map.get(j, 0.0)) for j, v in tab.items())
+    print(f"  SNR {snr:3d} dB : 最大 |系数误差| = {err:.4f} wave")
 
 # --------------------------------------------------------------------------- #
 section("6. 图 -> output/")
@@ -146,7 +189,7 @@ fig.savefig(OUT / "phase_shift_route.png", dpi=150)
 
 fig, axes = plt.subplots(1, 3, figsize=(14, 4.2))
 show(axes[0], frame_ft, "carrier frame (Fourier mode)")
-show(axes[1], np.log10(np.abs(spectrum(frame_ft)) + 1e-9),
+show(axes[1], log_spectrum(frame_ft),
      f"log|spectrum|, f0 = {cfg_ft.carrier_f0:.2f} cyc/unit")
 xf, yf = cfg_ft.grid.coords()
 W_ft = wavefront_on_grid(fit_ft.coeffs, fit_ft.indices, xf, yf, cfg_ft.grid.pupil())
