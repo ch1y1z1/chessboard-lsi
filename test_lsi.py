@@ -10,6 +10,7 @@ import pytest
 
 from lsi.invert import (
     fourier_to_wavefront,
+    lsq_phase_shift,
     phase_shift_to_wavefront,
     unwrap_poisson,
     wrap,
@@ -17,6 +18,7 @@ from lsi.invert import (
 from lsi.lm import _frame_and_jacobian, fit_wavefront_from_frames
 from lsi.model import (
     DEFAULT_ORDERS,
+    FRINGE_MODES,
     ForwardModel,
     Grid,
     SystemConfig,
@@ -55,6 +57,40 @@ def test_zernike_spot_values():
     np.testing.assert_allclose(zernike(7, x, y), (3 * x**3 - 2 * x))
     assert zernike(4, np.array([0.0]), np.array([0.0]))[0] == pytest.approx(-1.0)
     assert zernike(7, np.array([1.0]), np.array([0.0]))[0] == pytest.approx(1.0)
+
+
+def test_zernike_rejects_out_of_range_index():
+    """Fringe 序是 1-based：0 或越界序号必须报错而非静默取到别的模式。"""
+    x, y = np.array([0.5]), np.array([0.0])
+    with pytest.raises(ValueError):
+        zernike(0, x, y)
+    with pytest.raises(ValueError):
+        zernike(len(FRINGE_MODES) + 1, x, y)
+
+
+def test_lsq_phase_shift_closed_form():
+    """合成帧 I = B + C cosδ_i + S sinδ_i（含非零背景）直接验闭式解。"""
+    B, C, S, n = 1.7, -0.4, 0.25, 8
+    deltas = 2.0 * np.pi * np.arange(n) / n
+    frames = np.broadcast_to(
+        B + C * np.cos(deltas)[:, None, None] + S * np.sin(deltas)[:, None, None],
+        (n, 5, 5),
+    )
+    phase, modulation = lsq_phase_shift(frames)
+    np.testing.assert_allclose(phase, np.arctan2(-S, C), atol=1e-12)
+    np.testing.assert_allclose(modulation, np.hypot(C, S), rtol=1e-12)
+
+
+def test_piston_mode_is_rejected():
+    """Z1 平移对差分与光强都不可观测：两条反演入口都必须拒绝。"""
+    fm = ForwardModel(CFG)
+    fx = fm.phase_shift_frames(truth, "x", 8)
+    fy = fm.phase_shift_frames(truth, "y", 8)
+    with pytest.raises(ValueError):
+        phase_shift_to_wavefront(fm, fx, fy, indices=[1, 4, 7])
+    deltas = [fm.phase_shift_deltas(k / 8, 0.0) for k in range(8)]
+    with pytest.raises(ValueError):
+        fit_wavefront_from_frames(fm, [1, 4, 7], fx, deltas)
 
 
 def test_grating_orders_match_table_2_3():

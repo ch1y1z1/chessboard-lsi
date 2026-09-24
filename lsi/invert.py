@@ -230,6 +230,8 @@ def fit_differential_zernike(
     ``weights`` 为逐像素权重（如调制度），用于加权最小二乘。
     Z1（平移）没有差分信号，不应出现在 ``indices`` 中。
     """
+    if 1 in indices:
+        raise ValueError("Z1 平移没有差分信号，请从 indices 中去掉")
     rows, rhs, wts = [], [], []
     for direction, d, mask, wgt in (
         ("x", dW_x, mask_x, weights_x),

@@ -50,6 +50,7 @@ class LMResult:
     cost: float                        # ||f||^2
     n_iter: int = 0
     rms_residual: float = 0.0
+    converged: bool = False            # False = max_iter / lambda overflow
 
     def as_dict(self) -> dict[int, float]:
         return {int(j): float(c) for j, c in zip(self.indices, self.coeffs)}
@@ -69,10 +70,12 @@ def _solve_damped(
 def levenberg_marquardt(
     residual_and_jac: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray]],
     x0: Sequence[float],
-) -> tuple[np.ndarray, float, int, float]:
+) -> tuple[np.ndarray, float, int, float, bool]:
     """最小化 ||f(x)||^2；``residual_and_jac(x) -> (f, J)`` 用解析雅可比。
 
-    返回 (x, cost, n_iter, rms_residual)。
+    返回 (x, cost, n_iter, rms_residual, converged)。``converged`` 仅在
+    命中梯度/步长/代价容差时为 True；跑满 ``_MAX_ITER`` 或阻尼溢出为
+    False。
     """
     x = np.asarray(x0, dtype=float).copy()
 
@@ -80,14 +83,17 @@ def levenberg_marquardt(
     cost = float(f @ f)
     lam, nu = _LAMBDA0, _NU0
     n_iter = 0
+    converged = False
 
     for it in range(_MAX_ITER):
         n_iter = it + 1
         delta, g, diag = _solve_damped(J, f, lam)
 
         if np.linalg.norm(g) <= _GTOL:
+            converged = True
             break
         if np.linalg.norm(delta) <= _XTOL * (np.linalg.norm(x) + _XTOL):
+            converged = True
             break
 
         f_new, J_new = residual_and_jac(x + delta)
@@ -106,6 +112,7 @@ def levenberg_marquardt(
             ))
             nu = _NU0
             if abs(drop) <= _FTOL * max(cost, 1e-30):
+                converged = True
                 break
         else:
             lam = float(np.clip(lam * nu, _LAMBDA_MIN, _LAMBDA_MAX))
@@ -113,7 +120,7 @@ def levenberg_marquardt(
             if lam >= _LAMBDA_MAX:
                 break
 
-    return x, cost, n_iter, float(np.sqrt(cost / max(f.size, 1)))
+    return x, cost, n_iter, float(np.sqrt(cost / max(f.size, 1))), converged
 
 
 # --------------------------------------------------------------------------- #
@@ -165,6 +172,8 @@ def fit_wavefront_from_frames(
     对应 ``deltas=None``。``indices`` 为拟合的 Fringe 序号（Z1 平移不可
     观测，不应包含）。``samples`` 为每帧随机采样像素数，None 表示全图。
     """
+    if 1 in indices:
+        raise ValueError("Z1 平移对光强不可观测，请从 indices 中去掉")
     frames = [np.asarray(fr, dtype=float) for fr in frames]
     n_frames = len(frames)
     deltas = list(deltas) if deltas is not None else [None] * n_frames
@@ -193,7 +202,7 @@ def fit_wavefront_from_frames(
             j_parts.append(J)
         return np.concatenate(f_parts), np.vstack(j_parts)
 
-    coeffs, cost, n_iter, rms = levenberg_marquardt(
+    coeffs, cost, n_iter, rms, converged = levenberg_marquardt(
         residual_and_jac, np.zeros(len(indices))
     )
     return LMResult(
@@ -202,6 +211,7 @@ def fit_wavefront_from_frames(
         cost=cost,
         n_iter=n_iter,
         rms_residual=rms,
+        converged=converged,
     )
 
 
@@ -209,13 +219,14 @@ def fit_wavefront_from_carrier_frame(
     forward: ForwardModel,
     indices: Sequence[int],
     image: np.ndarray,
-    *,
-    f0: float | None = None,
     **kwargs,
 ) -> LMResult:
-    """单帧载频干涉图的 LM 拟合（不相移、不解调、不解包裹）。"""
-    f0 = forward.config.carrier_f0 if f0 is None else float(f0)
-    carriers = [forward.carrier_phases(f0)]
+    """单帧载频干涉图的 LM 拟合（不相移、不解调、不解包裹）。
+
+    载频固定为 ``forward.config.carrier_f0``，与 ``carrier_frame`` 的
+    前向生成一致。
+    """
+    carriers = [forward.carrier_phases(forward.config.carrier_f0)]
     return fit_wavefront_from_frames(
         forward, indices, [image], [None], carriers, **kwargs
     )

@@ -203,6 +203,8 @@ FRINGE_MODES: tuple[tuple[int, int, str, str], ...] = (
 
 def zernike(j: int, x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """单位圆上的实 Zernike 多项式 Z_j(x, y)（Fringe/Wyant 序，1 起）。"""
+    if not 1 <= j <= len(FRINGE_MODES):
+        raise ValueError(f"Zernike 序号必须在 1..{len(FRINGE_MODES)}，得到 {j!r}")
     n, m, kind, _ = FRINGE_MODES[j - 1]
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
@@ -362,10 +364,15 @@ class ForwardModel:
             frames.append(self.intensity(wf, deltas=deltas))
         return np.stack(frames, axis=0)
 
-    def carrier_frame(self, wf, f0: float | None = None) -> np.ndarray:
-        """单帧载频（傅里叶变换模式）干涉图，论文 2.4.1。"""
-        f0 = self.config.carrier_f0 if f0 is None else float(f0)
-        return self.intensity(wf, carriers=self.carrier_phases(f0))
+    def carrier_frame(self, wf) -> np.ndarray:
+        """单帧载频（傅里叶变换模式）干涉图，论文 2.4.1。
+
+        载频固定为系统属性 ``config.carrier_f0``，与反演链路的解调
+        频率一致。
+        """
+        return self.intensity(
+            wf, carriers=self.carrier_phases(self.config.carrier_f0)
+        )
 
     # ------------------------------------------------------------- 解调先验
     def demodulation_offset(self, direction: str) -> float:
