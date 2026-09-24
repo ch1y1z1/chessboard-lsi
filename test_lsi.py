@@ -8,13 +8,23 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from lsi.config import Grid, SystemConfig
-from lsi.forward import DEFAULT_ORDERS, ForwardModel, zernike_wavefront
-from lsi.grating import chessboard_orders, diffraction_efficiency
+from lsi.invert import (
+    fourier_to_wavefront,
+    phase_shift_to_wavefront,
+    unwrap_poisson,
+    wrap,
+)
 from lsi.lm import _frame_and_jacobian, fit_wavefront_from_frames
-from lsi.pipeline import fourier_to_wavefront, phase_shift_to_wavefront
-from lsi.unwrap import unwrap_poisson, wrap
-from lsi.zernike import zernike
+from lsi.model import (
+    DEFAULT_ORDERS,
+    ForwardModel,
+    Grid,
+    SystemConfig,
+    chessboard_orders,
+    diffraction_efficiency,
+    zernike,
+    zernike_wavefront,
+)
 
 CFG = SystemConfig(grid=Grid(n=64, extent=1.10))
 INDICES = np.arange(2, 14)
@@ -133,7 +143,7 @@ def test_lm_recovers_coefficients_from_frames():
     deltas = [fm.phase_shift_deltas(k / 8, 0.0) for k in range(8)]
     deltas += [fm.phase_shift_deltas(0.0, k / 8) for k in range(8)]
     res = fit_wavefront_from_frames(fm, INDICES, frames, deltas, samples=4000)
-    tab = dict(zip(INDICES, res.x.tolist()))
+    tab = res.as_dict()
     for j, c in zip(TRUTH_IDX, TRUTH_C):
         assert tab[j] == pytest.approx(c, abs=1e-8)
     assert res.rms_residual < 1e-10
