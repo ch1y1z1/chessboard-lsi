@@ -152,9 +152,9 @@ print(f"    差分残差 rms = {fit_ft.rms_residual:.2e} wave")
 section("4. 路线 C：LM 直接光强反演（不经解调/解包裹）")
 
 frames = np.concatenate([fx, fy], axis=0)
-deltas = [fm.phase_shift_deltas(k / 8, 0.0) for k in range(8)]
-deltas += [fm.phase_shift_deltas(0.0, k / 8) for k in range(8)]
-res_lm = fit_wavefront_from_frames(fm, INDICES, frames, deltas, samples=6000)
+modulations = [fm.phase_shift_deltas(k / 8, 0.0) for k in range(8)]
+modulations += [fm.phase_shift_deltas(0.0, k / 8) for k in range(8)]
+res_lm = fit_wavefront_from_frames(fm, INDICES, frames, modulations, samples=6000)
 report(res_lm, f"LM（16 相移帧, {res_lm.n_iter} 次迭代）")
 print(f"    cost = {res_lm.cost:.2e},  rms 残差 = {res_lm.rms_residual:.2e}")
 
@@ -179,7 +179,7 @@ section("6. 图 -> output/")
 fig, axes = plt.subplots(2, 3, figsize=(14, 8.5))
 show(axes[0, 0], fx[0], "phase-shift frame t=0 (x scan)")
 show(axes[0, 1], diff.wrapped_phase["x"], "wrapped demod phase x (rad)")
-show(axes[0, 2], np.where(diff.mask["x"], diff.phase["x"], np.nan),
+show(axes[0, 2], np.where(diff.mask["x"], diff.dW["x"] * np.pi, np.nan),
      "unwrapped dW_x (rad)")
 show(axes[1, 0], np.where(pupil, W_true, np.nan), "true W (waves)", cmap="jet")
 show(axes[1, 1], W_ps, "reconstructed W (waves)", cmap="jet")

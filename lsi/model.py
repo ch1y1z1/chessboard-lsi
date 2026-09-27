@@ -395,7 +395,8 @@ class ForwardModel:
             else (amps.get((0.0, 1.0), 0.0), amps.get((0.0, -1.0), 0.0))
         )
         c_p, c_m = ap * np.conj(a0), a0 * np.conj(am)
-        return float(np.angle(c_p) + 0.5 * np.angle(c_m / c_p))
+        # 辐角均值的圆周形式：归一化相量相加取辐角，±pi 分支切线处也正确
+        return float(np.angle(c_p / abs(c_p) + c_m / abs(c_m)))
 
     # ------------------------------------------------------------- LM 用
     def zernike_samples(

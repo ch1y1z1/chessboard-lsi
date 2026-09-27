@@ -88,9 +88,9 @@ def test_piston_mode_is_rejected():
     fy = fm.phase_shift_frames(truth, "y", 8)
     with pytest.raises(ValueError):
         phase_shift_to_wavefront(fm, fx, fy, indices=[1, 4, 7])
-    deltas = [fm.phase_shift_deltas(k / 8, 0.0) for k in range(8)]
+    modulations = [fm.phase_shift_deltas(k / 8, 0.0) for k in range(8)]
     with pytest.raises(ValueError):
-        fit_wavefront_from_frames(fm, [1, 4, 7], fx, deltas)
+        fit_wavefront_from_frames(fm, [1, 4, 7], fx, modulations)
 
 
 def test_grating_orders_match_table_2_3():
@@ -160,13 +160,13 @@ def test_lm_jacobian_matches_finite_difference():
     cache = fm.zernike_samples([4, 7], np.arange(0, 64 * 64, 37))
     c = np.array([0.2, 0.5])
     deltas = fm.phase_shift_deltas(0.25, 0.0)
-    _, J = _frame_and_jacobian(cache, c, deltas, None)
+    _, J = _frame_and_jacobian(cache, c, deltas)
     for j in range(2):
         dp, dm = c.copy(), c.copy()
         dp[j] += 1e-7
         dm[j] -= 1e-7
-        Ip, _ = _frame_and_jacobian(cache, dp, deltas, None)
-        Im, _ = _frame_and_jacobian(cache, dm, deltas, None)
+        Ip, _ = _frame_and_jacobian(cache, dp, deltas)
+        Im, _ = _frame_and_jacobian(cache, dm, deltas)
         np.testing.assert_allclose(J[:, j], (Ip - Im) / 2e-7, rtol=1e-5, atol=1e-8)
 
 
@@ -176,9 +176,9 @@ def test_lm_recovers_coefficients_from_frames():
     frames = np.concatenate(
         [fm.phase_shift_frames(truth, "x", 8),
          fm.phase_shift_frames(truth, "y", 8)], axis=0)
-    deltas = [fm.phase_shift_deltas(k / 8, 0.0) for k in range(8)]
-    deltas += [fm.phase_shift_deltas(0.0, k / 8) for k in range(8)]
-    res = fit_wavefront_from_frames(fm, INDICES, frames, deltas, samples=4000)
+    modulations = [fm.phase_shift_deltas(k / 8, 0.0) for k in range(8)]
+    modulations += [fm.phase_shift_deltas(0.0, k / 8) for k in range(8)]
+    res = fit_wavefront_from_frames(fm, INDICES, frames, modulations, samples=4000)
     tab = res.as_dict()
     for j, c in zip(TRUTH_IDX, TRUTH_C):
         assert tab[j] == pytest.approx(c, abs=1e-8)

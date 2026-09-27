@@ -129,12 +129,11 @@ def levenberg_marquardt(
 def _frame_and_jacobian(
     cache: list[tuple[int, complex, np.ndarray, np.ndarray]],
     coeffs: np.ndarray,
-    deltas: np.ndarray | None,
-    carriers: np.ndarray | None,
+    modulation: np.ndarray | None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """一帧的模型光强 I(c) 与雅可比 dI/dc（在采样像素上）。
 
-    E = sum_k A_k e^{i phi_k},  phi_k = 2 pi Z_k c + delta_k + carrier_k
+    E = sum_k A_k e^{i phi_k},  phi_k = 2 pi Z_k c + mod_k
     dE/dc_j = i 2 pi sum_k A_k e^{i phi_k} Z_{k,j}
     dI/dc_j = 2 Re( conj(E) * dE/dc_j )
     """
@@ -144,10 +143,8 @@ def _frame_and_jacobian(
     dE = np.zeros((n_terms, n_rows), dtype=complex)
     for k, amp, inside, Z in cache:
         phase = 2.0 * np.pi * (coeffs @ Z)
-        if deltas is not None:
-            phase = phase + deltas[k]
-        if carriers is not None:
-            phase = phase + carriers[k]
+        if modulation is not None:
+            phase = phase + modulation[k]
         e = np.where(inside, amp * np.exp(1j * phase), 0.0)
         E += e
         dE += (2j * np.pi) * e[None, :] * Z
@@ -160,44 +157,46 @@ def fit_wavefront_from_frames(
     forward: ForwardModel,
     indices: Sequence[int],
     frames: Sequence[np.ndarray],
-    deltas: Sequence[np.ndarray | None] | None = None,
-    carriers: Sequence[np.ndarray | None] | None = None,
+    modulations: Sequence[np.ndarray | None] | None = None,
     *,
     samples: int | None = 4096,
-    seed: int = 0,
 ) -> LMResult:
     """从光强帧（相移序列或单帧载频图）LM 拟合 Zernike 系数，从零初值起步。
 
-    ``deltas`` / ``carriers`` 每帧一项，描述已知的逐级相位调制；载频帧
-    对应 ``deltas=None``。``indices`` 为拟合的 Fringe 序号（Z1 平移不可
-    观测，不应包含）。``samples`` 为每帧随机采样像素数，None 表示全图。
+    ``modulations`` 每帧一项，为该帧各衍射级的已知附加相位：
+    (n_orders,) 标量（光栅相移）或 (n_orders, n, n) 阵列（空间载频）。
+    ``indices`` 为拟合的 Fringe 序号（Z1 平移不可观测，不应包含）。
+    ``samples`` 为每帧采样像素数，None 表示全图。
     """
     if 1 in indices:
         raise ValueError("Z1 平移对光强不可观测，请从 indices 中去掉")
     frames = [np.asarray(fr, dtype=float) for fr in frames]
     n_frames = len(frames)
-    deltas = list(deltas) if deltas is not None else [None] * n_frames
-    carriers = list(carriers) if carriers is not None else [None] * n_frames
 
     n_pix = forward.shape[0] * forward.shape[1]
     if samples is not None and samples < n_pix:
-        rows = np.sort(np.random.default_rng(seed).choice(n_pix, samples, replace=False))
+        # 黄金比例低差异序列：确定性采样，避免规则步长与载频条纹混叠
+        rows = np.sort(
+            (np.arange(samples) * 0.6180339887498949 % 1.0 * n_pix).astype(int)
+        )
     else:
         rows = np.arange(n_pix)
     meas = np.concatenate([fr.ravel()[rows] for fr in frames])
-    carriers_s = [
-        None if c is None else np.asarray(c).reshape(len(forward.order_list), -1)[:, rows]
-        for c in carriers
-    ]
+    n_orders = len(forward.order_list)
+    mods = []
+    for m in (list(modulations) if modulations is not None else [None] * n_frames):
+        if m is None:
+            mods.append(None)
+            continue
+        m = np.asarray(m, dtype=float)
+        mods.append(m if m.ndim == 1 else m.reshape(n_orders, -1)[:, rows])
     # 每级移位坐标/光瞳/Z 基只算一次
     cache = forward.zernike_samples(indices, rows)
 
     def residual_and_jac(c):
         f_parts, j_parts = [], []
         for i_frame in range(n_frames):
-            I, J = _frame_and_jacobian(
-                cache, c, deltas[i_frame], carriers_s[i_frame]
-            )
+            I, J = _frame_and_jacobian(cache, c, mods[i_frame])
             f_parts.append(I - meas[i_frame * rows.size : (i_frame + 1) * rows.size])
             j_parts.append(J)
         return np.concatenate(f_parts), np.vstack(j_parts)
@@ -226,7 +225,7 @@ def fit_wavefront_from_carrier_frame(
     载频固定为 ``forward.config.carrier_f0``，与 ``carrier_frame`` 的
     前向生成一致。
     """
-    carriers = [forward.carrier_phases(forward.config.carrier_f0)]
     return fit_wavefront_from_frames(
-        forward, indices, [image], [None], carriers, **kwargs
+        forward, indices, [image],
+        [forward.carrier_phases(forward.config.carrier_f0)], **kwargs
     )
