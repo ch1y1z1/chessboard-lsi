@@ -47,20 +47,14 @@ def lsq_phase_shift(frames: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return np.arctan2(-s_sin, c_cos), np.hypot(c_cos, s_sin)
 
 
-def shear_regions(grid: Grid, s: float) -> dict[str, np.ndarray]:
-    """两个方向的剪切干涉区（论文图 2-8/2-9），光瞳取单位圆。
-
-    x 剪切区 = 零级光瞳与 (±s, 0) 移位光瞳的三重交；y 同理。
-    """
-    x, y = grid.coords()
-
-    def pupil(dx: float, dy: float) -> np.ndarray:
-        return (x - dx) ** 2 + (y - dy) ** 2 <= 1.0
-
-    return {
-        "x": pupil(0.0, 0.0) & pupil(s, 0.0) & pupil(-s, 0.0),
-        "y": pupil(0.0, 0.0) & pupil(0.0, s) & pupil(0.0, -s),
-    }
+def _shear_region(fm: ForwardModel, direction: str) -> np.ndarray:
+    """某方向的剪切干涉区：0 级与 ±1 级光瞳的三重交（论文图 2-8/2-9）。"""
+    a, b = (1.0, 0.0) if direction == "x" else (0.0, 1.0)
+    return (
+        fm.order_support(0.0, 0.0)
+        & fm.order_support(a, b)
+        & fm.order_support(-a, -b)
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -185,16 +179,6 @@ def unwrap_poisson(phi: np.ndarray, mask: np.ndarray) -> np.ndarray:
     return out
 
 
-def _unwrap_in_region(wrapped: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    """掩膜内 Poisson 解包裹，并把相位锚定到掩膜中心像素的缠绕值。"""
-    phase = unwrap_poisson(wrapped, mask)
-    ys, xs = np.nonzero(mask)
-    k = int(np.argmin(
-        (ys - wrapped.shape[0] / 2.0) ** 2 + (xs - wrapped.shape[1] / 2.0) ** 2
-    ))
-    return phase + (wrapped[ys[k], xs[k]] - phase[ys[k], xs[k]])
-
-
 # --------------------------------------------------------------------------- #
 # 4. 差分 Zernike 最小二乘重构（论文式 2-28 ... 2-31）
 # --------------------------------------------------------------------------- #
@@ -277,13 +261,12 @@ class DiffPhase:
 
     ``dW`` 为差分波前（waves）；``mask`` 为剪切区域；``confidence`` 为
     路线相关的信号强度（相移调制度 / 载频瓣幅值），供加权重构。
-    ``phase``/``wrapped_phase`` 为画图用的中间量（弧度）。
+    ``wrapped_phase`` 为画图用的中间量（弧度）。
     """
 
     dW: dict[str, np.ndarray]
     mask: dict[str, np.ndarray]
     confidence: dict[str, np.ndarray]
-    phase: dict[str, np.ndarray] = field(default_factory=dict)
     wrapped_phase: dict[str, np.ndarray] = field(default_factory=dict)
 
 
@@ -298,23 +281,20 @@ def _demodulate_phase_shift(
     直接在 ±pi 分支切线附近解包裹会产生整帧 2 pi 抖动。
     """
     res = {"x": lsq_phase_shift(frames_x), "y": lsq_phase_shift(frames_y)}
-    masks = shear_regions(fm.grid, fm.s)
+    masks = {d: _shear_region(fm, d) for d in ("x", "y")}
 
-    dW, phase, wrapped_phase, mod = {}, {}, {}, {}
+    dW, wrapped_phase, mod = {}, {}, {}
     for direction in ("x", "y"):
-        mask = masks[direction]
         offset = fm.demodulation_offset(direction)
         wrapped = wrap(res[direction][0] - offset)
-        ph = _unwrap_in_region(wrapped, mask)
-        dW[direction] = ph / np.pi          # 相位 = pi * 双边差分（waves）
-        phase[direction] = ph
+        # 解调相位 = pi * 双边差分（waves）
+        dW[direction] = unwrap_poisson(wrapped, masks[direction]) / np.pi
         wrapped_phase[direction] = wrapped
         mod[direction] = res[direction][1]
     return DiffPhase(
         dW=dW,
-        mask={"x": masks["x"], "y": masks["y"]},
+        mask=masks,
         confidence=mod,
-        phase=phase,
         wrapped_phase=wrapped_phase,
     )
 
@@ -334,11 +314,10 @@ def _demodulate_fourier(
     wrapped, amplitude = demodulate_lobe(
         image, fm.grid, direction, fm.config.carrier_f0, phase_offset=offset
     )
-    a, b = (1.0, 0.0) if direction == "x" else (0.0, 1.0)
-    support = fm.order_support(0.0, 0.0) & fm.order_support(a, b) & fm.order_support(-a, -b)
+    support = _shear_region(fm, direction)
     mask = (amplitude > _LOBE_MASK_THRESHOLD * amplitude[support].max()) & support
     mask = ndimage.binary_erosion(mask, iterations=_LOBE_MASK_ERODE_PX)
-    phase = _unwrap_in_region(wrapped, mask)
+    phase = unwrap_poisson(wrapped, mask)
     return phase / np.pi, mask, wrapped, amplitude
 
 
@@ -383,7 +362,6 @@ def fourier_to_wavefront(
         dW={"x": dWx, "y": dWy},
         mask={"x": mask_x, "y": mask_y},
         confidence={"x": amp_x, "y": amp_y},
-        phase={"x": dWx * np.pi, "y": dWy * np.pi},
         wrapped_phase={"x": wrapped_x, "y": wrapped_y},
     )
     return _reconstruct(fm, diff, indices), diff
