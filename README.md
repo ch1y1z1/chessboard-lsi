@@ -163,3 +163,32 @@ result = solve(problem, initial_coeffs, "lm", SolverOptions(max_forward=500))
 完整设计见 [实验方案](docs/single-frame-optimization-plan.md)。
 已完成的 217 次历史案例比较及评价口径说明见
 [第一轮结果](docs/optimizer-first-results.md)。
+
+## 相移/载频采集模式的优化器比较
+
+`benchmark_modulated.py` 把同一组优化器接到论文另两种采集协议的原始
+观测上：相移模式（N 步 x + N 步 y 的干涉图序列）或单帧载频图。
+各帧附加相位（光栅相移 delta / 空间载频）作为已知调制进入前向模型，
+仍直接拟合光强、不经解调；目标为全部帧像素上的均方残差。
+
+```bash
+uv run python benchmark_modulated.py \
+  --config configs/modulated-phaseshift-pilot.json
+uv run python benchmark_modulated.py \
+  --config configs/modulated-carrier-pilot.json
+```
+
+共享 API：
+
+```python
+from lsi.problem import StackedIntensityProblem
+problem = StackedIntensityProblem(forward, indices, frames, modulations)
+# frames: [I_1..I_K]；modulations: 逐帧 (n_orders,) 相移或 (n_orders,n,n) 空间相位
+result = solve(problem, initial_coeffs, "gn", SolverOptions(max_forward=500))
+```
+
+已知调制消除了单帧无调制的两个退化：`J(0)=0` 不再成立，零初值成为
+可行初值；载频下成功解的符号均为 +1（`I(c)=I(-c)` 被观测数据打破）。
+一次 `n_forward` 对应整个采集堆叠的一次模型评价，两模式间及与单帧
+实验的耗时不可直接等比。小规模结果见
+[调制模式第一轮结果](docs/modulated-first-results.md)。

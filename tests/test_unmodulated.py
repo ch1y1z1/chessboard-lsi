@@ -7,7 +7,7 @@ import pytest
 from lsi.metrics import recovery_metrics
 from lsi.model import ForwardModel, Grid, SystemConfig, zernike_wavefront
 from lsi.optimizers import METHODS, SolverOptions, _Evaluation, solve
-from lsi.problem import IntensityProblem
+from lsi.problem import IntensityProblem, StackedIntensityProblem
 
 
 @pytest.fixture
@@ -17,6 +17,23 @@ def scene():
     truth = np.array([.02, -.01, .31, -.12, .07, .42, .05])
     image = fm.intensity(zernike_wavefront(truth, indices))
     return IntensityProblem(fm, indices, image), truth
+
+
+@pytest.fixture
+def phase_shift_scene():
+    fm = ForwardModel(SystemConfig(grid=Grid(n=24)))
+    indices = [2, 3, 4, 5, 6, 7, 8]
+    truth = np.array([.02, -.01, .31, -.12, .07, .42, .05])
+    wf = zernike_wavefront(truth, indices)
+    frames, mods = [], []
+    for direction in ("x", "y"):
+        frames.extend(fm.phase_shift_frames(wf, direction, 4))
+        mods.extend(
+            fm.phase_shift_deltas(i / 4, 0.0) if direction == "x"
+            else fm.phase_shift_deltas(0.0, i / 4)
+            for i in range(4)
+        )
+    return StackedIntensityProblem(fm, indices, frames, mods), truth
 
 
 def test_unmodulated_derivative_scaling_and_physics(scene):
@@ -115,6 +132,50 @@ def test_first_order_step_uses_shared_scaled_gradient(scene, method):
     np.testing.assert_allclose(problem.to_parameters(result.coeffs), q0+expected_step,
                                rtol=1e-12, atol=1e-15)
     assert result.loss < result.history[0]["loss"]
+
+
+def test_phase_shift_stack_derivatives_and_identifiability(phase_shift_scene):
+    problem, truth = phase_shift_scene
+    r, j = problem.evaluate(problem.to_parameters(truth))
+    np.testing.assert_allclose(r, 0, atol=1e-15)
+    assert r.size == 8 * problem.rows.size
+    q = problem.to_parameters(truth * .8)
+    r, j = problem.evaluate(q)
+    for k in range(q.size):
+        perturb = np.eye(q.size)[k] * 1e-7
+        fd = (problem.evaluate(q + perturb, jacobian=False)[0]
+              - problem.evaluate(q - perturb, jacobian=False)[0]) / 2e-7
+        np.testing.assert_allclose(j[:, k], fd, atol=2e-9, rtol=1e-5)
+    # 已知相移打破无调制下的两个退化：整体符号与 J(0)=0。
+    r_minus, _ = problem.evaluate(problem.to_parameters(-truth))
+    assert r_minus @ r_minus > 1e-6
+    _, zero_j = problem.evaluate(np.zeros_like(truth))
+    assert np.abs(zero_j).max() > 1e-3
+    # 相移堆叠下 LM 能从零初值直接恢复真值。
+    result = solve(problem, np.zeros_like(truth), "lm",
+                   SolverOptions(max_forward=300, max_jacobian=300, gtol=1e-12))
+    np.testing.assert_allclose(result.coeffs, truth, atol=1e-6)
+
+
+def test_carrier_stack_modulation_shape():
+    fm = ForwardModel(SystemConfig(grid=Grid(n=24), period_um=30.0))
+    indices = [2, 3, 4, 5, 6, 7, 8]
+    truth = np.array([.02, -.01, .31, -.12, .07, .42, .05])
+    wf = zernike_wavefront(truth, indices)
+    mods = [fm.carrier_phases(fm.config.carrier_f0)]
+    problem = StackedIntensityProblem(fm, indices, [fm.carrier_frame(wf)], mods)
+    r, _ = problem.evaluate(problem.to_parameters(truth))
+    np.testing.assert_allclose(r, 0, atol=1e-15)
+    # 载频同样打破整体符号等价。
+    r_minus, _ = problem.evaluate(problem.to_parameters(-truth))
+    assert r_minus @ r_minus > 1e-6
+    with pytest.raises(ValueError):
+        StackedIntensityProblem(fm, indices, [fm.carrier_frame(wf)],
+                                [np.zeros(3)])
+    with pytest.raises(ValueError):
+        StackedIntensityProblem(fm, indices, [fm.carrier_frame(wf)], [])
+    with pytest.raises(ValueError):
+        StackedIntensityProblem(fm, indices, [], [])
 
 
 def test_multistart_selects_observed_loss_not_truth():
