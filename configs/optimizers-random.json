@@ -1,0 +1,12 @@
+{
+  "n": 128,
+  "truth_kind": "dense",
+  "truth_rms": [0.01, 0.03, 0.1, 0.3, 1.0],
+  "truths_per_rms": 20,
+  "truth_seed": 20260928,
+  "initial_coordinates": "rms",
+  "directions": 10,
+  "include_zero": false,
+  "noise_snr_db": [null],
+  "options": {"max_forward": 500, "max_jacobian": 500}
+}

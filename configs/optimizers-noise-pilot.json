@@ -1,0 +1,13 @@
+{
+  "n": 64,
+  "truth_kind": "sparse",
+  "truth_rms": [0.03, 0.3],
+  "truths_per_rms": 2,
+  "initial_coordinates": "rms",
+  "directions": 2,
+  "initial_rms": [0.03, 0.1, 0.3],
+  "include_zero": false,
+  "noise_snr_db": [null, 40, 20],
+  "noise_repeats": 2,
+  "options": {"max_forward": 200, "max_jacobian": 200}
+}

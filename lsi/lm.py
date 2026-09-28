@@ -130,7 +130,9 @@ def _frame_and_jacobian(
     cache: list[tuple[int, complex, np.ndarray, np.ndarray]],
     coeffs: np.ndarray,
     modulation: np.ndarray | None,
-) -> tuple[np.ndarray, np.ndarray]:
+    *,
+    compute_jacobian: bool = True,
+) -> tuple[np.ndarray, np.ndarray | None]:
     """一帧的模型光强 I(c) 与雅可比 dI/dc（在采样像素上）。
 
     E = sum_k A_k e^{i phi_k},  phi_k = 2 pi Z_k c + mod_k
@@ -140,15 +142,18 @@ def _frame_and_jacobian(
     n_rows = cache[0][2].size
     n_terms = coeffs.size
     E = np.zeros(n_rows, dtype=complex)
-    dE = np.zeros((n_terms, n_rows), dtype=complex)
+    dE = np.zeros((n_terms, n_rows), dtype=complex) if compute_jacobian else None
     for k, amp, inside, Z in cache:
         phase = 2.0 * np.pi * (coeffs @ Z)
         if modulation is not None:
             phase = phase + modulation[k]
         e = np.where(inside, amp * np.exp(1j * phase), 0.0)
         E += e
-        dE += (2j * np.pi) * e[None, :] * Z
+        if dE is not None:
+            dE += (2j * np.pi) * e[None, :] * Z
     I = np.abs(E) ** 2
+    if dE is None:
+        return I, None
     J = 2.0 * np.real(np.conj(E)[None, :] * dE).T  # (n_rows, n_terms)
     return I, J
 

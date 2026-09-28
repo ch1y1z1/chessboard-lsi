@@ -1,0 +1,6 @@
+{
+  "n": 32,
+  "directions": 2,
+  "initial_rms": [0.1],
+  "options": {"max_forward": 60, "max_jacobian": 60}
+}

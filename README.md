@@ -67,3 +67,99 @@ uv run python experiment.py      # 三条路线演示 + output/ 两张图
 - 理想棋盘光栅（50% 占空比，5 光束），标量模型，`0 < NA ≤ 1`；
 - 演示波前 ≤ ~2 波长：更大像差会使调制度在剪切区内变号，
   解调路线失效（论文 2.3.2）。
+
+## 单帧无调制：七种优化器比较
+
+`benchmark_optimizers.py` 将 **GD、Momentum、Adam、BFGS、GN、LM、TRF**
+用于同一个单帧原始光强目标：`F = mean((I_model - I_obs)**2) / 2`。
+输入不包含相移/载频，直接估计 Fringe Zernike 系数（waves），不经过解调。
+
+```bash
+# 小规模冒烟检查
+uv run python benchmark_optimizers.py --config configs/optimizers-smoke.json
+
+# 当前演示真值，128×128，零初值 + 30 个非零初值，共 217 次求解
+uv run python benchmark_optimizers.py --config configs/optimizers-demo.json
+
+# 随机稠密波前：100 个真值 × 30 个初值 × 7 种算法，共 21,000 次求解
+uv run python benchmark_optimizers.py --config configs/optimizers-random.json
+
+# 含噪声先导实验（稀疏波前、无噪声/40/20 dB）
+uv run python benchmark_optimizers.py --config configs/optimizers-noise-pilot.json
+```
+
+每次默认创建带时间戳的 `output/optimizers-*/`，也可指定 `--output 新目录`，
+已有目录会拒绝覆盖。请串行运行性能实验，避免多进程竞争 CPU 干扰计时。
+程序默认将常见 BLAS 线程环境变量设为 1；启动前已有设置会保留并写入元数据。
+
+输出包括：
+
+- `dataset.npz`：全部观测、真值、共用初值及模式顺序；
+- `metadata.json`：完整配置、随机种子、代码版本/工作区状态、依赖版本和线程环境；
+- `source/`：实际运行的源码和依赖锁文件快照，SHA-256 写入元数据；
+- `runs.csv`：每次求解的系数、误差、停止原因、实际模型调用数和时间；
+- `trajectories.jsonl.gz`：每次实际光强评价的参数、损失、梯度信息及时间，包含拒绝步；
+- `summary.csv` / `multistart.csv`：非零初值汇总及按观测损失选出的最终解；
+- `report.md`、`comparison.png`、`budget_curves.csv/png`：报告及累计时间下的恢复表现。
+
+只有 `metadata.json` 的 `state` 为 `complete` 才表示整个实验及报告已完成；
+中断运行保留已写出的结果，不应与完整初值池的统计混用。
+
+### 参数与实验口径
+
+JSON 里的 `options` 是共用预算和容差，`method_options` 可以覆盖指定方法的
+算法参数。例如以下配置比较两种方法；学习率示例仅用于说明配置方式：
+
+```json
+{
+  "methods": ["adam", "lm"],
+  "options": {"max_forward": 500, "max_jacobian": 500, "max_seconds": 5},
+  "method_options": {"adam": {"learning_rate": 0.001}}
+}
+```
+
+算法超参数应在独立验证集上选择并冻结；提供的配置只是可复现基线，未做调优。
+`truth_seed`、`initial_seed`、`noise_seed` 相互独立。将 `truth_kind` 设为
+`dense` / `sparse` / `single` 可生成稠密、三项稀疏或逐模态真值，
+`indices` 控制拟合项；`demo` 使用历史固定真值，要求包含 Z4…Z8。
+`noise_snr_db` 中 `null` 表示无噪声，其他数值采用
+`20 log10(max(I_clean) / sigma)`；高斯噪声不裁剪负像素。
+
+主实验内部使用 `q_j = std_pupil(Z_j) * c_j`，输出仍为原始 Fringe 系数；
+`scaling: "none"` 可用于尺度消融。`initial_coordinates: "coefficients"`
+配合默认种子复现历史初值池；统计实验使用 `"rms"` 在模态 RMS 坐标生成方向。
+每个方向最终按实际光瞳波前标准差归一化，不使用真值决定初值。
+
+- 零点 `J(0)=0`，零初值单独列为退化诊断，不计入主要恢复率。
+- 当前实振幅模型存在 `I(c)=I(-c)`。误差只允许一个共同符号；倾斜的
+  `1/s` 周期等价指标另列，不隐藏原始系数越界。
+- 严格恢复要求无噪声、符号对齐后最大系数误差 `<1e-6 waves` 且光强 RMS
+  残差 `<1e-10`；工程恢复默认波前 RMS 误差 `<0.01 waves`。停止不等于恢复。
+- GD/GN 使用 Armijo 回溯；GN 用 SVD 最小二乘；LM 复用现有增广阻尼求步和
+  Nielsen 更新。Momentum/Adam 用全像素梯度，无权重衰减。
+- 各方法返回已评价的最低损失点。多初值也仅按观测损失选解，真值只用于评价。
+- `max_forward` / `max_jacobian` 计真实计算，包括拒绝步与补算导数时的前向计算。
+  `n_gradient` 计适配层的梯度计算，不包括 SciPy 或线性求解器内部乘法。
+- `max_iter` 适用于 TRF 以外的方法。为兼容 SciPy 1.10，TRF 不依赖新版回调，
+  迭代数留空，以实际模型调用和时间限制控制。
+- 时间限制在模型调用边界检查；首次评价总会执行，单次不可中断计算造成的超时
+  如实计入。共享预计算、求解与含预计算的单次端到端时间分别记录。
+- 累计时间图按固定初值池顺序串行累加，在所有方法/场景有运行覆盖的公共时间
+  区间比较。固定 30 初值的总成功率本身不代表等时间预算排名。
+
+共享 API：
+
+```python
+from lsi.problem import IntensityProblem
+from lsi.optimizers import SolverOptions, solve
+
+problem = IntensityProblem(forward, indices, raw_image)
+result = solve(problem, initial_coeffs, "lm", SolverOptions(max_forward=500))
+# result.coeffs / result.status / result.history
+```
+
+第一版已覆盖同模型仿真、随机模态、初值、尺度和高斯噪声实验。
+独立验证集自动调参、Poisson 噪声、模型失配、实测标定及统计置信区间属于后续扩展。
+完整设计见 [实验方案](docs/single-frame-optimization-plan.md)。
+已完成的 217 次历史案例比较及评价口径说明见
+[第一轮结果](docs/optimizer-first-results.md)。

@@ -1,0 +1,10 @@
+{
+  "state": "stopped_by_user",
+  "started_at": "2026-09-28T13:40:49+0800",
+  "finished_at": "2026-09-28T13:53:15+0800",
+  "expected_runs": 21000,
+  "completed_runs": 141,
+  "paired_runs": 140,
+  "fully_completed_cases": 0,
+  "stop_reason": "用户要求停止大规模实验，保留已完成结果并出具阶段报告。"
+}

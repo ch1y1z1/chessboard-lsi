@@ -1,0 +1,8 @@
+{
+  "n": 128,
+  "directions": 10,
+  "initial_rms": [0.03, 0.1, 0.3],
+  "include_zero": true,
+  "initial_coordinates": "coefficients",
+  "options": {"max_forward": 500, "max_jacobian": 500}
+}
