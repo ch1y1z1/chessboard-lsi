@@ -162,7 +162,63 @@ res_lc = fit_wavefront_from_carrier_frame(fm_ft, INDICES, frame_ft, samples=6000
 report(res_lc, f"LM（单帧载频, {res_lc.n_iter} 次迭代）")
 
 # --------------------------------------------------------------------------- #
-section("5. 噪声敏感性（相移路线）")
+section("5. LM 单帧无调制：比较不同初值（无噪声）")
+
+raw_frame = fm.intensity(truth)  # 不传 deltas / carriers，直接使用原始光强
+truth_map = dict(zip(TRUTH_IDX, TRUTH_C))
+truth_coeffs = np.array([truth_map.get(j, 0.0) for j in INDICES])
+
+# 固定随机方向，每个方向分别缩放到三个波前 RMS，初值不使用真值。
+rng = np.random.default_rng(42)
+directions = rng.normal(size=(10, len(INDICES)))
+initials = [(0.0, -1, np.zeros(len(INDICES)))]
+for initial_rms in (0.03, 0.1, 0.3):
+    for seed_id, direction in enumerate(directions):
+        W0 = zernike_wavefront(direction, INDICES)(x, y)
+        c0 = direction * initial_rms / rms(W0, pupil)
+        initials.append((initial_rms, seed_id, c0))
+
+print("  拟合 Z2..Z13，全部 128x128 像素；方向编号在不同 RMS 组间复用")
+print("  初始 RMS  方向  迭代  停止标记    光强 RMS残差    系数误差(±)  分支")
+raw_results = []
+for initial_rms, seed_id, c0 in initials:
+    fit = fit_wavefront_from_frames(
+        fm, INDICES, [raw_frame], samples=None, x0=c0,
+    )
+    # 先按光强评价拟合；真值只用于仿真误差评价，不用于选初值或优化。
+    predicted = fm.intensity(zernike_wavefront(fit.coeffs, INDICES))
+    intensity_rms = float(np.sqrt(np.mean((predicted - raw_frame) ** 2)))
+    np.testing.assert_allclose(intensity_rms, fit.rms_residual, rtol=1e-8, atol=1e-13)
+    error_plus = np.max(np.abs(fit.coeffs - truth_coeffs))
+    error_minus = np.max(np.abs(fit.coeffs + truth_coeffs))
+    sign = 1 if error_plus <= error_minus else -1
+    error = min(error_plus, error_minus)
+    branch = ("+W" if sign == 1 else "-W") if error < 1e-6 else "其他"
+    print(f"  {initial_rms:8.2f} {seed_id:5d} {fit.n_iter:5d}"
+          f" {str(fit.converged):>9} {intensity_rms:16.3e} {error:15.3e}  {branch}",
+          flush=True)
+    raw_results.append([initial_rms, seed_id, fit.n_iter, int(fit.converged),
+                        intensity_rms, error, sign, *c0, *fit.coeffs])
+
+raw_results = np.array(raw_results)
+for initial_rms in (0.0, 0.03, 0.1, 0.3):
+    group = raw_results[raw_results[:, 0] == initial_rms]
+    print(f"  初始 RMS={initial_rms:.2f}: 恢复 ±真值 "
+          f"{np.count_nonzero(group[:, 5] < 1e-6)}/{len(group)}"
+          "（全部系数最大误差 < 1e-6 wave）")
+best = int(np.argmin(raw_results[:, 4]))
+print(f"  按光强残差选出的最佳运行：第 {best} 次（从 0 编号），"
+      f"系数误差(±)={raw_results[best, 5]:.3e} wave")
+print("  停止标记 True 只代表满足迭代停止条件，不代表恢复成功。")
+header = ["initial_rms", "direction", "iterations", "converged",
+          "intensity_rms", "max_coeff_error_up_to_sign", "nearest_truth_sign"]
+header += [f"initial_Z{j}" for j in INDICES] + [f"fitted_Z{j}" for j in INDICES]
+np.savetxt(OUT / "lm_unmodulated.csv", raw_results,
+           delimiter=",", header=",".join(header), comments="")
+print(f"  wrote {OUT}/lm_unmodulated.csv（含完整初值和最终系数）")
+
+# --------------------------------------------------------------------------- #
+section("6. 噪声敏感性（相移路线）")
 
 for snr in (60, 40, 20):
     nx = add_noise(fm.phase_shift_frames(truth, "x", 8), snr_db=snr, seed=1)
@@ -174,7 +230,7 @@ for snr in (60, 40, 20):
     print(f"  SNR {snr:3d} dB : 最大 |系数误差| = {err:.4f} wave")
 
 # --------------------------------------------------------------------------- #
-section("6. 图 -> output/")
+section("7. 图 -> output/")
 
 fig, axes = plt.subplots(2, 3, figsize=(14, 8.5))
 show(axes[0, 0], fx[0], "phase-shift frame t=0 (x scan)")

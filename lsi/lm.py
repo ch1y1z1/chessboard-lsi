@@ -160,13 +160,16 @@ def fit_wavefront_from_frames(
     modulations: Sequence[np.ndarray | None] | None = None,
     *,
     samples: int | None = 4096,
+    x0: Sequence[float] | None = None,
 ) -> LMResult:
-    """从光强帧（相移序列或单帧载频图）LM 拟合 Zernike 系数，从零初值起步。
+    """从光强帧 LM 拟合 Zernike 系数，默认从零初值起步。
 
     ``modulations`` 每帧一项，为该帧各衍射级的已知附加相位：
     (n_orders,) 标量（光栅相移）或 (n_orders, n, n) 阵列（空间载频）。
     ``indices`` 为拟合的 Fringe 序号（Z1 平移不可观测，不应包含）。
     ``samples`` 为每帧采样像素数，None 表示全图。
+    ``x0`` 为初始系数（waves），顺序与 indices 一致。
+    单帧无调制时，零初值的雅可比为零；非零初值仍不能消除正负歧义。
     """
     if 1 in indices:
         raise ValueError("Z1 平移对光强不可观测，请从 indices 中去掉")
@@ -202,7 +205,7 @@ def fit_wavefront_from_frames(
         return np.concatenate(f_parts), np.vstack(j_parts)
 
     coeffs, cost, n_iter, rms, converged = levenberg_marquardt(
-        residual_and_jac, np.zeros(len(indices))
+        residual_and_jac, np.zeros(len(indices)) if x0 is None else x0
     )
     return LMResult(
         indices=np.asarray(indices),
