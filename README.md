@@ -178,6 +178,21 @@ uv run python benchmark_modulated.py \
   --config configs/modulated-carrier-pilot.json
 ```
 
+中等规模统计实验（20 真值 × 10 初值 × 7 方法 = 1,400 次/模式）：
+
+```bash
+uv run python benchmark_modulated.py \
+  --config configs/modulated-carrier-medium.json \
+  --output output/medium-carrier
+uv run python benchmark_modulated.py \
+  --config configs/modulated-phaseshift-medium.json \
+  --output output/medium-phaseshift
+```
+
+`workers` 控制并行进程数（默认 1，串行）。并行时逐次 `elapsed_seconds`
+受 CPU 竞争污染，metadata 记录 `timing_contaminated=true`；成功率、误差
+与调用计数不受影响，但不应据此比较求解时间。
+
 共享 API：
 
 ```python
@@ -191,4 +206,6 @@ result = solve(problem, initial_coeffs, "gn", SolverOptions(max_forward=500))
 可行初值；载频下成功解的符号均为 +1（`I(c)=I(-c)` 被观测数据打破）。
 一次 `n_forward` 对应整个采集堆叠的一次模型评价，两模式间及与单帧
 实验的耗时不可直接等比。小规模结果见
-[调制模式第一轮结果](docs/modulated-first-results.md)。
+[调制模式第一轮结果](docs/modulated-first-results.md)；
+中等规模（各 1,400 次求解）统计结果见
+[调制模式统计实验](docs/modulated-medium-results.md)。

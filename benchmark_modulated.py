@@ -17,10 +17,12 @@ import csv
 import gzip
 import hashlib
 import json
+import multiprocessing
 import os
 import platform
 import subprocess
 import shutil
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -58,6 +60,7 @@ class ModulatedConfig:
     initial_rms: list[float] = field(default_factory=lambda: [0.03, 0.1, 0.3])
     initial_coordinates: str = "rms"
     include_zero: bool = True
+    workers: int = 1                  # >1 时并行求解，逐次计时被 CPU 竞争污染
     methods: list[str] = field(default_factory=lambda: list(METHODS))
     options: dict = field(default_factory=dict)
     method_options: dict = field(default_factory=dict)
@@ -82,6 +85,8 @@ class ModulatedConfig:
             raise ValueError("RMS 序列必须非空且为正有限值")
         if not self.initial_rms or not all(np.isfinite(v) and v > 0 for v in self.initial_rms):
             raise ValueError("初值 RMS 序列必须非空且为正有限值")
+        if not isinstance(self.workers, int) or not 1 <= self.workers <= (os.cpu_count() or 1):
+            raise ValueError("workers 必须是 1..cpu_count 的整数")
         if not self.methods or len(set(self.methods)) != len(self.methods):
             raise ValueError("methods 必须非空且不重复")
         if set(self.methods) - set(METHODS) or set(self.method_options) - set(METHODS):
@@ -134,6 +139,39 @@ def acquire(fm, wf, config):
             )
         return frames, mods
     return [fm.carrier_frame(wf)], [fm.carrier_phases(fm.config.carrier_f0)]
+
+
+_WORKER_PROBLEMS: dict[int, StackedIntensityProblem] = {}
+_WORKER_OPTIONS: dict[str, dict] = {}
+
+
+def _solve_task(task):
+    """并行 worker：fork 后共享父进程已建好的问题对象。"""
+    case_id, initial_id, c0, method = task
+    options = SolverOptions(**_WORKER_OPTIONS[method])
+    result = solve(_WORKER_PROBLEMS[case_id], c0, method, options)
+    return case_id, initial_id, method, result
+
+
+def _execute(config, problems, tasks):
+    """按任务序产出 (case_id, initial_id, method, result)。
+
+    workers>1 时经 fork 进程池并行：问题对象由子进程共享内存继承，
+    逐次 elapsed_seconds 受 CPU 竞争影响，仅作记录不作时间比较依据。
+    """
+    opt_by_method = {
+        m: config.options | config.method_options.get(m, {}) for m in config.methods
+    }
+    if config.workers <= 1:
+        for case_id, initial_id, c0, method in tasks:
+            yield case_id, initial_id, method, solve(
+                problems[case_id], c0, method, SolverOptions(**opt_by_method[method]))
+        return
+    _WORKER_PROBLEMS.update(enumerate(problems))
+    _WORKER_OPTIONS.update(opt_by_method)
+    ctx = multiprocessing.get_context("fork")
+    with ProcessPoolExecutor(max_workers=config.workers, mp_context=ctx) as pool:
+        yield from pool.map(_solve_task, tasks, chunksize=1)
 
 
 def run(config, out):
@@ -189,6 +227,8 @@ def run(config, out):
                 "python": platform.python_version(), "numpy": np.__version__,
                 "scipy": scipy.__version__, "platform": platform.platform(),
                 "cases": cases, "initials": initial_info,
+                "parallel_workers": config.workers,
+                "timing_contaminated": config.workers > 1,
                 "threads": {name: os.environ.get(name) for name in (
                     "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
                     "VECLIB_MAXIMUM_THREADS")}}
@@ -199,68 +239,76 @@ def run(config, out):
                         modulations=np.stack(
                             [np.stack([np.asarray(m) for m in s["mods"]])
                              for s in stacks]))
+    # 全部问题对象在派发前建好：串行路径与并行 worker（fork 继承）共用。
+    problems, diagnostics = [], []
+    for case, stack in zip(cases, stacks):
+        problem = StackedIntensityProblem(
+            fm, config.indices, stack["frames"], stack["mods"],
+            scaling=config.scaling)
+        truth = truths[case["truth_id"]]
+        _, truth_j = problem.evaluate(problem.to_parameters(truth))
+        sv = np.linalg.svd(truth_j, compute_uv=False)
+        _, zero_j = problem.evaluate(np.zeros(len(config.indices)))
+        problems.append(problem)
+        diagnostics.append((sv, zero_j))
+    tasks = []
+    for case in cases:
+        for initial_id, c0 in enumerate(initials):
+            rotation = initial_id % len(config.methods)
+            methods = config.methods[rotation:] + config.methods[:rotation]
+            for method in methods:
+                tasks.append((case["case_id"], initial_id, c0, method))
     rows = []
     with gzip.open(out / "trajectories.jsonl.gz", "wt") as traces, \
             (out / "runs.csv").open("w", newline="") as stream:
         writer = None
-        for case, stack in zip(cases, stacks):
-            problem = StackedIntensityProblem(
-                fm, config.indices, stack["frames"], stack["mods"],
-                scaling=config.scaling)
+        for case_id, initial_id, method, result in _execute(config, problems, tasks):
+            case = cases[case_id]
             truth = truths[case["truth_id"]]
-            _, truth_j = problem.evaluate(problem.to_parameters(truth))
-            sv = np.linalg.svd(truth_j, compute_uv=False)
-            _, zero_j = problem.evaluate(np.zeros(len(config.indices)))
-            for initial_id, c0 in enumerate(initials):
-                rotation = initial_id % len(config.methods)
-                methods = config.methods[rotation:] + config.methods[:rotation]
-                for method in methods:
-                    options = SolverOptions(
-                        **(config.options | config.method_options.get(method, {})))
-                    result = solve(problem, c0, method, options)
-                    metrics = recovery_metrics(
-                        result.coeffs, truth, config.indices,
-                        problem.pupil_basis, fm.s)
-                    strict = (metrics["max_coeff_error"] < config.coeff_tolerance
-                              and result.rms_residual < config.intensity_tolerance)
-                    row = {"case_id": case["case_id"], "truth_id": case["truth_id"],
-                           "truth_rms": case["truth_rms"], "n_frames": case["n_frames"],
-                           "snr_db": case["snr_db"], "noise_repeat": case["noise_repeat"],
-                           "method": method, "initial_id": initial_id,
-                           "initial_rms": initial_info[initial_id]["rms"],
-                           "direction": initial_info[initial_id]["direction"],
-                           "loss": result.loss, "intensity_rms": result.rms_residual,
-                           **metrics,
-                           "strict_success": bool(strict),
-                           "engineering_success": bool(
-                               metrics["wavefront_rms_error"] < config.wavefront_tolerance),
-                           "status": result.status,
-                           "stopped_by_tolerance": result.stopped_by_tolerance,
-                           "n_iter": result.n_iter, "n_forward": result.n_forward,
-                           "n_jacobian": result.n_jacobian, "n_gradient": result.n_gradient,
-                           "elapsed_seconds": result.elapsed_seconds,
-                           "precompute_seconds": result.precompute_seconds,
-                           "standalone_seconds": result.elapsed_seconds
-                           + result.precompute_seconds,
-                           "truth_jacobian_rank": int(np.linalg.matrix_rank(truth_j)),
-                           "truth_jacobian_condition": float(sv[0] / sv[-1])
-                           if sv[-1] > 0 else None,
-                           "zero_jacobian_max": float(np.abs(zero_j).max())}
-                    row.update({f"fitted_Z{j}": float(c)
-                                for j, c in zip(config.indices, result.coeffs)})
-                    rows.append(row)
-                    if writer is None:
-                        writer = csv.DictWriter(stream, fieldnames=list(row))
-                        writer.writeheader()
-                    writer.writerow(row)
-                    stream.flush()
-                    traces.write(json.dumps(
-                        {"case_id": case["case_id"], "initial_id": initial_id,
-                         "method": method, "elapsed_seconds": result.elapsed_seconds,
-                         "history": result.history}, allow_nan=False) + "\n")
-                    print(f"case={case['case_id']} init={initial_id} {method:8} "
-                          f"loss={result.loss:.3e} Werr={metrics['wavefront_rms_error']:.3e} "
-                          f"{result.status}", flush=True)
+            sv, zero_j = diagnostics[case_id]
+            metrics = recovery_metrics(
+                result.coeffs, truth, config.indices,
+                problems[case_id].pupil_basis, fm.s)
+            strict = (metrics["max_coeff_error"] < config.coeff_tolerance
+                      and result.rms_residual < config.intensity_tolerance)
+            row = {"case_id": case["case_id"], "truth_id": case["truth_id"],
+                   "truth_rms": case["truth_rms"], "n_frames": case["n_frames"],
+                   "snr_db": case["snr_db"], "noise_repeat": case["noise_repeat"],
+                   "method": method, "initial_id": initial_id,
+                   "initial_rms": initial_info[initial_id]["rms"],
+                   "direction": initial_info[initial_id]["direction"],
+                   "loss": result.loss, "intensity_rms": result.rms_residual,
+                   **metrics,
+                   "strict_success": bool(strict),
+                   "engineering_success": bool(
+                       metrics["wavefront_rms_error"] < config.wavefront_tolerance),
+                   "status": result.status,
+                   "stopped_by_tolerance": result.stopped_by_tolerance,
+                   "n_iter": result.n_iter, "n_forward": result.n_forward,
+                   "n_jacobian": result.n_jacobian, "n_gradient": result.n_gradient,
+                   "elapsed_seconds": result.elapsed_seconds,
+                   "precompute_seconds": result.precompute_seconds,
+                   "standalone_seconds": result.elapsed_seconds
+                   + result.precompute_seconds,
+                   "truth_jacobian_rank": int(np.linalg.matrix_rank(truth_j)),
+                   "truth_jacobian_condition": float(sv[0] / sv[-1])
+                   if sv[-1] > 0 else None,
+                   "zero_jacobian_max": float(np.abs(zero_j).max())}
+            row.update({f"fitted_Z{j}": float(c)
+                        for j, c in zip(config.indices, result.coeffs)})
+            rows.append(row)
+            if writer is None:
+                writer = csv.DictWriter(stream, fieldnames=list(row))
+                writer.writeheader()
+            writer.writerow(row)
+            stream.flush()
+            traces.write(json.dumps(
+                {"case_id": case["case_id"], "initial_id": initial_id,
+                 "method": method, "elapsed_seconds": result.elapsed_seconds,
+                 "history": result.history}, allow_nan=False) + "\n")
+            print(f"case={case['case_id']} init={initial_id} {method:8} "
+                  f"loss={result.loss:.3e} Werr={metrics['wavefront_rms_error']:.3e} "
+                  f"{result.status}", flush=True)
     summary = write_report(out, rows, config)
     budget_curves(out, config, cases, truths, np.array(initials), fm)
     metadata["state"] = "complete"

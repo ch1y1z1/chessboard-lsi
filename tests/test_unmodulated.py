@@ -178,6 +178,23 @@ def test_carrier_stack_modulation_shape():
         StackedIntensityProblem(fm, indices, [], [])
 
 
+def test_modulated_benchmark_parallel_matches_serial(tmp_path):
+    from benchmark_modulated import ModulatedConfig, run
+    common = dict(acquisition="phase_shift", n=16, n_steps=3,
+                  truth_kind="dense", truth_rms=[.1], truths_per_rms=1,
+                  directions=1, initial_rms=[.1], include_zero=True,
+                  options={"max_forward": 30, "max_jacobian": 30})
+    serial = run(ModulatedConfig(**common, workers=1), tmp_path / "s")
+    parallel = run(ModulatedConfig(**common, workers=2), tmp_path / "p")
+    assert len(serial) == len(parallel) == len(METHODS)
+    for s, p in zip(serial, parallel):
+        assert (s["method"], s["runs"], s["strict_successes"]) == \
+               (p["method"], p["runs"], p["strict_successes"])
+    meta = json.loads((tmp_path / "p" / "metadata.json").read_text())
+    assert meta["state"] == "complete" and meta["parallel_workers"] == 2
+    assert meta["timing_contaminated"] is True
+
+
 def test_multistart_selects_observed_loss_not_truth():
     from benchmark_optimizers import summarize
     common = dict(method="lm", case_id=0, initial_rms=.1, n_forward=10,

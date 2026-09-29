@@ -1,0 +1,16 @@
+{
+  "acquisition": "phase_shift",
+  "n": 128,
+  "period_um": 18.0,
+  "n_steps": 8,
+  "truth_kind": "dense",
+  "truth_rms": [0.01, 0.03, 0.1, 0.3, 1.0],
+  "truths_per_rms": 4,
+  "truth_seed": 20260928,
+  "initial_coordinates": "rms",
+  "directions": 3,
+  "initial_rms": [0.03, 0.1, 0.3],
+  "include_zero": true,
+  "workers": 8,
+  "options": {"max_forward": 500, "max_jacobian": 500}
+}
