@@ -25,23 +25,27 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 from lsi.lm import _frame_and_jacobian  # noqa: E402
-from lsi.model import FRINGE_MODES, ForwardModel, Grid, SystemConfig  # noqa: E402
+from lsi.model import ForwardModel, Grid, SystemConfig  # noqa: E402
 
 from common import (  # noqa: E402
     GRID,
     SAMPLES,
-    TRUTH_C,
-    TRUTH_IDX,
     sample_rows,
+    truth_vector,
 )
 
 OUT = Path("output")
 OUT.mkdir(exist_ok=True)
 
 
-def truth_vec(indices):
-    m = dict(zip(TRUTH_IDX.tolist(), TRUTH_C.tolist()))
-    return np.array([m.get(int(j), 0.0) for j in indices])
+def nyquist_cycles_per_unit(grid: Grid) -> float:
+    """网格轴向奈奎斯特（周期/归一化坐标）：1/(2·dx)。"""
+    return 1.0 / (2.0 * grid.dx)
+
+
+def carrier_aliased(cfg: SystemConfig) -> bool:
+    """载频帧的最强拍频 2 f0 = 1/s（±1 级对）超出网格奈奎斯特则混叠。"""
+    return 2.0 * cfg.carrier_f0 > nyquist_cycles_per_unit(cfg.grid)
 
 
 def shift_mods(fm):
@@ -90,7 +94,10 @@ def main() -> None:
     # ------------------------------------------------------------ (a) 剪切量
     print("== (a) 剪切量扫描：period x na，拟合 Z2..Z13 ==")
     indices = np.arange(2, 14)
-    c_star = truth_vec(indices)
+    c_star = truth_vector(indices)
+    f_nyq = nyquist_cycles_per_unit(GRID)
+    print(f"  奈奎斯特 = {f_nyq:.2f} cyc/unit；载频拍频上限 2f0=1/s，"
+          f"s<{1 / f_nyq:.4f} 时混叠")
     shear_rows = []
     print(f"  {'p(um)':>6s} {'NA':>5s} {'s':>7s} {'design':>9s} "
           f"{'sig_min':>9s} {'sig_max':>9s} {'cond(J)':>10s} {'cond(JtJ)':>12s}")
@@ -98,6 +105,7 @@ def main() -> None:
         for na in (0.25, 0.34, 0.6):
             cfg = SystemConfig(grid=GRID, period_um=period, na=na)
             fm = ForwardModel(cfg)
+            aliased = carrier_aliased(cfg)
             for tag, mods in (
                 ("ps_8+8", shift_mods(fm)),
                 ("carrier", [fm.carrier_phases(cfg.carrier_f0)]),
@@ -109,11 +117,13 @@ def main() -> None:
                     design=tag, n_frames=nf, n_rows=J.shape[0],
                     sigma_min=sv[-1], sigma_max=sv[0],
                     cond_J=cond_J, cond_JtJ=cond_J**2,
+                    aliased=bool(aliased and tag == "carrier"),
                     bottom_modes=fmt_bottom(bottom),
                 ))
+                flag = " *aliased*" if aliased and tag == "carrier" else ""
                 print(f"  {period:6.0f} {na:5.2f} {cfg.s:7.4f} {tag:>9s} "
                       f"{sv[-1]:9.3e} {sv[0]:9.3e} {cond_J:10.3e} "
-                      f"{cond_J**2:12.3e}", flush=True)
+                      f"{cond_J**2:12.3e}{flag}", flush=True)
 
     with open(OUT / "observability_shear.csv", "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(shear_rows[0]))
@@ -131,7 +141,7 @@ def main() -> None:
           f"{'cond(JtJ)':>12s}  退化模式")
     for N in (13, 16, 21, 26, 31, 36):
         indices = np.arange(2, N + 1)
-        J, nf = stacked_jacobian(fm, indices, truth_vec(indices), mods,
+        J, nf = stacked_jacobian(fm, indices, truth_vector(indices), mods,
                                  SAMPLES)
         sv, cond_J, bottom = svd_report(J, indices)
         spectra[N] = sv
@@ -166,6 +176,14 @@ def main() -> None:
             ax.semilogy([r["s"] for r in sel], [r["cond_JtJ"] for r in sel],
                         marker=marker, ms=4,
                         label=f"{tag} NA={na}")
+            ali = [r for r in sel if r["aliased"]]
+            if ali:
+                ax.semilogy([r["s"] for r in ali],
+                            [r["cond_JtJ"] for r in ali], "x", ms=9,
+                            color="k", mew=2)
+    if any(r["aliased"] for r in shear_rows):
+        ax.plot([], [], "x", color="k", ms=9, mew=2,
+                label="aliased (2f0 > Nyquist)")
     ax.set_xlabel("shear s (fraction of pupil radius)")
     ax.set_ylabel("cond(J^T J) = (sig_max/sig_min)^2")
     ax.set_title("observability vs shear (fit Z2..Z13)")

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import csv
 import time
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 import matplotlib
@@ -32,15 +32,19 @@ import numpy as np  # noqa: E402
 from lsi.lm import fit_wavefront_from_carrier_frame, fit_wavefront_from_frames  # noqa: E402
 
 from common import (  # noqa: E402
+    CFG_SHIFT,
     INDICES,
     SAMPLES,
+    TRUTH_C,
+    TRUTH_IDX,
     build_designs,
     classify_convergence,
-    cluster_key,
+    cluster_points,
     design_symmetry_metric,
     initial_guesses,
     truth_vector,
 )
+from lsi.model import ForwardModel, zernike_wavefront  # noqa: E402
 
 OUT = Path("output")
 OUT.mkdir(exist_ok=True)
@@ -105,11 +109,14 @@ def summarize(label: str, sym: float, n_frames: int, runs):
     cnt = Counter(r["cls"] for r in multi)
     share = {k: cnt.get(k, 0) / len(multi) for k in CLASSES}
 
-    # 其他极小按 1e-3 系数舍入聚类（含未收敛终值单独计数）
-    clusters = defaultdict(list)
-    for r in multi:
-        if r["cls"] == "other":
-            clusters[cluster_key(r["c_final"])].append(r)
+    # 其他极小按终值系数的 max 距离 < 1e-4 贪心聚类
+    others = [r for r in multi if r["cls"] == "other"]
+    clusters = {
+        i: [others[k] for k in members]
+        for i, (_, members) in enumerate(
+            cluster_points([r["c_final"] for r in others])
+        )
+    }
 
     row = dict(
         design=label,
@@ -125,10 +132,40 @@ def summarize(label: str, sym: float, n_frames: int, runs):
     return row, clusters
 
 
+def symmetry_scan() -> None:
+    """单帧相移量 t 扫描：max|I(c*)-I(-c*)|，验证 ± 简并的结构条件。
+
+    I(c, δ) ≡ I(-c, -δ)（A_ab 全实）⇒ δ ≢ -δ (mod 2π) 时破缺，
+    t=1/2（δ=±π）自逆而恢复简并——写 output/symmetry_scan.csv。
+    """
+    fm = ForwardModel(CFG_SHIFT)
+    truth = zernike_wavefront(TRUTH_C, TRUTH_IDX)
+    c_star = truth_vector()
+    rows = []
+    print("  单帧对称性扫描：max|I(c*)-I(-c*)|")
+    for direction in ("x", "y"):
+        for t in (0.0, 1 / 8, 1 / 4, 3 / 8, 1 / 2, 5 / 8, 3 / 4, 1.0):
+            d = (fm.phase_shift_deltas(t, 0.0) if direction == "x"
+                 else fm.phase_shift_deltas(0.0, t))
+            design = dict(forward=fm,
+                          frames=[fm.intensity(truth, deltas=d)],
+                          modulations=[d])
+            sym = design_symmetry_metric(design, c_star, INDICES, SAMPLES)
+            rows.append((direction, t, sym))
+            print(f"    d{direction}(t={t:.3f}): {sym:.3e}")
+    with open(OUT / "symmetry_scan.csv", "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["direction", "t", "symmetry_max_dI"])
+        w.writerows(rows)
+    print(f"  wrote {OUT}/symmetry_scan.csv")
+
+
 def main() -> None:
     c_star = truth_vector()
     inits = initial_guesses()
     designs = build_designs()
+
+    symmetry_scan()
 
     print(f"拟合 {INDICES[0]}..{INDICES[-1]}（{len(INDICES)} 项），"
           f"每帧采样 {SAMPLES} 像素；初值 {len(inits)} 个/设计"

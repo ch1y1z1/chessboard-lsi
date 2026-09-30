@@ -56,6 +56,15 @@ OUT.mkdir(exist_ok=True)
 # --------------------------------------------------------------------------- #
 # 1. 解析导数
 # --------------------------------------------------------------------------- #
+def _order_fields(cache, coeffs, modulation):
+    """逐衍射级迭代出 (e_k, Z_k)：e_k = inside_k · A_k e^{i phi_k}。"""
+    for k, amp, inside, Z in cache:
+        phase = 2.0 * np.pi * (coeffs @ Z)
+        if modulation is not None:
+            phase = phase + modulation[k]
+        yield np.where(inside, amp * np.exp(1j * phase), 0.0), Z
+
+
 def frame_derivatives(cache, coeffs, modulation):
     """一帧在采样像素上的 I (n_rows,)、J (n_rows,n_terms)、H (n_rows,t,t)。
 
@@ -66,11 +75,7 @@ def frame_derivatives(cache, coeffs, modulation):
     E = np.zeros(n_rows, dtype=complex)
     dE = np.zeros((n_terms, n_rows), dtype=complex)
     ddE = np.zeros((n_terms, n_terms, n_rows), dtype=complex)
-    for k, amp, inside, Z in cache:
-        phase = 2.0 * np.pi * (coeffs @ Z)
-        if modulation is not None:
-            phase = phase + modulation[k]
-        e = np.where(inside, amp * np.exp(1j * phase), 0.0)
+    for e, Z in _order_fields(cache, coeffs, modulation):
         E += e
         dE += (2j * np.pi) * e[None, :] * Z
         ddE += (2j * np.pi) ** 2 * e[None, None, :] * Z[:, None, :] * Z[None, :, :]
@@ -83,6 +88,12 @@ def frame_derivatives(cache, coeffs, modulation):
         + np.conj(E)[:, None, None] * ddE.transpose(2, 0, 1)
     )
     return I, J, H
+
+
+def frame_intensity_only(cache, coeffs, modulation):
+    """只要光强（盆地扫描用，不算 J/H）。"""
+    E = sum(e for e, _ in _order_fields(cache, coeffs, modulation))
+    return np.abs(E) ** 2
 
 
 def cost_and_derivs(fm, indices, frames, modulations, coeffs, samples):
@@ -110,14 +121,23 @@ def cost_and_derivs(fm, indices, frames, modulations, coeffs, samples):
 
 
 def verify_derivatives(fm, truth_wf, rng) -> None:
-    """解析 H / grad / Hess 对中心差分的校验（无调制 + 相移两种情形）。"""
+    """解析 H / grad / Hess 对中心差分的校验。
+
+    覆盖三种调制路径：无调制、(n_orders,) 标量相移、
+    (n_orders, n_rows) 逐像素载频相位（与生产路径同形）。
+    """
     rows = sample_rows(fm, 1024)
     cache = fm.zernike_samples(INDICES, rows)
     meas = fm.intensity(truth_wf).ravel()[rows]
     c = rng.normal(scale=0.15, size=len(INDICES))  # 非零点，覆盖 J != 0
+    carrier_rows = fm.carrier_phases(fm.config.carrier_f0).reshape(
+        len(cache), -1)[:, rows]
 
-    for tag, mod in (("unmodulated", None), ("dx_1/8", fm.phase_shift_deltas(1 / 8, 0))):
-        m = None if mod is None else mod  # (n_orders,) 广播到各行
+    for tag, m in (
+        ("unmodulated", None),
+        ("dx_1/8", fm.phase_shift_deltas(1 / 8, 0)),
+        ("carrier", carrier_rows),
+    ):
         I0, J0, H0 = frame_derivatives(cache, c, m)
         f0 = I0 - meas
 
@@ -177,23 +197,11 @@ def _frame_meas(cache, coeffs, mod):
     return frame_derivatives(cache, coeffs, mod)[0]
 
 
-def frame_intensity_only(cache, coeffs, modulation):
-    """只要光强（盆地扫描用，不算 J/H）。"""
-    n_rows = cache[0][2].size
-    E = np.zeros(n_rows, dtype=complex)
-    for k, amp, inside, Z in cache:
-        phase = 2.0 * np.pi * (coeffs @ Z)
-        if modulation is not None:
-            phase = phase + modulation[k]
-        E += np.where(inside, amp * np.exp(1j * phase), 0.0)
-    return np.abs(E) ** 2
-
-
 # --------------------------------------------------------------------------- #
 # 2. c=0 定性
 # --------------------------------------------------------------------------- #
-def build_meas_for_truth(fm, truth_wf, designs):
-    """truth -> {label: (frames, mods)}，结构同 build_designs。"""
+def build_meas_for_truth(fm, truth_wf):
+    """truth -> {label: (frames, mods)}，结构同 build_designs（6/9 设计）。"""
     dx = lambda t: fm.phase_shift_deltas(t, 0.0)
     dy = lambda t: fm.phase_shift_deltas(0.0, t)
     out = {
@@ -269,7 +277,7 @@ def main() -> None:
 
     for t_name, (t_idx, t_c) in TRUTHS.items():
         wf = zernike_wavefront(t_c, t_idx)
-        meas_map = build_meas_for_truth(fm, wf, designs_probe)
+        meas_map = build_meas_for_truth(fm, wf)
         # 当前真值在 INDICES 顺序下的系数方向（flat 真值为 0，cos 记 nan）
         t_map = dict(zip(np.asarray(t_idx).tolist(), np.asarray(t_c).tolist()))
         c_t = np.array([t_map.get(int(j), 0.0) for j in INDICES])

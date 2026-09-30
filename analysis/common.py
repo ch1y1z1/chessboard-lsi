@@ -162,7 +162,7 @@ def frame_cache_and_meas(design: dict, indices: Sequence[int], samples: int):
 def design_symmetry_metric(
     design: dict, coeffs: np.ndarray, indices: Sequence[int], samples: int
 ) -> float:
-    """max over 帧与像素 |I(c) - I(-c)|：0 表示 ±W 简并对该设计仍然精确。"""
+    """max over 帧与像素 |I(c) - I(-c)|：0 表示 -c 仍是零代价解（± 简并）。"""
     _, cache, _, mods = frame_cache_and_meas(design, indices, samples)
     worst = 0.0
     for m in mods:
@@ -188,6 +188,23 @@ def classify_convergence(
     return "other"
 
 
-def cluster_key(coeffs: np.ndarray, quantum: float = 1e-3) -> tuple:
-    """按 1e-3 舍入的系数分组键，用于把"其他极小"聚类。"""
-    return tuple(np.round(np.asarray(coeffs) / quantum).astype(np.int64).tolist())
+def cluster_points(
+    vectors: Sequence[np.ndarray], tol: float = 1e-4
+) -> list[tuple[np.ndarray, list[int]]]:
+    """贪心距离聚类：max|c - rep| < tol 归入既有簇，否则开新簇。
+
+    返回 ``[(代表向量=首个成员, 成员下标列表)]``。系数空间的逐系数
+    max 距离阈值聚类，避免网格舍入把单元边界两侧的同一点劈成两簇。
+    """
+    reps: list[np.ndarray] = []
+    members: list[list[int]] = []
+    for i, v in enumerate(vectors):
+        v = np.asarray(v, dtype=float)
+        for j, rep in enumerate(reps):
+            if np.max(np.abs(v - rep)) < tol:
+                members[j].append(i)
+                break
+        else:
+            reps.append(v.copy())
+            members.append([i])
+    return list(zip(reps, members))
