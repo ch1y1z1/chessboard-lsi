@@ -18,6 +18,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pandas>=2.3.3",
     "pytest>=7",
 ]
 
