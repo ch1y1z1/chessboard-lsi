@@ -23,6 +23,7 @@ LM 就是 MLE，其渐近协方差应达到 FIM 的逆。论文的两条解调�
     uv run python analysis/crb_efficiency.py                # 全量
     uv run python analysis/crb_efficiency.py --seeds 8 --snrs 60 30   # 冒烟
     uv run python analysis/crb_efficiency.py --plots-only   # 复用 npz 只重画图/表
+        （前置：需先全量跑过生成 output/mc_estimates.npz，且 --snrs 与之一致）
 
 产物写入 output/（.gitignore 内，属可再生实验产物）。
 """
@@ -40,7 +41,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402  # 若缺 pandas 见下方 fallback
+import pandas as pd  # noqa: E402
 
 from lsi.invert import (  # noqa: E402
     fourier_to_wavefront,
@@ -61,7 +62,6 @@ from lsi.model import (  # noqa: E402
 )
 
 OUT = Path("output")
-OUT.mkdir(exist_ok=True)
 
 # 与 experiment.py 一致的真值与拟合集
 INDICES = np.arange(2, 14)                     # Z2..Z13
@@ -185,9 +185,12 @@ def shear_region(fm: ForwardModel, direction: str) -> np.ndarray:
 
 
 def diff_zernike_design(fm: ForwardModel) -> np.ndarray:
-    """解调链重构级使用的堆叠差分 Zernike 设计矩阵（未加权）。
+    """名义堆叠差分 Zernike 设计矩阵：x/y 两方向各自剪切区上的 ΔZ 行
+    拼接（未加权；两区重叠的像素在两个方向块中各占一行）。
 
-    行为 (mask_x ∪ mask_y 上的 ΔZx / ΔZy 行)，列对应 INDICES。
+    注意这只是谱对照用的名义矩阵：相移链实际拟合的确用剪切区掩膜，
+    而载频链还叠加幅值阈值+边缘腐蚀（行数更少，见 crb_checks.py 的
+    check_bias_floor 打印）。
     """
     x, y = fm.grid.coords()
     parts = [
@@ -210,7 +213,7 @@ def corr_from_cov(cov: np.ndarray) -> np.ndarray:
 def run_monte_carlo(design: Design, snrs: list[int], n_seeds: int):
     """同一噪声实现（common random numbers）喂给两条路线。
 
-    每个种子先抽一张标准正申 z，逐 SNR 缩放 sigma*z —— 既保证同格内
+    每个种子先抽一张标准正态 z，逐 SNR 缩放 sigma*z —— 既保证同格内
     两条路线严格配对，也使不同 SNR 之间可配对比較。
     """
     n_t = len(INDICES)
@@ -258,8 +261,10 @@ def summarize(est, crb_var: dict, snrs: list[int], design_key: str):
         for snr in snrs:
             E = est[route][snr]                       # (n_seeds, n_t)
             D = E - TRUTH_VEC[None, :]
+            # 固定物理阈值灾难率；NaN 失败行计入分母但不计分子
+            # （本数据 0 失败；若有失败则与 n_fail 口径一致地偏保守）
             cat_rate = float(np.mean(
-                np.nanmax(np.abs(D), axis=1) > 0.05))   # 固定物理阈值灾难率
+                np.nanmax(np.abs(D), axis=1) > 0.05))
             for j_idx, j in enumerate(INDICES):
                 d = D[:, j_idx]
                 finite = np.isfinite(d)
@@ -279,7 +284,8 @@ def summarize(est, crb_var: dict, snrs: list[int], design_key: str):
                 out = np.abs(dv - med) > 3.0 * s_rob
                 keep = dv[~out]
                 vb = dict(
-                    bias=bias, var=var, mse=float(np.mean(dv**2)),
+                    bias=bias, bias2=bias**2, var=var,
+                    mse=float(np.mean(dv**2)),
                     out_rate=float(out.mean()), s_robust=float(s_rob),
                     eta=crb_var[snr][j_idx] / var if var > 0 else np.nan,
                     eta_mse=crb_var[snr][j_idx] / np.mean(dv**2),
@@ -287,6 +293,7 @@ def summarize(est, crb_var: dict, snrs: list[int], design_key: str):
                 if keep.size >= 3:
                     vb.update(
                         bias_clean=float(keep.mean()),
+                        bias2_clean=float(keep.mean()) ** 2,
                         var_clean=float(keep.var(ddof=1)),
                         mse_clean=float(np.mean(keep**2)),
                         eta_clean=crb_var[snr][j_idx] / keep.var(ddof=1),
@@ -298,23 +305,28 @@ def summarize(est, crb_var: dict, snrs: list[int], design_key: str):
 
 
 def wishart_check(est, crb_covs: dict, snrs: list[int], design_key: str):
-    """C_emp 相对 C_crb 的广义特征值谱 + 迹（每条路线 x SNR 一行）。"""
+    """C_emp 相对 C_crb 的广义特征值谱 + 迹（每条路线 x SNR 一行）。
+
+    MP 带是渐近支撑而非硬接受域：有限 n 下真有效估计量的边缘特征值
+    仍有非平凡概率落出带外（Tracy–Widom 涨落），定量参照见
+    analysis/crb_checks.py 的零假设模拟。
+    """
     from scipy.linalg import eigh
     rows = []
-    n_seeds = next(iter(next(iter(est.values())).values())).shape[0]
     p = len(INDICES)
-    r_mp = np.sqrt(p / max(n_seeds - 1, 1))
     for route in ROUTES:
         for snr in snrs:
             D = est[route][snr] - TRUTH_VEC[None, :]
             D = D[np.all(np.isfinite(D), axis=1)]
-            if D.shape[0] < p + 2:
+            n = D.shape[0]
+            if n < p + 2:
                 continue
+            r_mp = np.sqrt(p / (n - 1))
             C_emp = np.cov(D.T)
             w = np.sort(eigh(C_emp, crb_covs[snr], eigvals_only=True))
             rows.append(dict(
                 design=design_key, route=route, snr=snr,
-                n=D.shape[0], trace_mean=float(w.mean()),
+                n=n, trace_mean=float(w.mean()),
                 gen_eig_min=float(w[0]), gen_eig_max=float(w[-1]),
                 mp_low=float((1 - r_mp) ** 2), mp_high=float((1 + r_mp) ** 2),
             ))
@@ -375,7 +387,7 @@ def fig_eta(summary: pd.DataFrame, snrs: list[int]) -> None:
         ax.set_xscale("linear"); ax.invert_xaxis()
         ax.set_xlabel("SNR (dB)"); ax.set_title(key)
         ax.grid(alpha=0.3); ax.legend()
-        ax.set_ylim(-0.05, 1.4)
+        ax.set_ylim(-0.05, 1.9)   # 容纳实测最大 eta ~1.76
     axes[0].set_ylabel("efficiency eta = CRB / Var (outliers removed)")
     fig.suptitle("Statistical efficiency vs SNR (thin lines = each Zernike)")
     fig.tight_layout()
@@ -475,6 +487,7 @@ def main() -> None:
                     help="跳过 MC，从 output/mc_estimates.npz 重建统计")
     args = ap.parse_args()
     snrs = sorted(args.snrs, reverse=True)
+    OUT.mkdir(exist_ok=True)
 
     designs = make_designs()
     for d in designs:
@@ -512,7 +525,8 @@ def main() -> None:
         A_dz = diff_zernike_design(d.fm)
         sdz = np.linalg.svd(A_dz, compute_uv=False)
         dz_spectra[d.key] = sdz
-        print(f"  ΔZ 设计矩阵: 形状 {A_dz.shape}, cond = {sdz[0]/sdz[-1]:.2e}")
+        print(f"  ΔZ 名义设计矩阵: 形状 {A_dz.shape}, "
+              f"cond = {sdz[0]/sdz[-1]:.2e}")
         # CRB 表（各 SNR）；同时保存协方差供 Wishart 对照
         crb_tables[d.key] = {
             s: d.sigma(s) ** 2 * np.diag(cov) for s in snrs
@@ -586,9 +600,15 @@ def main() -> None:
     print("\n  配对对比（逐种子 max|Δc|，LM 胜率 / 误差比中位数）:")
     print(pc.round(3).to_string(index=False))
 
-    # 控制台摘要：中位效率
-    print("\n===== 3. 效率汇总（η_clean 中位数，跨 Z2..Z13）=====")
+    # 控制台摘要：中位效率（截尾/未截尾两个口径并列——3σ_rob 截尾在高斯
+    # 误差下方差 ≈0.973σ²，eta_clean 系统性偏高 ~3%）
+    print("\n===== 3. 效率汇总（中位数，跨 Z2..Z13）=====")
+    print("-- η_clean（剔除 3σ_robust 离群）:")
     piv = (summary.groupby(["design", "route", "snr"])["eta_clean"]
+           .median().unstack())
+    print(piv.round(3).to_string())
+    print("-- η（未截尾）:")
+    piv = (summary.groupby(["design", "route", "snr"])["eta"]
            .median().unstack())
     print(piv.round(3).to_string())
     print("\n  灾难率（run 级 max|Δc| > 0.05 wave）:")
