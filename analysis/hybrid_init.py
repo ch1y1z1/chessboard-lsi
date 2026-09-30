@@ -112,7 +112,7 @@ def normalized_directions(dirs_raw: np.ndarray, grid: Grid):
 
     返回 (n_dir, n_terms)：u = d / rms_pupil(W(d))，即系数向量 u 对应的
     波前在该 grid 光瞳内 RMS 恰为 1 wave。归一化必须按各实验配置的网格
-    分别做——同一批方向在不同网格采样下 RMS 差 ~1%。
+    分别做——同一批方向在不同网格采样下 RMS 差 ~0.1%。
     """
     x, y = grid.coords()
     pupil = grid.pupil()
@@ -302,10 +302,12 @@ def sec2_basin(n_dir: int = 12, seed: int = 7) -> None:
                 f"r={r:g}:{v:.2f}" for r, v in zip(r_grid, rate)))
 
     # ---- 生产配置复核：盆缘档在 samples=LM_SAMPLES 下重测 -------------------
-    # 盆缘是目标函数景观的性质；主扫描在 512 点稀疏残差上测得（成本低、失败
-    # 拟合跑满 _MAX_ITER），这里用与基线/噪声实验相同的 8192 点复核
-    # perturbed 初值的过渡档，确认盆缘位置不随采样密度漂移。
-    edge_r = {"phase_shift_16f": (1.0, 1.5), "carrier_1f": (0.7, 1.0)}
+    # 主扫描在 512 点稀疏残差上测得（成本低）；这里用与基线/噪声实验相同的
+    # 8192 点重测 perturbed 初值的过渡档——稀疏目标函数景观与全量目标并不
+    # 相同，载频侧 512 点盆缘显著偏小（首轮复核 r≤1.0 在 8192 下全部满分，
+    # 需外延数档才能定位盆缘），复核档按此扩展到覆盖新的过渡带。
+    edge_r = {"phase_shift_16f": (1.0, 1.5, 2.0, 3.0),
+              "carrier_1f": (0.7, 1.0, 1.5, 2.0, 3.0, 5.0)}
     fit_full = {
         "phase_shift_16f": lambda x0: fit_wavefront_from_frames(
             fm, INDICES, frames, mods, samples=LM_SAMPLES, x0=x0),
@@ -329,9 +331,10 @@ def sec2_basin(n_dir: int = 12, seed: int = 7) -> None:
                                      int(e < SUCCESS_TOL), LM_SAMPLES])
                     fh.flush()
             sel = (arr["setup"] == setup) & (arr["init_kind"] == "perturbed")
-            r512 = {r: np.mean(arr["success"]
-                               [sel & (arr["r_rms"] == r)].astype(float))
-                    for r in edge_r[setup]}
+            r512 = {r: float(np.mean(arr["success"]
+                                     [sel & (arr["r_rms"] == r)]
+                                     .astype(float)))
+                    for r in edge_r[setup] if r in set(r_grid.tolist())}
             print(f"  {setup}: samples={LM_SAMPLES} 复核完成 "
                   f"({time.time() - t0:.1f} s)；samples={BASIN_SAMPLES} 时对应档 "
                   f"成功率 {r512}", flush=True)
