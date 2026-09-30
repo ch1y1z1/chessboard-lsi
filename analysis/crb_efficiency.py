@@ -262,7 +262,7 @@ def summarize(est, crb_var: dict, snrs: list[int], design_key: str):
             E = est[route][snr]                       # (n_seeds, n_t)
             D = E - TRUTH_VEC[None, :]
             # 固定物理阈值灾难率；NaN 失败行计入分母但不计分子
-            # （本数据 0 失败；若有失败则与 n_fail 口径一致地偏保守）
+            # （本数据 0 失败；若有失败会低估灾难率，即偏乐观）
             cat_rate = float(np.mean(
                 np.nanmax(np.abs(D), axis=1) > 0.05))
             for j_idx, j in enumerate(INDICES):

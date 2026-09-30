@@ -7,8 +7,9 @@
     check2  逐种子线性恒等式：LM 偏差 ≡ (JᵀJ)⁻¹Jᵀε（同噪声实现）——
             LM 即 BLUE 线性估计器本身，是比 Wishart omnibus 更强的
             贴界证据。
-    check3  容差不变性：FTOL/XTOL/GTOL→0 + MAX_ITER 加大后，逐种子估计
-            与默认容差逐位一致 —— 排除"早停收缩"伪影解释。
+    check3  容差不变性：FTOL/XTOL/GTOL→0 + MAX_ITER 120→400 后，逐种子
+            估计与默认容差一致（max|Δc|=2.4e-13）——排除"早停收缩"
+            伪影解释。
     check4  σ=0 确定性偏差：干净帧上载频链的系数偏差地板
             （Z2/Z7/Z10 ~1e-3 waves），及其幅值阈值+腐蚀掩膜的实际
             行数 vs 名义剪切区行数。
@@ -141,6 +142,7 @@ def check_bias_floor() -> None:
 
 # --------------------------------------------------------------------------- #
 def check_wishart_edge(n_rep: int = 2000, dof: int = 63, p: int = 12) -> None:
+    # dof=63 与实测值 0.253 耦合到主实验的 64 seeds / phase_shift LM 行
     print("== check5 Wishart 边缘涨落（H0: 估计器恰达 CRB）==")
     rng = np.random.default_rng(0)
     lo, hi = (1 - np.sqrt(p / dof)) ** 2, (1 + np.sqrt(p / dof)) ** 2
