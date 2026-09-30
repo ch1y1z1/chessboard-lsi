@@ -144,7 +144,12 @@ def build_designs(
 
 
 def frame_cache_and_meas(design: dict, indices: Sequence[int], samples: int):
-    """设计在采样像素上的 (rows, cache, meas)；与 LM 内部一致。"""
+    """设计在采样像素上的 (rows, cache, meas)；与 LM 内部一致。
+
+    ``design["modulations"]`` 每项为 (n_orders,) 相移标量或
+    (n_orders, n, n) 载频；后者在此展平并按采样行切片为
+    (n_orders, n_rows)。
+    """
     fm = design["forward"]
     rows = sample_rows(fm, samples)
     cache = fm.zernike_samples(indices, rows)

@@ -99,7 +99,8 @@ def frame_intensity_only(cache, coeffs, modulation):
 def cost_and_derivs(fm, indices, frames, modulations, coeffs, samples):
     """多帧堆叠的 F, grad F = 2 J^T f, Hess F = 2(J^T J + sum f_i H_i)。
 
-    ``modulations`` 每项为 (n_orders,) 或展平到采样行的 (n_orders, n_rows)。
+    ``modulations`` 每项为 (n_orders,) 相移标量、(n_orders, n, n) 载频
+    （按采样行切片）或已展平到采样行的 (n_orders, n_rows)。
     """
     rows = sample_rows(fm, samples)
     cache = fm.zernike_samples(indices, rows)

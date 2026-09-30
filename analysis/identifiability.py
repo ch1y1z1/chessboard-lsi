@@ -5,7 +5,7 @@
     (a) 对称性度量 max|I(c*) - I(-c*)|（采样像素支撑上，逐帧取最大）
         —— 0 表示 ±W 全局简并对该帧组仍然精确成立
     (b) 固定随机方向初值（10 方向 x RMS{0.03,0.1,0.3} + 零初值，种子 42）
-        跑 LM 拟合，收敛点分类为 +W / -W / 其他极小(按 1e-3 聚类) / 不收敛
+        跑 LM 拟合，收敛点分类为 +W / -W / 其他极小(按 max 距离 <1e-4 聚类) / 不收敛
 
 输出（output/）：
     identifiability_summary.csv  设计 x 类别占比 + 对称性度量
@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 from lsi.lm import fit_wavefront_from_carrier_frame, fit_wavefront_from_frames  # noqa: E402
+from lsi.model import ForwardModel, zernike_wavefront  # noqa: E402
 
 from common import (  # noqa: E402
     CFG_SHIFT,
@@ -44,7 +45,6 @@ from common import (  # noqa: E402
     initial_guesses,
     truth_vector,
 )
-from lsi.model import ForwardModel, zernike_wavefront  # noqa: E402
 
 OUT = Path("output")
 OUT.mkdir(exist_ok=True)
