@@ -25,10 +25,29 @@
 | GD | 0/180 | 180/180 | 5.0e-4 | 500 |
 | Momentum | 0/180 | 18/180 | 6.3e-2 | 500 |
 | Adam | 0/180 | 180/180 | 5.1e-7 | 500 |
-| BFGS | 46/180 | 180/180 | 7.4e-10 | 50 |
-| GN | 171/180 | 180/180 | 5.1e-15 | 9 |
+| BFGS | 46/180 | 180/180 | 7.4e-10 | 49 |
+| GN | 171/180 | 180/180 | 5.1e-15 | 7 |
 | LM | 164/180 | 180/180 | 1.4e-11 | 9 |
 | TRF | 170/180 | 180/180 | 1.4e-14 | 9 |
+
+固定符号复评（T4，`analysis/rescore_carrier.py`）：上表 ± 对齐口径改为
+符号固定 +1 后，严格/工程（1e-2）计数逐方法不变——所有成功运行的对齐
+符号本来就是 +1。仅 6 行 Momentum 最优对齐符号为 −1，但均为预算耗尽的
+停滞迭代（对齐误差 0.029–0.086 waves），不是收敛的错误符号解；
+7 法全部 1400 行 tilt_alias=0。研究工程阈值 1e-3 下的通过数（/180）：
+GD 146、Momentum 0、Adam 180、BFGS 180、GN 180、LM 180、TRF 180；
+阈值曲线（1e-5/1e-7）与按真值/初值 RMS 分层表见
+`analysis/results/medium-carrier-rescore/`。
+前向次数中位经原 runs.csv 复核为 GD/Momentum/Adam 500、BFGS 49
+（原写 50，系均值 49.9 取整）、GN 7（原写 9，系均值 8.8 取整）、
+LM 9、TRF 9；非零初值范围为 BFGS 47–58、GN 5–21、LM 7–21、TRF 5–23；
+零初值行中位为 GD/Momentum/Adam 500、BFGS 49、GN 7、LM 7、TRF 7
+（全 1400 行合计中位：BFGS 49、GN 7、LM 9、TRF 9）。
+以 20 个 truth 为簇的配对 bootstrap CI（95%）显示：GN 与 TRF
+的逐簇中位误差比 log10 区间 [−1.39, 0.19] 包含 0（本样本量不可区分），
+LM 误差高于 GN/TRF 且 CI 不含 0；BFGS 每簇中位前向调用比 GN/LM/TRF
+多约 41–42 次（CI 不含 0）。完整 CI 表见同目录
+`table_paired_bootstrap_ci.csv`。
 
 相移模式（16 帧堆叠）：
 
@@ -68,7 +87,13 @@
 | LM | 32/36 | 30/36 | 29/36 | 28/32 | 29/30 |
 | TRF | 33/36 | 30/36 | 31/36 | 29/33 | 30/32 |
 
-## 多初值最终解（每真值按观测损失选 10 初值中的最优，20 场景/方法）
+## 多初值最终解（每真值按观测损失选 9 个非零初值中的最优，20 场景/方法）
+
+> 更正：原写"10 初值"有误——`summarize` 明确排除零初值（`initial_rms > 0`），
+> 实际选解池为 9 个非零初值；T4 已按此复核全部 140 行选解，与原
+> multistart.csv 完全一致。零初值单列于下节诊断表。
+> 载频固定符号复评：严格计数不变（GN/LM/TRF 20/20、BFGS 18/20）；
+> 研究工程阈值 1e-3 下 GD 17/20、Momentum 0/20，其余方法 20/20。
 
 | 模式 | 方法 | 严格 | 工程 | 最差波前误差 |
 |---|---|---:|---:|---:|
@@ -126,3 +151,10 @@
   trajectories.jsonl.gz / report.md / budget_curves.csv）
 - 相移：`output/medium-phaseshift/`（同上）
 - metadata.json 记录 `parallel_workers=8`、`timing_contaminated=true`。
+- 载频固化副本（同机，非异地备份）及固定符号复评产物：
+  `/home/user/research-artifacts/chessboard-lsi/carrier-research-20261009/T4/`
+  （`medium-carrier-original/` + `MANIFEST.sha256`，`rescore-medium-carrier/`）。
+  复评入口 `analysis/rescore_carrier.py`；输入 runs.csv SHA256
+  `9e30309a49306d9ffa09ab2012b826d2564989d1260ee27325111dc39be5bfe0`，
+  实际生成源码快照与提交 2c6e7c0 全量一致（metadata revision 字段记录的
+  2d54a75 是运行时 HEAD，工作区修改即该提交的并行化改动）。
