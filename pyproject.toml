@@ -22,4 +22,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["lsi"]
+packages = ["lsi", "carrier_study"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
