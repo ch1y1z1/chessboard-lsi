@@ -1,0 +1,99 @@
+{
+  "protocol": "carrier-protocol-v2",
+  "status": "draft-frozen-2026-10-09",
+  "owner_interfaces": "T1: lsi/metrics.py, lsi/problem.py, benchmark_modulated.py",
+  "scope": "单帧、已知空间载频（f0 取自 SystemConfig.carrier_f0，不独立扫描 f0/s）、原始光强直接反演；真值只用于事后评价。额外相移帧与无载频结果不进入本研究主结论。",
+
+  "evaluation": {
+    "function": "lsi.metrics.recovery_metrics(coeffs, truth, indices, pupil_basis, shear, sign='fixed')",
+    "sign_policy": "fixed",
+    "primary_metric": "wavefront_rms_error：光瞳上差分波前的采样 std——只去 piston（减去采样均值，量见 piston_removed 列），保留 tilt",
+    "primary_gate_waves": 0.001,
+    "report_tolerances_waves": [0.01, 0.001, 1e-05, 1e-07],
+    "strict_gate": "无噪声 case：max_coeff_error < 1e-6 且 intensity_rms < 1e-10；含噪 case 留空",
+    "alias_domain": "equivalent_* 与 tilt_alias 只作诊断列；别名解不能算成功，也不得被默默排除",
+    "note": "1e-3 门槛是本研究的工程口径，不构成应用性能承诺"
+  },
+
+  "truth_sets": {
+    "dev": {
+      "purpose": "超参调优与方法开发（验证集）",
+      "cells": {"rms_waves": [0.03, 0.3, 1.0], "kinds": ["dense", "sparse"], "per_cell": 4},
+      "total": 24,
+      "configs": ["dev24-dense.json", "dev24-sparse.json"]
+    },
+    "main": {
+      "purpose": "盲测主测试：调参冻结后才运行，truth 是统计单位",
+      "cells": {"rms_waves": [0.01, 0.03, 0.1, 0.3, 1.0], "kinds": ["dense", "sparse"], "per_cell": 10},
+      "total": 100,
+      "configs": ["main100-dense.json", "main100-sparse.json"]
+    },
+    "generator": "benchmark_modulated.make_truths（与旧基准同一实现）；系数经光瞳基归一化到给定 RMS"
+  },
+
+  "initials": {
+    "classes": ["zero", "random", "fourier"],
+    "zero": "全零初值（诊断性退化点，不并入主要恢复率）",
+    "random": "独立于 truth 的共享随机方向，0.1 wave RMS，单初值；全部 case/方法共用同一向量",
+    "fourier": "同帧载频解调初值（lsi.invert.fourier_to_wavefront），逐 case 生成；只读观测帧，失败退化为零初值并在 initial_provenance 列显式记录",
+    "guarantee": "所有初值类不读取 truth；metadata.initials_read_truth=false"
+  },
+
+  "seed_streams": {
+    "truth_dev_dense": 20261009,
+    "truth_dev_sparse": 20261010,
+    "truth_main_dense": 20271009,
+    "truth_main_sparse": 20271010,
+    "initial": 42424243,
+    "noise": 55555555,
+    "tuning_trials": 60606060,
+    "noise_channels": "每 case 派生 [noise_seed, truth_id, repeat] + 通道号（1=像素噪声, 2=固定坏点）",
+    "rule": "各流互不重叠；truth/initial/noise 流独立，观测在方法与初值间共享"
+  },
+
+  "noise": {
+    "schema": "benchmark_modulated.NoiseConfig（见 docs/carrier/protocol-v2.md 第 4 节）",
+    "round_status": "高斯链完整可用；camera 链（Poisson+读出+可选饱和/量化/坏点）接口与物理语义已定义并经小验证；本轮不跑噪声大矩阵",
+    "defaults": {"model": "none"}
+  },
+
+  "budgets_per_run": {
+    "max_forward": 500,
+    "max_jacobian": 500,
+    "max_gradient": "TBD（T2 接入 native gradient 后按前向当量校准）",
+    "max_seconds": "TBD（绝对时间预算待串行标定；并发机耗时不作性能证据）",
+    "note": "预算按观测损失 incumbent 计；数值效率与统计精度分开报告"
+  },
+
+  "stopping_calibration": {
+    "rule": "同一数值终点校准各方法停止条件，不机械复制各库 gtol 数字",
+    "status": "TBD：待各方法原生停止条件齐备后按公共终点标定"
+  },
+
+  "tuning": {
+    "unit": "dev truth（24 例）",
+    "equal_cost_rule": "各方法允许等额调参评价次数；每次调参 trial 的实际前向/J/梯度消耗记入 metadata，方法间比较按同额消耗",
+    "hyperparameter_space_draft": {
+      "gd": {"learning_rate": "对数网格 TBD"},
+      "momentum": {"learning_rate": "对数网格 TBD", "momentum": "[0.5,0.99] TBD"},
+      "adam": {"learning_rate": "对数网格 TBD", "beta1": "TBD", "beta2": "TBD"},
+      "bfgs": {"gtol/maxiter": "TBD"},
+      "gn": {"armijo/max_backtracks": "TBD"},
+      "lm": {"lambda0": "对数网格 TBD"},
+      "trf": {"ftol/xtol/gtol": "TBD"},
+      "status": "空间形状待 T2 真实预算接口落地后冻结"
+    }
+  },
+
+  "statistics": {
+    "unit": "独立 truth；噪声/初值为组内重复",
+    "comparison": "配对差值/比值 CI；不得以两组 CI 是否重叠判显著性",
+    "incumbent": "按观测损失选择；真实图像评价不依赖 truth"
+  },
+
+  "outputs": {
+    "runs_csv": "见 docs/carrier/protocol-v2.md 第 6 节列定义",
+    "metadata": "revision + working_tree_status + source_sha256 快照哈希联合溯源（不可仅凭 revision 推定源码）",
+    "evaluation_version": "carrier-protocol-v2"
+  }
+}

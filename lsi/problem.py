@@ -9,12 +9,22 @@ import numpy as np
 from .lm import _frame_and_jacobian
 from .model import ForwardModel, zernike_matrix
 
+try:  # T3 原生伴随梯度接口；未整合时回退到显式 J 路径（如实标记）
+    from .gradient import frame_intensity_jtr as _frame_intensity_jtr
+except ImportError:
+    _frame_intensity_jtr = None
+
 
 class IntensityProblem:
     """F(q)=1/2 mean((I(q)-image)^2), q_j=std_pupil(Z_j)*c_j。
 
     返回已除以 sqrt(M) 的残差和雅可比。mask 只允许固定的几何/仪器掩膜。
     scaling='none' 可用于原始系数坐标消融。全部计算采用 float64。
+
+    ``value_gradient(q)`` 返回 (loss, g_q)：对所有有效像素/帧以 M 归一化，
+    按 q_j=scale_j*c_j 链式变换。梯度后端见 ``gradient_backend``；
+    ``supports_native_gradient`` 为 False 时走显式 J 兼容路径，调用方须把
+    一次 value_gradient 记作一次前向 + 一次完整雅可比，不能冒充 native。
     """
 
     def __init__(
@@ -56,7 +66,41 @@ class IntensityProblem:
                       else np.ones(len(self.indices)))
         if np.any(self.scale <= 0):
             raise ValueError("网格不足以解析所选模式")
+        self.supports_native_gradient = _frame_intensity_jtr is not None
+        self.gradient_backend = (
+            {"name": "native", "function": "lsi.gradient.frame_intensity_jtr",
+             "explicit_jacobian": False}
+            if self.supports_native_gradient else
+            {"name": "explicit_jacobian_fallback",
+             "function": "lsi.lm._frame_and_jacobian + J^T r",
+             "explicit_jacobian": True}
+        )
         self.precompute_seconds = perf_counter() - started
+
+    def _frame_jtr(self, coeffs, target, modulation):
+        """一帧的 (I, (dI/dc)^T (I - target))，原始未归一化 coeff 坐标。
+
+        优先走 T3 的 ``lsi.gradient.frame_intensity_jtr``；未整合时用显式
+        雅可比回退——此时一次调用内含一次完整 J 计算，成本归口见
+        ``gradient_backend["explicit_jacobian"]``。
+        """
+        if _frame_intensity_jtr is not None:
+            return _frame_intensity_jtr(self.cache, coeffs, target, modulation)
+        intensity, jac = _frame_and_jacobian(
+            self.cache, coeffs, modulation, compute_jacobian=True)
+        return intensity, jac.T @ (intensity - target)
+
+    def value_gradient(self, q):
+        """返回 (loss, g_q)。loss = 1/2 * mean((I-I_obs)^2)，g_q = ∂loss/∂q。
+
+        M = 有效像素总数（所有帧合计），即 normalizer**2；
+        g_q = (dI/dc)^T (I-I_obs) / (M * scale)。
+        """
+        c = self.to_coefficients(q)
+        intensity, jtr = self._frame_jtr(c, self.observed, None)
+        m = float(self.rows.size)
+        return (float(np.sum((intensity - self.observed) ** 2) / (2.0 * m)),
+                jtr / (m * self.scale))
 
     def _vector(self, values):
         values = np.asarray(values, dtype=float)
@@ -142,3 +186,15 @@ class StackedIntensityProblem(IntensityProblem):
         jac = (np.vstack(jacobians) / (self.normalizer * self.scale[None, :])
                if jacobian else None)
         return residual, jac
+
+    def value_gradient(self, q):
+        """返回 (loss, g_q)；逐帧累加 raw jtr 后按总像素数 M 归一化。"""
+        c = self.to_coefficients(q)
+        m = float(self.observed.size)
+        total = 0.0
+        jtr = np.zeros_like(c)
+        for i, mod in enumerate(self.mods):
+            intensity, block_jtr = self._frame_jtr(c, self.blocks[i], mod)
+            total += np.sum((intensity - self.blocks[i]) ** 2)
+            jtr += block_jtr
+        return float(total / (2.0 * m)), jtr / (m * self.scale)

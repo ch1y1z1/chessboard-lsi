@@ -1,0 +1,19 @@
+{
+  "acquisition": "carrier",
+  "n": 128,
+  "period_um": 30.0,
+  "truth_kind": "sparse",
+  "truth_rms": [0.03, 0.3, 1.0],
+  "truths_per_rms": 4,
+  "truth_seed": 20261010,
+  "initial_classes": ["zero", "random", "fourier"],
+  "initial_random_rms": 0.1,
+  "initial_coordinates": "rms",
+  "initial_seed": 42424243,
+  "sign_policy": "fixed",
+  "wavefront_tolerance": 0.001,
+  "report_tolerances": [0.01, 0.001, 1e-05, 1e-07],
+  "noise": null,
+  "noise_seed": 55555555,
+  "options": {"max_forward": 500, "max_jacobian": 500}
+}

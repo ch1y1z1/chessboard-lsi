@@ -191,7 +191,7 @@ def summarize(rows, methods):
     return summaries, selected
 
 
-def write_report(out, rows, config):
+def write_report(out, rows, config, *, sign_policy="free"):
     summary, selected = summarize(rows, config.methods)
     _write_csv(out / "summary.csv", summary)
     _write_csv(out / "multistart.csv", selected)
@@ -206,9 +206,10 @@ def write_report(out, rows, config):
                      f"{r['engineering_successes']}/{r['runs']} | "
                      f"{r['multistart_strict_successes']}/{r['strict_cases']} | "
                      f"{r['median_wavefront_error']:.3e} | {r['total_seconds']:.2f} |")
-    lines += ["", f"严格恢复要求无噪声、整体符号对齐后最大系数误差 < {config.coeff_tolerance:g} waves，"
+    sign_note = ("整体符号对齐后" if sign_policy == "free" else "固定符号（无变号宽恕）下")
+    lines += ["", f"严格恢复要求无噪声、{sign_note}最大系数误差 < {config.coeff_tolerance:g} waves，"
               f"且光强 RMS 残差 < {config.intensity_tolerance:g}。",
-              f"工程恢复要求整体符号对齐后波前 RMS 误差 < {config.wavefront_tolerance:g} waves。",
+              f"工程恢复要求{sign_note}波前 RMS 误差 < {config.wavefront_tolerance:g} waves。",
               "倾斜周期等价误差另存于 runs.csv；不以此掩盖原始系数越出范围。",
               "含噪声运行的 strict_success 留空；请用工程指标及连续误差评价。",
               "零初值不计入上表，详见 runs.csv。停止标记不等于恢复成功。",
@@ -228,7 +229,8 @@ def write_report(out, rows, config):
     axes[0].boxplot(data)
     axes[0].set_xticks(range(1, len(config.methods)+1), config.methods)
     axes[0].set(yscale="log", ylabel="Wavefront RMS error (waves)")
-    axes[1].bar(config.methods, [r["engineering_successes"]/r["runs"] for r in summary], label="engineering")
+    axes[1].bar(config.methods, [r["engineering_successes"]/r["runs"] if r["runs"] else 0.0
+                                 for r in summary], label="engineering")
     axes[1].set(ylabel="Engineering recovery fraction", ylim=(0, 1))
     fig.tight_layout()
     fig.savefig(out / "comparison.png", dpi=150)
@@ -236,21 +238,28 @@ def write_report(out, rows, config):
     return summary
 
 
-def budget_curves(out, config, cases, truths, initials, fm):
+def budget_curves(out, config, cases, truths, initials, fm, *,
+                  sign_policy="free", initial_nonzero=None):
     """按观测损失选择 incumbent，事后计算误差；无真值选解/早停。
 
     横轴含前一初值完整耗时，曲线以整个固定初值池结束时间为止。
     每个场景独立计时；不把初始化次数当成独立真值样本。
+    sign_policy 与 metrics.recovery_metrics 一致："free" 允许整体变号
+    （旧协议），"fixed" 固定 +1（载频协议）。initial_nonzero 覆盖按初值
+    向量推断的零初值排除（供 fourier 等逐 case 初值类使用）。
     """
     x, y = fm.grid.coords()
     pupil = fm.grid.pupil()
     basis = zernike_matrix(config.indices, x[pupil], y[pupil])
     scale = basis.std(axis=0) if config.scaling == "rms" else np.ones(len(config.indices))
+    if initial_nonzero is None:
+        initial_nonzero = [bool(np.any(c0)) for c0 in initials]
+    signs = (1.0,) if sign_policy == "fixed" else (1.0, -1.0)
     curves = {}
     with gzip.open(out / "trajectories.jsonl.gz", "rt") as stream:
         for line in stream:
             record = json.loads(line)
-            if not np.any(initials[record["initial_id"]]):
+            if not initial_nonzero[record["initial_id"]]:
                 continue
             key = record["method"], record["case_id"]
             curve = curves.setdefault(key, {"time": [0.], "error": [float("inf")],
@@ -260,12 +269,17 @@ def budget_curves(out, config, cases, truths, initials, fm):
                 if event["loss"] < curve["cost"]:
                     curve["cost"] = event["loss"]
                     c = np.asarray(event["q"]) / scale
-                    error = min(np.std(basis @ (c-truth)), np.std(basis @ (c+truth)))
+                    error = min(np.std(basis @ (c - s * truth)) for s in signs)
                     curve["time"].append(curve["offset"] + event["elapsed_seconds"])
                     curve["error"].append(float(error))
             curve["offset"] += record["elapsed_seconds"]
     fig, axes = plt.subplots(1, 2, figsize=(11, 4))
     points = []
+    if not curves:  # 全部初值为零类（无有效曲线）时不伪造公共时间轴
+        fig.savefig(out / "budget_curves.png", dpi=150)
+        plt.close(fig)
+        _write_csv(out / "budget_curves.csv", [])
+        return
     # 只在所有方法/场景都有实际运行覆盖的公共时间区间比较。
     horizon = min(curve["offset"] for curve in curves.values())
     times = np.linspace(horizon / 100, horizon, 100)
