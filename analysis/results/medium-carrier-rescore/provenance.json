@@ -1,0 +1,67 @@
+{
+  "input_dir": "/home/user/research-artifacts/chessboard-lsi/carrier-research-20261009/T4/medium-carrier-original",
+  "input_sha256": {
+    "MANIFEST.sha256": "886a0917302f31ff925de4b87d0e706646002d917380f273f272942967ee2efd",
+    "budget_curves.csv": "21fa280041979a8c19c5fc70c14d866de4e101e01c736c57d7a23a75a10b6ccb",
+    "budget_curves.png": "a509c55395d32639b2e386d56012bd4f9b23603732363efbc19a152c407678e0",
+    "comparison.png": "6fb60ad6d2127ee5a04d9ae3c3321d8b73ab36e5e195159eea68ec0d6a1f15b3",
+    "dataset.npz": "3c06845a28f0be7b17608c96281f7c8f8861063247e75197351845fd8dc81f28",
+    "metadata.json": "a58da744d2957b94dbf9060c841d47fb1f31a2cce82ad0338726b013f6b037b6",
+    "multistart.csv": "e0631a8e6a38706ce9c2899317c8a2688923ca015edb6dd26a13cf0dadbdcf63",
+    "report.md": "4b1d70f0cb3276b1c2b317f8dc7d928bbe996ab9cc8798c33c0293dc37662f2e",
+    "runs.csv": "9e30309a49306d9ffa09ab2012b826d2564989d1260ee27325111dc39be5bfe0",
+    "summary.csv": "3eaaaed705d7df63d96d6c004187ee3b0f5ee352f4554c05cac6734d61318d7f",
+    "trajectories.jsonl.gz": "819520871b16601e11f2d808b4c8329256b070480eb2fd0a19589f4d3718311c"
+  },
+  "config": {
+    "acquisition": "carrier",
+    "n": 128,
+    "extent": 1.1,
+    "indices": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ],
+    "period_um": 30.0,
+    "scaling": "rms",
+    "truth_seed": 20260928,
+    "initial_seed": 42
+  },
+  "bootstrap": {
+    "n_boot": 20000,
+    "seed": 20261009,
+    "cluster": "truth_id",
+    "n_clusters": 20
+  },
+  "thresholds": {
+    "coeff_tol": 1e-06,
+    "intensity_tol": 1e-10,
+    "wavefront_tols": [
+      0.01,
+      0.001,
+      1e-05,
+      1e-07
+    ]
+  },
+  "crosscheck": {
+    "wavefront": 0.0,
+    "coeff": 0.0,
+    "sign": 0,
+    "alias": 0
+  },
+  "multistart_check": {
+    "pool_sizes": [
+      9
+    ],
+    "selection_mismatches": 0
+  }
+}
