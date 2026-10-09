@@ -440,7 +440,6 @@ def run(config, out):
     noise_cfg = NoiseConfig(**(config.noise or {}))
     sign_policy = config.resolved_sign_policy()
     specs, initial_info = _initial_specs(config, basis)
-    n_initials = len(specs)
     # 每个真值一次采集：帧与调制只生成一次；噪声逐 repeat 实现；
     # 观测/mask 由全部初值与方法共享。
     cases, stacks = [], []
