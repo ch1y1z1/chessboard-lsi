@@ -1,0 +1,16 @@
+{
+ "e1": {
+  "seeds": 4
+ },
+ "e2": {
+  "dirs": 12
+ },
+ "e3": {
+  "reps": 2
+ },
+ "e4": {
+  "seeds": 4
+ },
+ "estimated_wall_hours": 9.758981787449784,
+ "budget_rule_hours": 10.0
+}

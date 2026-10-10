@@ -1,0 +1,39 @@
+{
+ "e1": {
+  "cpu_hours": 9.434071882883709,
+  "wall_hours_at_workers": 1.5723453138139514,
+  "tasks": 224,
+  "scale_per_task": 4.0,
+  "desc": "112 test truths x 2 scenes x 8 noises x 4 seeds"
+ },
+ "e2": {
+  "cpu_hours": 36.0776680290699,
+  "wall_hours_at_workers": 6.01294467151165,
+  "tasks": 5220,
+  "scale_per_task": 1.0,
+  "desc": "p=35: 3 periods x 6 truths x (2 modes x 9 r x 12 dirs + zero + fourier); p=12: 6 truths x 216"
+ },
+ "e3": {
+  "cpu_hours": 8.419123075803121,
+  "wall_hours_at_workers": 1.4031871793005202,
+  "tasks": 512,
+  "scale_per_task": 1.0,
+  "desc": "32 test truths x 8 noises x 2 p (2 inits x 16 configs)"
+ },
+ "e4_mismatch": {
+  "cpu_hours": 1.5571479588747024,
+  "wall_hours_at_workers": 0.25952465981245043,
+  "tasks": 12,
+  "scale_per_task": 2.5,
+  "desc": "12 test truths x 31 scenes x (1 clean + 4 noisy)"
+ },
+ "e4_large": {
+  "cpu_hours": 3.065879778067271,
+  "wall_hours_at_workers": 0.5109799630112118,
+  "tasks": 112,
+  "scale_per_task": 1.0,
+  "desc": "56 truths (RMS 0.5-5) x 2 scenes"
+ },
+ "total_wall_hours": 9.758981787449782,
+ "workers": 6
+}

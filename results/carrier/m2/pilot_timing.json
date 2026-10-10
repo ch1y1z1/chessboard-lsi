@@ -12,5 +12,40 @@
   "workers": 5,
   "cpu_seconds_per_task": 3.2703733428691826,
   "unit": "solver run"
+ },
+ "e1": {
+  "wall_seconds": 505.3967080116272,
+  "n_tasks": 80,
+  "workers": 6,
+  "cpu_seconds_per_task": 37.90475310087204,
+  "unit": "truth x scene (8 noises x 1 seed)"
+ },
+ "e2": {
+  "wall_seconds": 215.6366364955902,
+  "n_tasks": 52,
+  "workers": 6,
+  "cpu_seconds_per_task": 24.881150364875793,
+  "unit": "initial point (7 methods)"
+ },
+ "e3": {
+  "wall_seconds": 1262.8684613704681,
+  "n_tasks": 128,
+  "workers": 6,
+  "cpu_seconds_per_task": 59.196959126740694,
+  "unit": "dataset (2 inits x 16 configs)"
+ },
+ "e4_mismatch": {
+  "wall_seconds": 124.5718367099762,
+  "n_tasks": 4,
+  "workers": 6,
+  "cpu_seconds_per_task": 186.8577550649643,
+  "unit": "truth (31 scenes x (1 clean + 1 noisy))"
+ },
+ "e4_large": {
+  "wall_seconds": 131.39484763145447,
+  "n_tasks": 8,
+  "workers": 6,
+  "cpu_seconds_per_task": 98.54613572359085,
+  "unit": "truth x scene"
  }
 }
