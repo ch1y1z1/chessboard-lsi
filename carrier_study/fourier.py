@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Sequence
 
 import numpy as np
@@ -92,6 +93,14 @@ def unwrap_fast(phi: np.ndarray, mask: np.ndarray, lap=None) -> np.ndarray:
     return out
 
 
+@lru_cache(maxsize=4)
+def _diff_basis_q(cfg: SystemConfig, indices: tuple[int, ...]) -> dict[str, np.ndarray]:
+    """差分基直接放到 q 坐标：dW = dZ_c c = (dZ_c / rms) q。同一系统的各参数组共享。"""
+    x, y = cfg.grid.coords()
+    rms = rms_factors(indices)
+    return {d: differential_zernike_matrix(indices, x, y, cfg.s, d) / rms for d in ("x", "y")}
+
+
 class FourierChain:
     def __init__(
         self,
@@ -115,12 +124,7 @@ class FourierChain:
         self.win_u = np.fft.ifftshift(win)
         self.support = {d: _shear_region(self.fm, d) for d in ("x", "y")}
         self.rot = {d: np.exp(-1j * self.fm.demodulation_offset(d)) for d in ("x", "y")}
-        rms = rms_factors(self.indices)
-        # 差分基直接放到 q 坐标：dW = dZ_c c = (dZ_c / rms) q
-        self.dZ = {
-            d: differential_zernike_matrix(self.indices, x, y, cfg.s, d) / rms
-            for d in ("x", "y")
-        }
+        self.dZ = _diff_basis_q(cfg, self.indices)
 
     # ---------------------------------------------------------------- 解调
     def lobe(self, image: np.ndarray, d: str) -> np.ndarray:
@@ -132,6 +136,12 @@ class FourierChain:
         mask = (amp > self.params.threshold * amp[sup].max()) & sup
         if self.params.erode > 0:
             mask = ndimage.binary_erosion(mask, iterations=self.params.erode)
+        # 只保留最大的 4 连通块：多个连通块会让解包裹的拉普拉斯奇异
+        # （lsi 原实现假定掩膜单连通，遇到断开的掩膜只给出警告和错误结果）
+        lab, n = ndimage.label(mask)
+        if n > 1:
+            sizes = ndimage.sum(mask, lab, index=np.arange(1, n + 1))
+            mask = lab == (1 + int(np.argmax(sizes)))
         return mask
 
     def estimate(self, image: np.ndarray, *, keep: bool = False):
@@ -212,7 +222,7 @@ class FourierLinearization:
             damps.append((np.real(np.conj(c0) * dc) / np.abs(c0))[:, ys, xs])
         return np.concatenate(dWs, axis=1) @ self.P.T + np.concatenate(damps, axis=1) @ self.Q.T
 
-    def matrix(self, batch: int = 256) -> np.ndarray:
+    def matrix(self, batch: int = 64) -> np.ndarray:
         """完整线性映射 L，形状 (p, n*n)。"""
         n = self.chain.cfg.grid.n
         N = n * n

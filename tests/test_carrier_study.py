@@ -226,3 +226,40 @@ def test_whitener():
     W = Whitener(fim(model, q, 1e-4))
     dq = _rng(17).multivariate_normal(np.zeros(model.p), W.crb, size=4000)
     assert np.mean(W.d_rel(dq) ** 2) == pytest.approx(1.0, rel=0.05)
+
+
+def test_integrated_model_matches_supersampled_generator():
+    from carrier_study.estimators import IntegratedModel
+
+    q = sample_q("pow1", 0.3, IDX, _rng(18))
+    model = IntegratedModel(CFG64, IDX, S=2)
+    img = Generator(CFG64, IDX, Scene(supersample=2)).clean(q)
+    np.testing.assert_allclose(model.forward(q)[0], model.take(img), atol=1e-12)
+    I, st = model.forward(q)
+    J = model.jacobian(st)
+    h = 1e-6
+    e = np.zeros(model.p)
+    e[5] = h
+    fd = (model.forward(q + e)[0] - model.forward(q - e)[0]) / (2 * h)
+    np.testing.assert_allclose(J[:, 5], fd, rtol=1e-5, atol=1e-7)
+    u = _rng(19).normal(size=model.M)
+    np.testing.assert_allclose(model.jtv(st, u), J.T @ u, rtol=1e-10, atol=1e-10)
+
+
+def test_amplitude_model():
+    from carrier_study.estimators import AmplitudeModel
+
+    base = NominalModel(CFG64, IDX)
+    model = AmplitudeModel(base)
+    q = sample_q("pow1", 0.3, IDX, _rng(20))
+    th = np.concatenate([q, np.zeros(model.K)])
+    np.testing.assert_allclose(model.forward(th)[0], base.intensity(q), atol=1e-13)
+    th[base.p + 1] = 0.1
+    I, st = model.forward(th)
+    J = model.jacobian(st)
+    h = 1e-6
+    for j in (2, base.p, base.p + 3):
+        e = np.zeros(model.p)
+        e[j] = h
+        fd = (model.forward(th + e)[0] - model.forward(th - e)[0]) / (2 * h)
+        np.testing.assert_allclose(J[:, j], fd, rtol=1e-5, atol=1e-7)

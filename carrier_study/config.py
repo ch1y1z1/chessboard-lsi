@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import zlib
+
 import numpy as np
 
 from lsi.model import Grid, SystemConfig
@@ -49,3 +51,8 @@ def indices_for(p: int) -> tuple[int, ...]:
 def rng(*key: int) -> np.random.Generator:
     """由整数键派生独立随机流。"""
     return np.random.default_rng(np.random.SeedSequence(list(key)))
+
+
+def key(text: str) -> int:
+    """字符串的确定性整数键（Python 内置 hash 每个进程随机化，不能用）。"""
+    return zlib.crc32(text.encode())
