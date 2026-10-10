@@ -1,1 +1,14 @@
 [fourier]
+  G20: r=6.0 t=0.3 e=2  MSE 0.0172 (default 0.0932)
+  G30: r=6.0 t=0.3 e=2  MSE 0.0289 (default 0.0819)
+  G40: r=6.0 t=0.3 e=2  MSE 0.0287 (default 0.0788)
+  G50: r=6.0 t=0.3 e=2  MSE 0.0288 (default 0.0795)
+  G60: r=6.0 t=0.3 e=2  MSE 0.0288 (default 0.0796)
+  P1e3: r=6.0 t=0.3 e=2  MSE 0.0289 (default 0.0794)
+  P1e4: r=6.0 t=0.3 e=2  MSE 0.0288 (default 0.0793)
+  P1e5: r=6.0 t=0.3 e=2  MSE 0.0288 (default 0.0797)
+[fourier] 137s
+[solvers]
+  p=35: gd_fixed=0.3, nesterov_fixed=0.3, adam=0.0003
+  p=12: gd_fixed=1, nesterov_fixed=1, adam=0.0001
+[solvers] 1005s

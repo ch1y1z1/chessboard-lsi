@@ -1,0 +1,16 @@
+{
+ "fourier_tuning": {
+  "wall_seconds": 136.91583108901978,
+  "n_tasks": 40,
+  "workers": 5,
+  "cpu_seconds_per_task": 17.114478886127472,
+  "unit": "dev truth (8 noises x 2 seeds x 20 configs)"
+ },
+ "solver_tuning": {
+  "wall_seconds": 1004.6586909294128,
+  "n_tasks": 1536,
+  "workers": 5,
+  "cpu_seconds_per_task": 3.2703733428691826,
+  "unit": "solver run"
+ }
+}

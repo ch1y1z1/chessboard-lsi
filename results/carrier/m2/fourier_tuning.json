@@ -1,0 +1,58 @@
+{
+ "G20": {
+  "radius_factor": 6.0,
+  "threshold": 0.3,
+  "erode": 2,
+  "mse": 0.017162613293214214,
+  "mse_default": 0.0932374145443399
+ },
+ "G30": {
+  "radius_factor": 6.0,
+  "threshold": 0.3,
+  "erode": 2,
+  "mse": 0.028854140012457997,
+  "mse_default": 0.08189651008854362
+ },
+ "G40": {
+  "radius_factor": 6.0,
+  "threshold": 0.3,
+  "erode": 2,
+  "mse": 0.028736698157795858,
+  "mse_default": 0.07884956137691793
+ },
+ "G50": {
+  "radius_factor": 6.0,
+  "threshold": 0.3,
+  "erode": 2,
+  "mse": 0.028792101718078715,
+  "mse_default": 0.0794595003568107
+ },
+ "G60": {
+  "radius_factor": 6.0,
+  "threshold": 0.3,
+  "erode": 2,
+  "mse": 0.028757996719697733,
+  "mse_default": 0.07961255132187438
+ },
+ "P1e3": {
+  "radius_factor": 6.0,
+  "threshold": 0.3,
+  "erode": 2,
+  "mse": 0.028936678229323033,
+  "mse_default": 0.07940667637537366
+ },
+ "P1e4": {
+  "radius_factor": 6.0,
+  "threshold": 0.3,
+  "erode": 2,
+  "mse": 0.028845901016450553,
+  "mse_default": 0.07932462982490146
+ },
+ "P1e5": {
+  "radius_factor": 6.0,
+  "threshold": 0.3,
+  "erode": 2,
+  "mse": 0.028789711692102954,
+  "mse_default": 0.07967553236338024
+ }
+}
