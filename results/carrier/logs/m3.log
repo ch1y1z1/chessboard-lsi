@@ -1,0 +1,18 @@
+[e1] start
+  e1 27776 rows in 6467s
+[e1] done 6467s
+[e2] start
+  e2 36540 runs in 13527s
+[e2] done 13527s
+[e3] start
+  e3 16384 runs from 512 datasets in 4894s
+[e3] done 4894s
+[e3k] start
+  e3k 288 runs in 136s
+[e3k] done 136s
+[e4m] start
+  e4m 1860 rows in 830s
+[e4m] done 830s
+[e4l] start
+  e4l 112 rows in 914s
+[e4l] done 914s
