@@ -1,4 +1,9 @@
-"""lsi -- 45° 棋盘光栅剪切干涉：前向模型 + 三条波前反演路线。
+"""Reference scalar diffraction and lateral-shearing wavefront reconstruction.
+
+New workflow: config / annular / propagation / fourier / direct / study.
+Run ``python -m lsi.study --help``. Physical defaults follow BUV0725; the raw
+Fourier route follows Retrieval0806. The original five-beam modules below
+remain a separate numerical demonstration and regression baseline.
 
 * 论文路线:
   ``I --(相移 / 傅里叶变换)--> 差分波前 --(差分 Zernike 最小二乘)--> W``
