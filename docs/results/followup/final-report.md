@@ -253,7 +253,7 @@ ignored direct 约 `7.10e-3–1.071e-1`；ignored FT 约 `3.55e-2–2.66e-1`。
 | 形状 | 5 设置 | 331 s | 2574 MiB | complete |
 | 掩膜 | 8 设置 | 195 s | 2701 MiB | complete |
 | 角度 pilot | 9 行 | 637 s | 3261 MiB | complete |
-| camera ±0.25 | 18 行 | 1006 s | 约 3.0 GiB | complete |
+| camera ±0.25 | 18 行 | 1006 s | 3346 MiB | complete |
 | grating ±0.25 | 24 行 | 1019 s | 3344 MiB | complete |
 | 噪声/初值 | 19 行 | 约 931 s | 约 1.0 GiB | complete；三次脚本修复后 v4 最终 |
 | 选窗策略 | 42 次重建 | 约 7–8 min | 约 2.6 GiB | complete |
