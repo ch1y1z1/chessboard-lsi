@@ -1,0 +1,1392 @@
+{
+  "stage": "2d_mask_scan",
+  "status": "complete",
+  "batch_started_at": "2026-10-21T14:51:00+00:00",
+  "finished_at": "2026-10-21T14:54:15+00:00",
+  "completed_new": 7,
+  "reused": 1,
+  "failed": 0,
+  "row_count": 8,
+  "evaluation_pupil_pixels": [
+    26772
+  ],
+  "evaluation_pupil_constant": true,
+  "erosion_rows": [
+    {
+      "case": "erosion_2",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 2,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.4772986111111111,
+      "phase_residual_rms": 0.05629656292592625,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        687310,
+        687310
+      ],
+      "valid_pixels_per_sideband": [
+        687310,
+        687310
+      ],
+      "valid_pixels_total": 1374620,
+      "valid_fraction_per_sideband": [
+        1.0,
+        1.0
+      ],
+      "coeffs_waves": [
+        0.0708552009188991,
+        0.04281235605087316,
+        0.01437503696703977,
+        0.05674465288317239
+      ],
+      "rmse_waves": 0.001290942707878791,
+      "rmse_waves_with_defocus_tilt": 0.0012909446423578447,
+      "pv_waves": 0.011511434329405261,
+      "max_coefficient_error_waves": 0.0007469137834384063,
+      "coefficient_errors_waves": [
+        0.0007461304731745111,
+        0.0007469137834384063,
+        0.0003532228778948508,
+        0.0006573965265927115
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 9.598750744975405
+    },
+    {
+      "case": "erosion_4",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 4,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.4714541666666667,
+      "phase_residual_rms": 0.054312912235074146,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        678894,
+        678894
+      ],
+      "valid_pixels_per_sideband": [
+        678894,
+        678894
+      ],
+      "valid_pixels_total": 1357788,
+      "valid_fraction_per_sideband": [
+        1.0,
+        1.0
+      ],
+      "coeffs_waves": [
+        0.070977153089125,
+        0.0432099156825654,
+        0.014284394214666206,
+        0.056863445279310795
+      ],
+      "rmse_waves": 0.0016518413279098618,
+      "rmse_waves_with_defocus_tilt": 0.0016518444830054164,
+      "pv_waves": 0.014896241061694612,
+      "max_coefficient_error_waves": 0.0011444734151306452,
+      "coefficient_errors_waves": [
+        0.0008680826434004085,
+        0.0011444734151306452,
+        0.0002625801255212862,
+        0.0007761889227311178
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 8.439736783009721
+    },
+    {
+      "case": "erosion_8",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 8,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.45976527777777776,
+      "phase_residual_rms": 0.05192194296787573,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        662062,
+        662062
+      ],
+      "valid_pixels_per_sideband": [
+        662062,
+        662062
+      ],
+      "valid_pixels_total": 1324124,
+      "valid_fraction_per_sideband": [
+        1.0,
+        1.0
+      ],
+      "coeffs_waves": [
+        0.07100104000310617,
+        0.04380880408667097,
+        0.0140985181678879,
+        0.05693681686558175
+      ],
+      "rmse_waves": 0.002134871961278949,
+      "rmse_waves_with_defocus_tilt": 0.0021348771356461426,
+      "pv_waves": 0.01871216947030136,
+      "max_coefficient_error_waves": 0.0017433618192362124,
+      "coefficient_errors_waves": [
+        0.0008919695573815778,
+        0.0017433618192362124,
+        7.670407874298124e-05,
+        0.0008495605090020758
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 10.178029041999253
+    },
+    {
+      "case": "erosion_12",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 12,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.4480763888888889,
+      "phase_residual_rms": 0.050363279590110666,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        645230,
+        645230
+      ],
+      "valid_pixels_per_sideband": [
+        645230,
+        645230
+      ],
+      "valid_pixels_total": 1290460,
+      "valid_fraction_per_sideband": [
+        1.0,
+        1.0
+      ],
+      "coeffs_waves": [
+        0.07086769687860582,
+        0.04425152351806327,
+        0.013923804957227904,
+        0.05695211814735592
+      ],
+      "rmse_waves": 0.0024720876691311402,
+      "rmse_waves_with_defocus_tilt": 0.002472094475882599,
+      "pv_waves": 0.020548068588045074,
+      "max_coefficient_error_waves": 0.0021860812506285104,
+      "coefficient_errors_waves": [
+        0.0007586264328812292,
+        0.0021860812506285104,
+        -9.80091319170151e-05,
+        0.0008648617907762446
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 9.810694833024172
+    }
+  ],
+  "threshold_rows": [
+    {
+      "case": "amplitude_0.1",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.1,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.4817927083333333,
+      "phase_residual_rms": 0.05818936706223968,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        695726,
+        695726
+      ],
+      "valid_pixels_per_sideband": [
+        693319,
+        694244
+      ],
+      "valid_pixels_total": 1387563,
+      "valid_fraction_per_sideband": [
+        0.996540304660168,
+        0.9978698510620561
+      ],
+      "coeffs_waves": [
+        0.0710164957950208,
+        0.04260196430395816,
+        0.014478741943124752,
+        0.05679963758696137
+      ],
+      "rmse_waves": 0.0013497414358446581,
+      "rmse_waves_with_defocus_tilt": 0.0013497427425880988,
+      "pv_waves": 0.011423851745559772,
+      "max_coefficient_error_waves": 0.0009074253492962064,
+      "coefficient_errors_waves": [
+        0.0009074253492962064,
+        0.0005365220365234069,
+        0.00045692785397983236,
+        0.0007123812303816909
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 8.724006753996946
+    },
+    {
+      "case": "amplitude_0.3",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.3,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.31111041666666667,
+      "phase_residual_rms": 0.05053398733476493,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        695726,
+        695726
+      ],
+      "valid_pixels_per_sideband": [
+        422063,
+        473935
+      ],
+      "valid_pixels_total": 895998,
+      "valid_fraction_per_sideband": [
+        0.6066511816433481,
+        0.6812092691663097
+      ],
+      "coeffs_waves": [
+        0.06654749586029947,
+        0.034734310029710974,
+        0.01721506810303587,
+        0.04898331487759081
+      ],
+      "rmse_waves": 0.01127709558551103,
+      "rmse_waves_with_defocus_tilt": 0.011277120648870024,
+      "pv_waves": 0.0884301529723475,
+      "max_coefficient_error_waves": 0.007331132237723782,
+      "coefficient_errors_waves": [
+        -0.003561574585425123,
+        -0.007331132237723782,
+        0.003193254013890952,
+        -0.007103941478988865
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 7.890163648000453
+    },
+    {
+      "case": "amplitude_0.5",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.5,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.08699270833333334,
+      "phase_residual_rms": 0.05074082698532439,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        695726,
+        695726
+      ],
+      "valid_pixels_per_sideband": [
+        128002,
+        122537
+      ],
+      "valid_pixels_total": 250539,
+      "valid_fraction_per_sideband": [
+        0.18398334976700598,
+        0.17612824588990494
+      ],
+      "coeffs_waves": [
+        0.04877303925363843,
+        0.015337721958048188,
+        0.028921273862621097,
+        0.034451931796401034
+      ],
+      "rmse_waves": 0.04313703713668763,
+      "rmse_waves_with_defocus_tilt": 0.04313711422464946,
+      "pv_waves": 0.33122705739553565,
+      "max_coefficient_error_waves": 0.02672772030938657,
+      "coefficient_errors_waves": [
+        -0.021336031192086165,
+        -0.02672772030938657,
+        0.014899459773476178,
+        -0.021635324560178644
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 7.559867990989005
+    }
+  ],
+  "all_rows": [
+    {
+      "case": "center_x_0",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal",
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.48314305555555553,
+      "phase_residual_rms": 0.05923835658602133,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "calibration_condition": 1.9729207881951338,
+      "coeffs_waves": [
+        0.07066966623186385,
+        0.042400367263784135,
+        0.014463811803689618,
+        0.05658818681879624
+      ],
+      "rmse_waves": 0.0009326805319639062,
+      "rmse_waves_with_defocus_tilt": 0.0009326813638104704,
+      "pv_waves": 0.007573176601243396,
+      "max_coefficient_error_waves": 0.0005605957861392619,
+      "coefficient_errors_waves": [
+        0.0005605957861392619,
+        0.00033492499634937833,
+        0.000441997714544699,
+        0.0005009304622165603
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 0.0,
+      "source_run": "output/diffraction/followup_20261021/stage2a_center_axis",
+      "reused": true,
+      "reused_from": "output/diffraction/followup_20261021/stage2b_center_grid_49/results_49.json",
+      "reused_source_sha256": "16d5c95ecf1c222f98ccec65bae0d539daf4771528fed7241fadb55ed66ff2eb",
+      "mask_pixels_per_sideband": [
+        695726,
+        695726
+      ],
+      "valid_pixels_per_sideband": [
+        695726,
+        695726
+      ],
+      "valid_pixels_total": 1391452,
+      "valid_fraction_per_sideband": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "case": "erosion_2",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 2,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.4772986111111111,
+      "phase_residual_rms": 0.05629656292592625,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        687310,
+        687310
+      ],
+      "valid_pixels_per_sideband": [
+        687310,
+        687310
+      ],
+      "valid_pixels_total": 1374620,
+      "valid_fraction_per_sideband": [
+        1.0,
+        1.0
+      ],
+      "coeffs_waves": [
+        0.0708552009188991,
+        0.04281235605087316,
+        0.01437503696703977,
+        0.05674465288317239
+      ],
+      "rmse_waves": 0.001290942707878791,
+      "rmse_waves_with_defocus_tilt": 0.0012909446423578447,
+      "pv_waves": 0.011511434329405261,
+      "max_coefficient_error_waves": 0.0007469137834384063,
+      "coefficient_errors_waves": [
+        0.0007461304731745111,
+        0.0007469137834384063,
+        0.0003532228778948508,
+        0.0006573965265927115
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 9.598750744975405
+    },
+    {
+      "case": "erosion_4",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 4,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.4714541666666667,
+      "phase_residual_rms": 0.054312912235074146,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        678894,
+        678894
+      ],
+      "valid_pixels_per_sideband": [
+        678894,
+        678894
+      ],
+      "valid_pixels_total": 1357788,
+      "valid_fraction_per_sideband": [
+        1.0,
+        1.0
+      ],
+      "coeffs_waves": [
+        0.070977153089125,
+        0.0432099156825654,
+        0.014284394214666206,
+        0.056863445279310795
+      ],
+      "rmse_waves": 0.0016518413279098618,
+      "rmse_waves_with_defocus_tilt": 0.0016518444830054164,
+      "pv_waves": 0.014896241061694612,
+      "max_coefficient_error_waves": 0.0011444734151306452,
+      "coefficient_errors_waves": [
+        0.0008680826434004085,
+        0.0011444734151306452,
+        0.0002625801255212862,
+        0.0007761889227311178
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 8.439736783009721
+    },
+    {
+      "case": "erosion_8",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 8,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.45976527777777776,
+      "phase_residual_rms": 0.05192194296787573,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        662062,
+        662062
+      ],
+      "valid_pixels_per_sideband": [
+        662062,
+        662062
+      ],
+      "valid_pixels_total": 1324124,
+      "valid_fraction_per_sideband": [
+        1.0,
+        1.0
+      ],
+      "coeffs_waves": [
+        0.07100104000310617,
+        0.04380880408667097,
+        0.0140985181678879,
+        0.05693681686558175
+      ],
+      "rmse_waves": 0.002134871961278949,
+      "rmse_waves_with_defocus_tilt": 0.0021348771356461426,
+      "pv_waves": 0.01871216947030136,
+      "max_coefficient_error_waves": 0.0017433618192362124,
+      "coefficient_errors_waves": [
+        0.0008919695573815778,
+        0.0017433618192362124,
+        7.670407874298124e-05,
+        0.0008495605090020758
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 10.178029041999253
+    },
+    {
+      "case": "erosion_12",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 12,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.4480763888888889,
+      "phase_residual_rms": 0.050363279590110666,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        645230,
+        645230
+      ],
+      "valid_pixels_per_sideband": [
+        645230,
+        645230
+      ],
+      "valid_pixels_total": 1290460,
+      "valid_fraction_per_sideband": [
+        1.0,
+        1.0
+      ],
+      "coeffs_waves": [
+        0.07086769687860582,
+        0.04425152351806327,
+        0.013923804957227904,
+        0.05695211814735592
+      ],
+      "rmse_waves": 0.0024720876691311402,
+      "rmse_waves_with_defocus_tilt": 0.002472094475882599,
+      "pv_waves": 0.020548068588045074,
+      "max_coefficient_error_waves": 0.0021860812506285104,
+      "coefficient_errors_waves": [
+        0.0007586264328812292,
+        0.0021860812506285104,
+        -9.80091319170151e-05,
+        0.0008648617907762446
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 9.810694833024172
+    },
+    {
+      "case": "amplitude_0.1",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.1,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.4817927083333333,
+      "phase_residual_rms": 0.05818936706223968,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        695726,
+        695726
+      ],
+      "valid_pixels_per_sideband": [
+        693319,
+        694244
+      ],
+      "valid_pixels_total": 1387563,
+      "valid_fraction_per_sideband": [
+        0.996540304660168,
+        0.9978698510620561
+      ],
+      "coeffs_waves": [
+        0.0710164957950208,
+        0.04260196430395816,
+        0.014478741943124752,
+        0.05679963758696137
+      ],
+      "rmse_waves": 0.0013497414358446581,
+      "rmse_waves_with_defocus_tilt": 0.0013497427425880988,
+      "pv_waves": 0.011423851745559772,
+      "max_coefficient_error_waves": 0.0009074253492962064,
+      "coefficient_errors_waves": [
+        0.0009074253492962064,
+        0.0005365220365234069,
+        0.00045692785397983236,
+        0.0007123812303816909
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 8.724006753996946
+    },
+    {
+      "case": "amplitude_0.3",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.3,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.31111041666666667,
+      "phase_residual_rms": 0.05053398733476493,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        695726,
+        695726
+      ],
+      "valid_pixels_per_sideband": [
+        422063,
+        473935
+      ],
+      "valid_pixels_total": 895998,
+      "valid_fraction_per_sideband": [
+        0.6066511816433481,
+        0.6812092691663097
+      ],
+      "coeffs_waves": [
+        0.06654749586029947,
+        0.034734310029710974,
+        0.01721506810303587,
+        0.04898331487759081
+      ],
+      "rmse_waves": 0.01127709558551103,
+      "rmse_waves_with_defocus_tilt": 0.011277120648870024,
+      "pv_waves": 0.0884301529723475,
+      "max_coefficient_error_waves": 0.007331132237723782,
+      "coefficient_errors_waves": [
+        -0.003561574585425123,
+        -0.007331132237723782,
+        0.003193254013890952,
+        -0.007103941478988865
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 7.890163648000453
+    },
+    {
+      "case": "amplitude_0.5",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.5,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "calibration_policy": "frozen_nominal_rect",
+      "reused": false,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "coverage": 0.08699270833333334,
+      "phase_residual_rms": 0.05074082698532439,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "mask_pixels_per_sideband": [
+        695726,
+        695726
+      ],
+      "valid_pixels_per_sideband": [
+        128002,
+        122537
+      ],
+      "valid_pixels_total": 250539,
+      "valid_fraction_per_sideband": [
+        0.18398334976700598,
+        0.17612824588990494
+      ],
+      "coeffs_waves": [
+        0.04877303925363843,
+        0.015337721958048188,
+        0.028921273862621097,
+        0.034451931796401034
+      ],
+      "rmse_waves": 0.04313703713668763,
+      "rmse_waves_with_defocus_tilt": 0.04313711422464946,
+      "pv_waves": 0.33122705739553565,
+      "max_coefficient_error_waves": 0.02672772030938657,
+      "coefficient_errors_waves": [
+        -0.021336031192086165,
+        -0.02672772030938657,
+        0.014899459773476178,
+        -0.021635324560178644
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772,
+      "seconds": 7.559867990989005
+    }
+  ],
+  "coverage_range": [
+    0.08699270833333334,
+    0.48314305555555553
+  ],
+  "rmse_range": [
+    0.0009326805319639062,
+    0.04313703713668763
+  ],
+  "pv_range": [
+    0.007573176601243396,
+    0.33122705739553565
+  ],
+  "phase_residual_range": [
+    0.050363279590110666,
+    0.05923835658602133
+  ],
+  "fixed_calibration_note": "rect half-width-20 calibration is frozen; mask changes include calibration mismatch",
+  "source": {
+    "baseline_observation_sha256": "66ac6c50565068c2b71e9fad39b0e32d6a726dd4ca9b110a8dd107b9ec0ac309",
+    "baseline_calibration_sha256": "dfb73d816011f167cfdb91f1eba497d03f4c54321d38d53a7117078b9abe2f80",
+    "stage2b_results_sha256": "16d5c95ecf1c222f98ccec65bae0d539daf4771528fed7241fadb55ed66ff2eb"
+  },
+  "peak_memory_mib": 2700.6015625,
+  "batch_wall_seconds": 195.0,
+  "trends": {
+    "erosion_coverage_monotonic_decrease": true,
+    "erosion_rmse_monotonic_increase": true,
+    "threshold_coverage_monotonic_decrease": true,
+    "threshold_rmse_monotonic_increase": true,
+    "best_rmse_setting_on_this_test_image": "baseline (erosion 0, threshold 0)",
+    "phase_residual_note": "phase residual decreases with erosion while wavefront RMSE increases; do not use phase residual alone as a wavefront accuracy proxy",
+    "scope": "single test image, fixed rect calibration, no cross combinations; not a production threshold selection"
+  }
+}

@@ -16,3 +16,6 @@ htmlcov/
 .DS_Store
 # 实验生成物（由 scripts/ 重新生成，不作为回归基线）
 output/
+
+# 本地交接数据与运行日志（不提交）
+work/
