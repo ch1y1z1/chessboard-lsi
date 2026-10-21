@@ -293,4 +293,6 @@ Git 只保存小型 JSON/CSV/PNG 摘要与脚本，`work/` 被忽略，不把大
   `mask_scan.py`、`angle_batch.py`、`noise_init_study.py`、`selection_strategy.py`、
   `complete_recal_width32.py`、`merge_angles.py`。
 - 摘要：`docs/results/followup/stage1-*` 到 `stage3c-*`；图：`docs/results/followup/figures/`。
+- 后续 PR：[#16](https://github.com/ch1y1z1/chessboard-lsi/pull/16)（base `shear-code-overview`，OPEN，未合并）。
+- 本地 checkpoint：`e76fda3`（阶段 1–2d 代码/摘要）；最终提交：`2a6a07e`（角度/噪声/选窗/总报告）。
 - 原始数据：`output/diffraction/followup_20261021/`；交接参考与基准：`work/handoff-20261021/`（不提交）。

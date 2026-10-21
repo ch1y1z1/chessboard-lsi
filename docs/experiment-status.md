@@ -71,3 +71,4 @@ Git 只保存紧凑 JSON/CSV/图和脚本。
 中心异常、固定/重标定协议差异、单测试图限制均需在后续工作中保留。
 
 详细报告与图：[final-report.md](results/followup/final-report.md)。
+后续 PR：[#16](https://github.com/ch1y1z1/chessboard-lsi/pull/16)，未合并。
