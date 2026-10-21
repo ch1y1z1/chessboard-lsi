@@ -194,7 +194,7 @@ def main() -> None:
         if row.get("kind") == "noise" and row["method"] == "fourier_calibrated":
             direct = next(item for item in rows if item.get("kind") == "noise"
                           and item.get("case") == row["case"] and item["method"] == "direct")
-            lines.append(f"| {row['seed']} | {row['rmse_waves']:.6g} | {direct['rmse_waves']:.6g} | {direct['nfev']} |")
+            lines.append(f"| {row['noise_seed']} | {row['rmse_waves']:.6g} | {direct['rmse_waves']:.6g} | {direct['nfev']} |")
     lines += ["", "## 混合 RMS / 两个方向", "| 设置 | FT RMSE | direct RMSE | direct converged |", "|---|---:|---:|---|"]
     for row in rows:
         if row.get("kind") == "rms" and row["method"] == "fourier_calibrated":

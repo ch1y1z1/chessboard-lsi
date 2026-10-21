@@ -50,8 +50,13 @@ def plot_angles(rows: list[dict], zero_rows: list[dict], path: Path) -> None:
                 zero_row = zero_direct
             else:
                 zero_row = zero_auto if center == "auto" else zero_fixed
-            x = [0.0] + x
-            y = [zero_row["rmse_waves"]] + y
+            # Insert the zero-angle baseline in numerical order before drawing
+            # connecting lines; prepending it would connect 0 -> negative -> positive.
+            points = sorted(zip([0.0] + x, [zero_row["rmse_waves"]] + y))
+            x, y = zip(*points)
+            # Exact zero has no logarithm. Mask it instead of drawing a line
+            # to Matplotlib's artificial clipping floor or inventing a value.
+            y = np.ma.masked_less_equal(y, 0)
             label = ("direct" if method == "direct" else f"FT {center}") + f" / {geometry}"
             ax.semilogy(x, y, marker=marker, ls=linestyle, color=color, label=label, ms=4)
         ax.set_title(f"{component} / {axis} axis")
@@ -60,7 +65,8 @@ def plot_angles(rows: list[dict], zero_rows: list[dict], path: Path) -> None:
         ax.grid(True, which="both", alpha=.25)
     handles, labels = axes.flat[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=7)
-    fig.tight_layout(rect=(0, .08, 1, 1))
+    fig.suptitle("Exact zero RMSE is omitted on logarithmic axes", fontsize=9)
+    fig.tight_layout(rect=(0, .08, 1, .97))
     for suffix in ("png", "svg"):
         fig.savefig(path / f"angle_known_ignored.{suffix}", dpi=170)
     plt.close(fig)

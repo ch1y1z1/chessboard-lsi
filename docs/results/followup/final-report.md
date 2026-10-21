@@ -17,8 +17,8 @@
    这些只是本组已测窗口在该测试图上的低点/近似平台，不能外推普遍最优。
    7×7 中心网格的最低点在 `(3,3)`，`8.4063e-4` waves，但位于 ±3 网格角点，不能外推。
    空间掩膜的腐蚀和幅值剔除都使 coverage 下降、RMSE 上升；没有发现覆盖率降低而波前改善的区间。
-3. **角度**：在已知几何下，direct 从零初值恢复到数值零，FT auto 普遍优于 fixed；
-   在忽略几何下，模型失配使 direct 停在非零局部解、FT 误差达百分之几到十分之几 waves。
+3. **角度**：在已知几何下，direct 从零初值恢复到数值零，分别重标定的 FT auto 流程误差低于 fixed；
+   在忽略几何下，direct 在有限优化预算下留下非零误差，FT 误差达百分之几到十分之几 waves。
    参考倾斜是输入场相位坡度近似，不是严格旋转平面；物面单像素源倾斜是零效应对照。
 4. **选窗策略**：冻结与逐窗重标定是不同协议，曲线必须分列。用同一组 3 个独立混合样本
    （0.05/0.1/0.2 waves）重做选择时，冻结选中 32、重标定选中 8，而测试图事后最优为 24/28；
@@ -178,6 +178,10 @@ coverage 下降时 RMSE 上升；phase residual 随腐蚀下降但波前 RMSE �
 同一张倾斜观测，known 使用倾斜模型和对应独立 fixed/auto 标定；ignored 使用零角度模型和
 零角度 fixed/auto 标定；direct 均零初值。
 
+fixed 与 auto 各自重新训练响应矩阵。这是“中心检测方式及其配套重标定”的流程比较，
+没有执行共享同一标定响应的纯中心方式消融，不能把误差差异全部归因于选中心本身。
+几何参数已知时的独立标定还额外使用对应几何的训练数据。
+
 | 条件 | RMSE / waves |
 |---|---:|
 | zero direct | `0` |
@@ -187,14 +191,17 @@ coverage 下降时 RMSE 上升；phase residual 随腐蚀下降但波前 RMSE �
 | ignored direct | `2.9821e-2`（60 nfev，未收敛） |
 | ignored FT fixed / auto | `2.6332e-1` / `2.6308e-1` |
 
-known direct 恢复到数值零，known FT auto 优于 fixed；ignored 模型失配导致大的非零局部解。
+known direct 恢复到数值零，known FT auto 配套重标定流程误差低于 fixed；
+ignored direct 达到评估上限仍有较大误差，不能把该有限预算结果当作已求得局部或全局最优。
 
 ### 4.2 camera/grating × x/y × ±0.25°
 
-共 8 个非零几何，每几何 6 行（known/ignored × direct/fixed/auto），共 48 行，0 失败。
-known direct 均为 `~1e-17` 或 0；known FT auto 普遍优于 fixed（范围约 `7.13e-4–2.12e-3`）。
+共 8 个非零几何，每几何 6 行（known/ignored × direct/fixed/auto），共 48 行，均已产生数值结果，无程序异常。
+这不代表 48 行都正确恢复，部分 direct 未收敛。known direct 均为 `~1e-17` 或 0；
+known FT auto 配套重标定流程误差均低于 fixed（范围约 `7.13e-4–2.12e-3`）。
 ignored direct 约 `7.10e-3–1.071e-1`；ignored FT 约 `3.55e-2–2.66e-1`。
-不同部件、轴向和符号的失配误差明显不对称；多数 ignored direct 停在非零解，优化停止不等于恢复成功。
+不同部件、轴向和符号的失配误差明显不对称；ignored direct 在有限预算下仍有非零误差，
+不能据此确认局部最优或全局最优，优化停止也不等于恢复成功。
 
 ![角度对照](figures/angle_known_ignored.png)
 
@@ -211,7 +218,9 @@ ignored direct 约 `7.10e-3–1.071e-1`；ignored FT 约 `3.55e-2–2.66e-1`。
 | ignored FT fixed | `5.3383e-1` | `5.3276e-1` |
 | ignored FT auto | `5.3361e-1` | `5.3255e-1` |
 
-与 ±0.25° 相比，known FT 误差进一步增大，ignored 误差约一个数量级更差。
+与 camera x ±0.25° 的同符号结果相比，ignored FT 由约 `0.263–0.266` 升至约 `0.533` waves，
+约为两倍；ignored direct 约为原来的 1.6–1.9 倍。known auto 的误差增大，但 fixed 正角度误差
+从 `1.6145e-3` 降到 `1.4885e-3`，并不单调，不能概括成所有 known FT 随角度增大而恶化。
 `+0.5°` 的 ignored direct 虽然 `converged=True`，RMSE 仍为 `4.64e-2`，
 说明优化器停止标记不能作为物理恢复成功判据。该扩展只覆盖 camera x，不能外推到其他部件/轴。
 
@@ -245,6 +254,9 @@ ignored direct 约 `7.10e-3–1.071e-1`；ignored FT 约 `3.55e-2–2.66e-1`。
 主要运行均单任务串行、worker/batch=1，在 memoh-ws 上执行；8 GiB Mac 不运行大规模实验。
 峰值内存约 2.4–3.3 GiB（不同阶段），没有出现 OOM；全部运行按点/行即时保存。
 
+`complete`/`status=ok` 表示运行或数值结果已保存，不能替代恢复精度判断。
+优化器的 `converged`、仿真误差和 `recovered` 应分别查看；未收敛和未恢复行均保留。
+
 | 阶段 | 规模 | 墙钟 | 峰值 RSS | 结果 |
 |---|---:|---:|---:|---|
 | 窗宽冻结 | 13 窗 | 680 s | 2667 MiB | complete |
@@ -263,7 +275,7 @@ ignored direct 约 `7.10e-3–1.071e-1`；ignored FT 约 `3.55e-2–2.66e-1`。
 - 阶段 1 的 `width_32_fourier.npz` 是中断写出的损坏文件，未复用；补算使用已保存标定与观测。
 - 阶段 2a 首次默认点集漏 y=-1…-3，已补算并在合并 manifest 记录；原始 10 点目录未改。
 - 阶段 2b `(-2,-3)` 孤立低值稳定复现、原因未解，继续标异常。
-- 阶段 3 角度 ignored direct 多次停在非零局部解；优化停止不等于恢复成功。
+- 阶段 3 角度 ignored direct 多次在有限预算下留下非零误差；优化停止不等于恢复成功。
 - 噪声脚本前几版因参数/schema 报错，均保留失败日志；最终 v4 的 19 行有效。
 
 原始观测、标定数组、轨迹和大图在远端 `output/diffraction/followup_20261021/`；
@@ -282,6 +294,7 @@ Git 只保存小型 JSON/CSV/PNG 摘要与脚本，`work/` 被忽略，不把大
 - 选窗验证样本只有 3 个，且同时改变幅度/波前组合；冻结与重标定曲线不能混合排名。
 - 未做 35 未知模式、网格加密或真实数据验证；未做内容明确不宣称泛化。
 - ±0.5° 仅做 camera x 代表扩展；其他部件/轴未外推。
+- 角度 fixed/auto 各自重标定，尚无共享响应矩阵的中心方式消融；不得把流程差异单独归因于中心检测。
 
 ---
 
@@ -294,5 +307,6 @@ Git 只保存小型 JSON/CSV/PNG 摘要与脚本，`work/` 被忽略，不把大
   `complete_recal_width32.py`、`merge_angles.py`。
 - 摘要：`docs/results/followup/stage1-*` 到 `stage3c-*`；图：`docs/results/followup/figures/`。
 - 后续 PR：[#16](https://github.com/ch1y1z1/chessboard-lsi/pull/16)（base `shear-code-overview`，OPEN，未合并）。
-- 本地 checkpoint：`e76fda3`（阶段 1–2d 代码/摘要）；最终提交：`2a6a07e`（角度/噪声/选窗/总报告）。
+- 本地 checkpoint：`e76fda3`（阶段 1–2d）；研究提交：`2a6a07e`；远端交付末提交：`29be2cc`。
+  后续审查修正见 PR #16 的提交记录，实验数值未重新计算。
 - 原始数据：`output/diffraction/followup_20261021/`；交接参考与基准：`work/handoff-20261021/`（不提交）。

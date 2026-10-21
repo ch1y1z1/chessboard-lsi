@@ -49,10 +49,12 @@ direct 在这些同模型算例中仍恢复；0.2 waves 的 5 个初值均收敛
 ## D 部件倾斜
 
 camera/grating × x/y × ±0.25° 共 8 个非零几何，known/ignored × direct/fixed/auto 共 48 行。
-known direct 均恢复到数值零；known FT auto 普遍优于 fixed。ignored 几何存在模型失配：
-direct 停在非零局部解（约 `7.1e-3–1.07e-1`），FT 误差约 `3.6e-2–2.66e-1`。
-camera x ±0.5° 代表扩展中，known FT 进一步变差，ignored 约 `4.2e-2`/`4.6e-2`（direct）
+known direct 均恢复到数值零；known FT auto 的配套重标定流程误差低于 fixed。
+两者分别训练响应，尚不能单独归因于中心检测方式。ignored 几何存在模型失配：
+direct 在有限优化预算下留下非零误差（约 `7.1e-3–1.07e-1`），FT 误差约 `3.6e-2–2.66e-1`。
+camera x ±0.5° 代表扩展中，known FT 的变化并不全都单调；ignored 约 `4.2e-2`/`4.6e-2`（direct）
 和 `5.33e-1`（FT）。参考倾斜是相位坡度近似，不是严格旋转平面；物面单像素源倾斜是零效应对照。
+与 camera x ±0.25° 相比，ignored FT 约恶化两倍。
 
 ## E 选窗策略
 
