@@ -1,0 +1,451 @@
+{
+  "stage": "2b_center_grid_49",
+  "status": "complete",
+  "batch_started_at": "2026-10-21T14:31:56+00:00",
+  "finished_at": "2026-10-21T14:40:36+00:00",
+  "batch_wall_seconds": 520.0,
+  "planned_new_points": 36,
+  "completed_new_points": 36,
+  "failed_new_points": 0,
+  "total_points": 49,
+  "total_ok": 49,
+  "total_failed": 0,
+  "assertions": {
+    "expected_49": true,
+    "existing_13_unique": true,
+    "missing_36": true,
+    "missing_all_both_nonzero": true,
+    "merged_49_complete": true,
+    "merged_49_unique": true
+  },
+  "nominal_point": {
+    "case": "center_x_0",
+    "method": "fourier_calibrated",
+    "status": "ok",
+    "offset_x": 0.0,
+    "offset_y": 0.0,
+    "settings": {
+      "half_width": 20,
+      "aspect": 1.0,
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "shape": "rect",
+      "window_sigma": 2.0,
+      "carrier_x": 44,
+      "carrier_y": 44,
+      "recenter_adjust_x": -1,
+      "recenter_adjust_y": -1,
+      "phase_sigma": 10.0,
+      "shear_adjust": 1.0,
+      "erosion": 0,
+      "amplitude_threshold": 0.0,
+      "center_mode": "fixed",
+      "search_radius": 8,
+      "subpixel": false,
+      "regression": "lstsq",
+      "alpha": 0,
+      "lasso_max_iter": 1000,
+      "lasso_tol": 0.0001
+    },
+    "calibration_policy": "frozen_nominal",
+    "centers": [
+      [
+        644.0,
+        600.0
+      ],
+      [
+        600.0,
+        644.0
+      ]
+    ],
+    "coverage": 0.48314305555555553,
+    "phase_residual_rms": 0.05923835658602133,
+    "window_metrics": [
+      {
+        "weight_sum": 1600.0000000000005,
+        "equivalent_noise_bins": 1794.782247955501,
+        "dc_weight": 0.0
+      },
+      {
+        "weight_sum": 1600.0000000000005,
+        "equivalent_noise_bins": 1794.782247955501,
+        "dc_weight": 0.0
+      }
+    ],
+    "calibration_condition": 1.9729207881951338,
+    "coeffs_waves": [
+      0.07066966623186385,
+      0.042400367263784135,
+      0.014463811803689618,
+      0.05658818681879624
+    ],
+    "rmse_waves": 0.0009326805319639062,
+    "rmse_waves_with_defocus_tilt": 0.0009326813638104704,
+    "pv_waves": 0.007573176601243396,
+    "max_coefficient_error_waves": 0.0005605957861392619,
+    "coefficient_errors_waves": [
+      0.0005605957861392619,
+      0.00033492499634937833,
+      0.000441997714544699,
+      0.0005009304622165603
+    ],
+    "recovered": true,
+    "recovery_tolerance_waves": 0.01,
+    "evaluation_pixels": 26772,
+    "seconds": 9.165791187988361,
+    "source_run": "output/diffraction/followup_20261021/stage2a_center_axis"
+  },
+  "best_point_on_this_test_image": {
+    "case": "grid_x_3_y_3",
+    "method": "fourier_calibrated",
+    "status": "ok",
+    "offset_x": 3.0,
+    "offset_y": 3.0,
+    "settings": {
+      "half_width": 20,
+      "aspect": 1.0,
+      "offset_x": 3.0,
+      "offset_y": 3.0,
+      "shape": "rect",
+      "window_sigma": 2.0,
+      "carrier_x": 44,
+      "carrier_y": 44,
+      "recenter_adjust_x": -1,
+      "recenter_adjust_y": -1,
+      "phase_sigma": 10.0,
+      "shear_adjust": 1.0,
+      "erosion": 0,
+      "amplitude_threshold": 0.0,
+      "center_mode": "fixed",
+      "search_radius": 8,
+      "subpixel": false,
+      "regression": "lstsq",
+      "alpha": 0,
+      "lasso_max_iter": 1000,
+      "lasso_tol": 0.0001
+    },
+    "calibration_policy": "frozen_nominal",
+    "centers": [
+      [
+        647.0,
+        603.0
+      ],
+      [
+        603.0,
+        647.0
+      ]
+    ],
+    "coverage": 0.48314305555555553,
+    "phase_residual_rms": 0.05921845179393216,
+    "window_metrics": [
+      {
+        "weight_sum": 1600.0000000000005,
+        "equivalent_noise_bins": 1794.782247955501,
+        "dc_weight": 0.0
+      },
+      {
+        "weight_sum": 1600.0000000000005,
+        "equivalent_noise_bins": 1794.782247955501,
+        "dc_weight": 0.0
+      }
+    ],
+    "calibration_condition": 1.9729207881951338,
+    "coeffs_waves": [
+      0.0706388212269439,
+      0.04239058649869715,
+      0.014436146533795933,
+      0.05647576408150131
+    ],
+    "rmse_waves": 0.0008406319185863536,
+    "rmse_waves_with_defocus_tilt": 0.000840632589909923,
+    "pv_waves": 0.0069122025520424735,
+    "max_coefficient_error_waves": 0.000529750781219307,
+    "coefficient_errors_waves": [
+      0.000529750781219307,
+      0.0003251442312623906,
+      0.0004143324446510138,
+      0.0003885077249216329
+    ],
+    "recovered": true,
+    "recovery_tolerance_waves": 0.01,
+    "evaluation_pixels": 26772,
+    "seconds": 9.399264027015306
+  },
+  "boundary_minimum": true,
+  "metric_ranges": {
+    "coverage": [
+      0.48314305555555553,
+      0.48314305555555553
+    ],
+    "phase_residual_rms": [
+      0.05901258746510154,
+      0.06570518120194943
+    ],
+    "pv_waves": [
+      0.0069122025520424735,
+      0.014379070237601078
+    ],
+    "rmse_waves": [
+      0.0008406319185863536,
+      0.0018696493675144255
+    ]
+  },
+  "grid_rmse_waves": [
+    [
+      0.0018668428658120534,
+      0.0010026753407410833,
+      0.0009635142848555133,
+      0.0009283678429093705,
+      0.0009038045265639734,
+      0.0008702653528151038,
+      0.000853881475419767
+    ],
+    [
+      0.0018696493675144255,
+      0.001815210918447369,
+      0.0009615937649234636,
+      0.0009215853251071175,
+      0.000883504576227971,
+      0.000863201952879185,
+      0.00084988026686339
+    ],
+    [
+      0.0018476319789546402,
+      0.0018235941714013432,
+      0.0009567512114755797,
+      0.000927242323346611,
+      0.0008825799916547658,
+      0.0008574941746068847,
+      0.000848071352259275
+    ],
+    [
+      0.0018454492431006961,
+      0.001831842232949361,
+      0.0009478386022185216,
+      0.0009326805319639062,
+      0.0008894688098689565,
+      0.0008501341663086481,
+      0.0008463436818813264
+    ],
+    [
+      0.0018452212716298696,
+      0.0018352187662132465,
+      0.000950615561430358,
+      0.00093095092686812,
+      0.0008920474805623582,
+      0.0008517008604778933,
+      0.0008444798538706298
+    ],
+    [
+      0.0018430039367621862,
+      0.0018219961922258075,
+      0.0009508643743126806,
+      0.0009302277653068445,
+      0.0008828030633399069,
+      0.0008529000861445443,
+      0.0008449882773007942
+    ],
+    [
+      0.00184081432598641,
+      0.0018103631387393682,
+      0.0009475929408224752,
+      0.0009214103659051301,
+      0.0008784763250079892,
+      0.0008506234573386447,
+      0.0008406319185863536
+    ]
+  ],
+  "source": {
+    "baseline_directory": "work/handoff-20261021/output/diffraction/reference_compare",
+    "existing_run": "output/diffraction/followup_20261021/stage2a_center_axis_complete13",
+    "existing_manifest_sha256": "987f06d4bb03df088ccc0ddaea9f25b9e61c9189b35ddbbf1791f33fd6c2227e",
+    "existing_results_sha256": "c873ce9f4e02a666e6dbd449040a6857c7b27db3c144d26847e4134ef960af11",
+    "baseline_observation": {
+      "path": "work/handoff-20261021/output/diffraction/reference_compare/baseline_observation.npz",
+      "file_sha256": "66ac6c50565068c2b71e9fad39b0e32d6a726dd4ca9b110a8dd107b9ec0ac309",
+      "observed_array_sha256": "595d25d4924ee1aa6bf6a80ed3e59caa0d17f4d206134c61c1e879ee41fd80c7",
+      "raw_intensity_array_sha256": "7b4d84e50e6c1767cd62b207b547a276efc7a22589014f82141ff8c12940857e",
+      "truth_array_sha256": "61efb9cf9e8f7f10afdf62ea5b55ec20ff4275ced8b7139f59a09c547f1cf5da"
+    },
+    "baseline_calibration": {
+      "path": "work/handoff-20261021/output/diffraction/reference_compare/baseline_calibration.npz",
+      "file_sha256": "dfb73d816011f167cfdb91f1eba497d03f4c54321d38d53a7117078b9abe2f80",
+      "json_path": "work/handoff-20261021/output/diffraction/reference_compare/baseline_calibration.json",
+      "json_sha256": "574b18ac3dc3f5348fe856472907c5a3c00e4a37a26b4bbd7246302b22715f5f",
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0
+      },
+      "condition": 1.9729207881951345,
+      "held_out_mixed_validation": {
+        "rmse_waves": 0.00013254448092404843,
+        "rmse_waves_with_defocus_tilt": 0.00013254486406417363,
+        "pv_waves": 0.0010475569892416617,
+        "max_coefficient_error_waves": 0.0001231450459283868,
+        "coefficient_errors_waves": [
+          3.2644364115520796e-07,
+          -0.0001231450459283868,
+          4.843594503494645e-05,
+          -5.50247930750352e-07
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772
+      }
+    },
+    "baseline_results": {
+      "path": "work/handoff-20261021/output/diffraction/reference_compare/results.json",
+      "file_sha256": "3a8dbde5bdfae19495117d8e1f5cb97e6cacd3d7bc33069be0a81582431f6960"
+    },
+    "reused_direct": {
+      "reused": true,
+      "source": "work/handoff-20261021/output/diffraction/reference_compare/results.json",
+      "row": {
+        "case": "baseline",
+        "method": "direct",
+        "status": "ok",
+        "seconds": 22.376347041979898,
+        "converged": true,
+        "full_intensity_rms": 5.165183252425839e-17,
+        "starts": 1,
+        "nfev": 6,
+        "gain": 3788305977967.3467,
+        "background": -6.16113640508264e-18,
+        "coeffs_waves": [
+          0.07010907044572459,
+          0.042065442267434756,
+          0.014021814089144921,
+          0.05608725635657968
+        ],
+        "rmse_waves": 4.240075395645104e-18,
+        "rmse_waves_with_defocus_tilt": 4.240177507875452e-18,
+        "pv_waves": 1.1094931125764304e-16,
+        "max_coefficient_error_waves": 1.734723475976807e-18,
+        "coefficient_errors_waves": [
+          0.0,
+          0.0,
+          1.734723475976807e-18,
+          0.0
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772
+      },
+      "note": "same canonical observation; not refitted in this batch"
+    },
+    "existing_hash_checks": {
+      "observation_file_sha256": {
+        "existing": "66ac6c50565068c2b71e9fad39b0e32d6a726dd4ca9b110a8dd107b9ec0ac309",
+        "current": "66ac6c50565068c2b71e9fad39b0e32d6a726dd4ca9b110a8dd107b9ec0ac309"
+      },
+      "observation_array_sha256": {
+        "existing": "595d25d4924ee1aa6bf6a80ed3e59caa0d17f4d206134c61c1e879ee41fd80c7",
+        "current": "595d25d4924ee1aa6bf6a80ed3e59caa0d17f4d206134c61c1e879ee41fd80c7"
+      },
+      "calibration_file_sha256": {
+        "existing": "dfb73d816011f167cfdb91f1eba497d03f4c54321d38d53a7117078b9abe2f80",
+        "current": "dfb73d816011f167cfdb91f1eba497d03f4c54321d38d53a7117078b9abe2f80"
+      },
+      "calibration_json_sha256": {
+        "existing": "574b18ac3dc3f5348fe856472907c5a3c00e4a37a26b4bbd7246302b22715f5f",
+        "current": "574b18ac3dc3f5348fe856472907c5a3c00e4a37a26b4bbd7246302b22715f5f"
+      },
+      "baseline_results_sha256": {
+        "existing": "3a8dbde5bdfae19495117d8e1f5cb97e6cacd3d7bc33069be0a81582431f6960",
+        "current": "3a8dbde5bdfae19495117d8e1f5cb97e6cacd3d7bc33069be0a81582431f6960"
+      }
+    },
+    "large_arrays_copied": false
+  },
+  "per_new_point_seconds": {
+    "mean": 9.004754930163067,
+    "min": 8.105901549977716,
+    "max": 10.057164722995367
+  },
+  "peak_memory_mib": 2452.953125,
+  "output_directory": "output/diffraction/followup_20261021/stage2b_center_grid_49",
+  "notes": [
+    "The existing 13 points were verified against the canonical baseline hashes and reused unchanged.",
+    "Only the 36 off-axis points (x != 0 and y != 0) were computed in this batch.",
+    "The nominal half-width-20 calibration and canonical baseline observation were frozen.",
+    "The heatmap minimum is a post-hoc test-image sensitivity result, not an independently selected production centre.",
+    "No 7x7 extrapolation beyond +/-3 bins is claimed."
+  ],
+  "anomalies": {
+    "isolated_local_drop": {
+      "type": "isolated_local_drop",
+      "offset_x": -2.0,
+      "offset_y": -3.0,
+      "rmse_waves": 0.0010026753407410833,
+      "neighbour_median_waves": 0.001815210918447369,
+      "neighbour_median_minus_point_waves": 0.0008125355777062857,
+      "pv_waves": 0.008018453786752686,
+      "phase_residual_rms": 0.05938818016552258,
+      "coverage": 0.48314305555555553,
+      "status": "ok",
+      "neighbours": [
+        {
+          "offset_x": -3.0,
+          "offset_y": -3.0,
+          "rmse_waves": 0.0018668428658120534
+        },
+        {
+          "offset_x": -1.0,
+          "offset_y": -3.0,
+          "rmse_waves": 0.0009635142848555133
+        },
+        {
+          "offset_x": -2.0,
+          "offset_y": -2.0,
+          "rmse_waves": 0.001815210918447369
+        }
+      ],
+      "interpretation": "isolated local improvement relative to its in-grid neighbours; status ok but not a smooth trend; retained for review, not used as a production rule"
+    },
+    "boundary_minimum": {
+      "case": "grid_x_3_y_3",
+      "offset_x": 3.0,
+      "offset_y": 3.0,
+      "rmse_waves": 0.0008406319185863536,
+      "note": "located at the +/-3 grid boundary; no extrapolation"
+    },
+    "failed_rows": []
+  },
+  "scan_execution_seconds": 328.65067792500486,
+  "fixed_slice_ranges": {
+    "x_equals_0_y_slice": {
+      "min_waves": 0.0009214103659051301,
+      "max_waves": 0.0009326805319639062,
+      "variation_waves": 1.127016605877607e-05,
+      "note": "includes nominal (0,0); this is a fixed-x slice, not a full-grid range"
+    },
+    "x_equals_minus3_y_slice": {
+      "min_waves": 0.00184081432598641,
+      "max_waves": 0.0018696493675144255,
+      "variation_waves": 2.883504152801546e-05
+    },
+    "x_equals_plus3_y_slice": {
+      "min_waves": 0.0008406319185863536,
+      "max_waves": 0.000853881475419767,
+      "variation_waves": 1.324955683341348e-05
+    },
+    "warning": "Do not describe the y-slice range as an absolute full-grid range; the x=-3 column is about 1.8e-3."
+  }
+}

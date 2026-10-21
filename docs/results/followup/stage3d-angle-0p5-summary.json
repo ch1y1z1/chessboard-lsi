@@ -1,0 +1,962 @@
+{
+  "stage": "3d_angle_camera_x_pm05",
+  "status": "complete",
+  "row_count": 12,
+  "seconds": 1005.6382717420056,
+  "peak_memory_mib": 3300.25390625,
+  "note": "representative camera x +/-0.5 deg extension only; known/ignored, fixed/auto",
+  "rows": [
+    {
+      "case": "camera_x_-0.5_known",
+      "method": "direct",
+      "status": "ok",
+      "seconds": 31.32426550402306,
+      "converged": true,
+      "full_intensity_rms": 6.534926007116745e-17,
+      "starts": 1,
+      "nfev": 6,
+      "gain": 3828975852879.818,
+      "background": 6.689474577006913e-20,
+      "geometry": "known",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": -0.5,
+      "image_change_relative_l2": 0.4576580944092811,
+      "coeffs_waves": [
+        0.07010907044572459,
+        0.04206544226743476,
+        0.014021814089144918,
+        0.05608725635657968
+      ],
+      "rmse_waves": 1.0882042116051079e-17,
+      "rmse_waves_with_defocus_tilt": 1.0882394623764194e-17,
+      "pv_waves": 1.3879914351476583e-16,
+      "max_coefficient_error_waves": 6.938893903907228e-18,
+      "coefficient_errors_waves": [
+        0.0,
+        6.938893903907228e-18,
+        -1.734723475976807e-18,
+        0.0
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "camera_x_-0.5_known_fixed",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "coverage": 0.48314305555555553,
+      "phase_residual_rms": 0.08222571903918888,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "seconds": 10.908265267993556,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "calibration_condition": 1.899769481753299,
+      "calibration_settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "geometry": "known",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": -0.5,
+      "image_change_relative_l2": 0.4576580944092811,
+      "coeffs_waves": [
+        0.07094633119953374,
+        0.04255110563879188,
+        0.015063461405138338,
+        0.05636055787084006
+      ],
+      "rmse_waves": 0.001446085457750691,
+      "rmse_waves_with_defocus_tilt": 0.0014460859341445466,
+      "pv_waves": 0.010365051222010285,
+      "max_coefficient_error_waves": 0.0010416473159934186,
+      "coefficient_errors_waves": [
+        0.0008372607538091464,
+        0.0004856633713571229,
+        0.0010416473159934186,
+        0.0002733015142603809
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "camera_x_-0.5_known_auto",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "coverage": 0.48314305555555553,
+      "phase_residual_rms": 0.08275481373080823,
+      "centers": [
+        [
+          646.0,
+          600.0
+        ],
+        [
+          600.0,
+          646.0
+        ]
+      ],
+      "seconds": 10.555791826016502,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000002,
+          "equivalent_noise_bins": 1794.7822479555007,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "calibration_condition": 1.9026728278727265,
+      "calibration_settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "auto",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "auto",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "geometry": "known",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": -0.5,
+      "image_change_relative_l2": 0.4576580944092811,
+      "coeffs_waves": [
+        0.07066138471976653,
+        0.04252088061622314,
+        0.015051615454765915,
+        0.05624175172951487
+      ],
+      "rmse_waves": 0.0012619479796740698,
+      "rmse_waves_with_defocus_tilt": 0.001261948404147596,
+      "pv_waves": 0.009811653844510406,
+      "max_coefficient_error_waves": 0.0010298013656209956,
+      "coefficient_errors_waves": [
+        0.0005523142740419401,
+        0.0004554383487883826,
+        0.0010298013656209956,
+        0.00015449537293519416
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "camera_x_-0.5_ignored",
+      "method": "direct",
+      "status": "ok",
+      "seconds": 375.9161749140185,
+      "converged": false,
+      "full_intensity_rms": 0.13977263519662356,
+      "starts": 1,
+      "nfev": 60,
+      "gain": 2926199900838.249,
+      "background": 0.05397424814928598,
+      "geometry": "ignored",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": -0.5,
+      "image_change_relative_l2": 0.4576580944092811,
+      "coeffs_waves": [
+        0.06555937142547553,
+        0.055841675202563515,
+        0.053238143328658005,
+        0.06027779337685833
+      ],
+      "rmse_waves": 0.041972774030015314,
+      "rmse_waves_with_defocus_tilt": 0.04197278520437848,
+      "pv_waves": 0.35079175355499315,
+      "max_coefficient_error_waves": 0.039216329239513084,
+      "coefficient_errors_waves": [
+        -0.004549699020249057,
+        0.013776232935128759,
+        0.039216329239513084,
+        0.004190537020278655
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "camera_x_-0.5_ignored_fixed",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "coverage": 0.48314305555555553,
+      "phase_residual_rms": 0.2379802964435618,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "seconds": 11.368199746997561,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "calibration_condition": 1.9729207881951834,
+      "calibration_settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "geometry": "ignored",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": -0.5,
+      "image_change_relative_l2": 0.4576580944092811,
+      "coeffs_waves": [
+        0.06423324508324933,
+        -0.42830727364658183,
+        0.26415322483887654,
+        0.052759715008186936
+      ],
+      "rmse_waves": 0.5338277407100274,
+      "rmse_waves_with_defocus_tilt": 0.5338291502038734,
+      "pv_waves": 4.338551821926755,
+      "max_coefficient_error_waves": 0.4703727159140166,
+      "coefficient_errors_waves": [
+        -0.005875825362475259,
+        -0.4703727159140166,
+        0.2501314107497316,
+        -0.0033275413483927416
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "camera_x_-0.5_ignored_auto",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "coverage": 0.48314305555555553,
+      "phase_residual_rms": 0.2391183905129536,
+      "centers": [
+        [
+          646.0,
+          600.0
+        ],
+        [
+          600.0,
+          646.0
+        ]
+      ],
+      "seconds": 10.701106032996904,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000002,
+          "equivalent_noise_bins": 1794.7822479555007,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "calibration_condition": 1.9740524370157415,
+      "calibration_settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "auto",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "auto",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "geometry": "ignored",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": -0.5,
+      "image_change_relative_l2": 0.4576580944092811,
+      "coeffs_waves": [
+        0.06403475782996551,
+        -0.42787770726341096,
+        0.2644830288702902,
+        0.0526940653172695
+      ],
+      "rmse_waves": 0.5336069876736272,
+      "rmse_waves_with_defocus_tilt": 0.533608395362929,
+      "pv_waves": 4.337902819756264,
+      "max_coefficient_error_waves": 0.4699431495308457,
+      "coefficient_errors_waves": [
+        -0.006074312615759081,
+        -0.4699431495308457,
+        0.25046121478114525,
+        -0.003393191039310177
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "camera_x_0.5_known",
+      "method": "direct",
+      "status": "ok",
+      "seconds": 31.623100476019317,
+      "converged": true,
+      "full_intensity_rms": 6.457402706856775e-17,
+      "starts": 1,
+      "nfev": 6,
+      "gain": 3792882165680.981,
+      "background": 1.7029357568852534e-18,
+      "geometry": "known",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": 0.5,
+      "image_change_relative_l2": 0.455440150780227,
+      "coeffs_waves": [
+        0.07010907044572459,
+        0.042065442267434756,
+        0.01402181408914492,
+        0.056087256356579684
+      ],
+      "rmse_waves": 1.0336312829517303e-17,
+      "rmse_waves_with_defocus_tilt": 1.0336542853207679e-17,
+      "pv_waves": 1.112564601184329e-16,
+      "max_coefficient_error_waves": 6.938893903907228e-18,
+      "coefficient_errors_waves": [
+        0.0,
+        0.0,
+        0.0,
+        6.938893903907228e-18
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "camera_x_0.5_known_fixed",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "coverage": 0.48314305555555553,
+      "phase_residual_rms": 0.10060147461473916,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "seconds": 10.75747929199133,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "calibration_condition": 1.8992822308278783,
+      "calibration_settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "geometry": "known",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": 0.5,
+      "image_change_relative_l2": 0.455440150780227,
+      "coeffs_waves": [
+        0.07087119006350359,
+        0.042046924681903304,
+        0.013482125352815625,
+        0.057248331520099865
+      ],
+      "rmse_waves": 0.0014884540159255492,
+      "rmse_waves_with_defocus_tilt": 0.0014884558089029594,
+      "pv_waves": 0.010181095749910024,
+      "max_coefficient_error_waves": 0.001161075163520188,
+      "coefficient_errors_waves": [
+        0.0007621196177790002,
+        -1.851758553145233e-05,
+        -0.0005396887363292944,
+        0.001161075163520188
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "camera_x_0.5_known_auto",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "coverage": 0.48314305555555553,
+      "phase_residual_rms": 0.1001132653654694,
+      "centers": [
+        [
+          646.0,
+          600.0
+        ],
+        [
+          600.0,
+          646.0
+        ]
+      ],
+      "seconds": 10.73734593798872,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000002,
+          "equivalent_noise_bins": 1794.7822479555007,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "calibration_condition": 1.9016549594989685,
+      "calibration_settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "auto",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "auto",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "geometry": "known",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": 0.5,
+      "image_change_relative_l2": 0.455440150780227,
+      "coeffs_waves": [
+        0.07058129048911892,
+        0.04228209376018664,
+        0.013550149557947923,
+        0.05722156970875041
+      ],
+      "rmse_waves": 0.001333058066445137,
+      "rmse_waves_with_defocus_tilt": 0.001333060176611308,
+      "pv_waves": 0.008562596626663907,
+      "max_coefficient_error_waves": 0.001134313352170735,
+      "coefficient_errors_waves": [
+        0.0004722200433943252,
+        0.00021665149275188617,
+        -0.0004716645311969962,
+        0.001134313352170735
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "camera_x_0.5_ignored",
+      "method": "direct",
+      "status": "ok",
+      "seconds": 250.33835090699722,
+      "converged": true,
+      "full_intensity_rms": 0.13866277471795063,
+      "starts": 1,
+      "nfev": 51,
+      "gain": 2927794085572.125,
+      "background": 0.05582684316956815,
+      "geometry": "ignored",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": 0.5,
+      "image_change_relative_l2": 0.455440150780227,
+      "coeffs_waves": [
+        0.09050680581461813,
+        0.059224880454187764,
+        0.005588379162818112,
+        0.019155757846982577
+      ],
+      "rmse_waves": 0.0463857499193071,
+      "rmse_waves_with_defocus_tilt": 0.04638583864018899,
+      "pv_waves": 0.4015215937523955,
+      "max_coefficient_error_waves": 0.0369314985095971,
+      "coefficient_errors_waves": [
+        0.02039773536889354,
+        0.017159438186753008,
+        -0.008433434926326807,
+        -0.0369314985095971
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "camera_x_0.5_ignored_fixed",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "coverage": 0.48314305555555553,
+      "phase_residual_rms": 0.25924181382107914,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "seconds": 11.40131902199937,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "calibration_condition": 1.9729207881951834,
+      "calibration_settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "geometry": "ignored",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": 0.5,
+      "image_change_relative_l2": 0.455440150780227,
+      "coeffs_waves": [
+        0.06601647711062966,
+        0.506617266157335,
+        -0.2445741948764521,
+        0.05622011157376855
+      ],
+      "rmse_waves": 0.5327565090650238,
+      "rmse_waves_with_defocus_tilt": 0.5327578904215645,
+      "pv_waves": 4.35795042949017,
+      "max_coefficient_error_waves": 0.4645518238899003,
+      "coefficient_errors_waves": [
+        -0.0040925933350949295,
+        0.4645518238899003,
+        -0.25859600896559704,
+        0.00013285521718887222
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "camera_x_0.5_ignored_auto",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "coverage": 0.48314305555555553,
+      "phase_residual_rms": 0.25966865438482095,
+      "centers": [
+        [
+          646.0,
+          600.0
+        ],
+        [
+          600.0,
+          646.0
+        ]
+      ],
+      "seconds": 10.4843481380085,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000002,
+          "equivalent_noise_bins": 1794.7822479555007,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "calibration_condition": 1.9740524370157415,
+      "calibration_settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "auto",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "auto",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "geometry": "ignored",
+      "component": "camera",
+      "axis": "x",
+      "angle_deg": 0.5,
+      "image_change_relative_l2": 0.455440150780227,
+      "coeffs_waves": [
+        0.06423250241128575,
+        0.5061862060511099,
+        -0.24487988401312075,
+        0.055601915690795145
+      ],
+      "rmse_waves": 0.5325463290890169,
+      "rmse_waves_with_defocus_tilt": 0.5325477086063682,
+      "pv_waves": 4.359587400389962,
+      "max_coefficient_error_waves": 0.4641207637836751,
+      "coefficient_errors_waves": [
+        -0.005876568034438839,
+        0.4641207637836751,
+        -0.25890169810226565,
+        -0.00048534066578453244
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    }
+  ]
+}

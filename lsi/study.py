@@ -147,7 +147,7 @@ class Study:
                             truth_wavefront=model.wavefront(self.truth))
         return image
 
-    def calibrate(self, model, settings, name, images=None):
+    def calibrate(self, model, settings, name, images=None, save_training_images=True):
         print(f'calibrate {name}: {len(self.indices)} modes, {len(model.config.sources)} sources', flush=True)
         started = perf_counter()
         cache_used = None
@@ -182,15 +182,24 @@ class Study:
         np.savez_compressed(self.output/f'{name}_calibration_validation.npz',
                             observed=validation_image, truth=validation_truth,
                             fitted=validation['coeffs_waves'])
-        np.savez_compressed(self.output/f'{name}_calibration.npz', baseline=cal.baseline,
-                            response=cal.response, reference_image=cal.reference_image,
-                            training_images=np.asarray(images),
-                            indices=cal.indices, amplitude=cal.amplitude)
+        training_digest = sha256()
+        for training_image in images:
+            training_digest.update(np.ascontiguousarray(training_image).tobytes())
+        payload = {'baseline': cal.baseline, 'response': cal.response,
+                   'reference_image': cal.reference_image,
+                   'indices': cal.indices, 'amplitude': cal.amplitude}
+        if save_training_images:
+            # Large diagnostic recalibrations can omit the images: the exact
+            # deterministic training set is identified by its digest instead.
+            payload['training_images'] = np.asarray(images)
+        np.savez_compressed(self.output/f'{name}_calibration.npz', **payload)
         write_json(self.output/f'{name}_calibration.json', {
             'config': cal.config, 'settings': cal.settings, 'amplitude_waves': cal.amplitude,
             'units': 'object-pupil waves', 'phase_reference': 'independent zero-aberration image',
             'condition': float(np.linalg.cond(cal.response)), 'seconds': perf_counter()-started,
             'training_image_cache': cache_used,
+            'training_image_sha256': training_digest.hexdigest(),
+            'training_images_saved': bool(save_training_images),
             'held_out_mixed_validation': validation_error,
             'training_cases': 'zero and symmetric single modes; no mixed test wavefronts'})
         return cal, images
@@ -210,6 +219,11 @@ class Study:
                              samples=self.args.samples, max_nfev=self.args.max_nfev, progress=True,
                              screen_initials=self.args.screen_initials)
         np.save(self.output/f'{name}_sample_rows.npy', result.pop('sample_rows'))
+        for trial in result['trials']:
+            # Preserve every start, including failures and local minima, with
+            # the same common metric used for the selected solution.
+            trial['metrics'] = wavefront_metrics(self.model, trial['coeffs'], self.truth,
+                                                 self.args.recovery_tolerance)
         write_json(self.output/f'{name}_direct_trials.json', result)
         best = result['trials'][result['best_trial']]
         row = self.append(name, 'direct', result['coeffs'], seconds=result['seconds'],
@@ -267,31 +281,55 @@ class Study:
         cases += [(f'erosion_{e}', replace(self.settings, erosion=e)) for e in self.args.erosions]
         cases += [(f'amplitude_{a:g}', replace(self.settings, amplitude_threshold=a)) for a in self.args.thresholds]
         cases += [('subpixel', replace(self.settings, subpixel=True))]
-        # Choose an operational width on an independent mixed validation scene;
-        # the test image and its truth never enter this choice.
-        rng = np.random.default_rng(5891)
-        selection_truth = rng.normal(size=len(self.indices))
-        wf = self.model.wavefront(selection_truth)
-        selection_truth *= self.args.selection_validation_rms / np.std(wf[self.model.pupil])
-        selection_image = self.model.evaluate(selection_truth)
-        scores = []
-        for width in self.args.widths:
-            settings = replace(self.settings, half_width=width)
-            selection_cal = cal
-            if self.args.recalibrate_windows:
-                selection_cal, _ = self.calibrate(self.model, settings, f'validation_width_{width:g}', images=images)
-            fit = selection_cal.reconstruct(FourierExtractor(self.config, settings), selection_image)
-            score = wavefront_metrics(self.model, fit['coeffs_waves'], selection_truth)
-            scores.append({'half_width': width, 'validation_rmse_waves': score['rmse_waves']})
+        # Choose an operational width on independent mixed validation scenes;
+        # the test image and its truth never enter this choice.  Repeating the
+        # check with independent draws avoids basing the production window on a
+        # single lucky validation sample.
+        repeats = max(1, self.args.selection_validation_repeats)
+        width_cals = {}
+        if self.args.recalibrate_windows:
+            for width in self.args.widths:
+                width_cals[float(width)], _ = self.calibrate(
+                    self.model, replace(self.settings, half_width=width), f'width_{width:g}',
+                    images=images, save_training_images=False)
+        per_width = {float(width): [] for width in self.args.widths}
+        selection_records, validation_images, validation_truths = [], [], []
+        for repeat in range(repeats):
+            rng = np.random.default_rng(5891 + repeat)
+            selection_truth = rng.normal(size=len(self.indices))
+            wf = self.model.wavefront(selection_truth)
+            selection_truth *= self.args.selection_validation_rms / np.std(wf[self.model.pupil])
+            selection_image = self.model.evaluate(selection_truth)
+            validation_images.append(selection_image)
+            validation_truths.append(selection_truth)
+            record = {'repeat': repeat, 'seed': 5891 + repeat,
+                      'validation_rms': self.args.selection_validation_rms, 'scores': []}
+            for width in self.args.widths:
+                settings = replace(self.settings, half_width=width)
+                selection_cal = width_cals.get(float(width), cal)
+                fit = selection_cal.reconstruct(FourierExtractor(self.config, settings), selection_image)
+                score = wavefront_metrics(self.model, fit['coeffs_waves'], selection_truth)
+                per_width[float(width)].append(score['rmse_waves'])
+                record['scores'].append({'half_width': width,
+                                         'validation_rmse_waves': score['rmse_waves']})
+            selection_records.append(record)
+        scores = [{'half_width': width,
+                   'validation_rmse_waves': float(np.mean(values)),
+                   'validation_rmse_std_waves': float(np.std(values)),
+                   'per_repeat': values}
+                  for width, values in per_width.items()]
         selected = min(scores, key=lambda row: row['validation_rmse_waves'])['half_width']
-        write_json(self.output/'width_selection.json', {'validation_truth': selection_truth,
-                   'validation_seed': 5891, 'validation_rms': self.args.selection_validation_rms,
-                   'scores': scores, 'selected_width': selected, 'test_truth_used': False})
-        np.savez_compressed(self.output/'width_selection_validation.npz', observed=selection_image,
-                            truth=selection_truth)
+        write_json(self.output/'width_selection.json', {
+                   'validation_seeds': [5891 + i for i in range(repeats)],
+                   'repeats': repeats, 'validation_rms': self.args.selection_validation_rms,
+                   'scores': scores, 'per_repeat': selection_records,
+                   'selected_width': selected, 'test_truth_used': False})
+        np.savez_compressed(self.output/'width_selection_validation.npz',
+                            observed=np.asarray(validation_images),
+                            truth=np.asarray(validation_truths))
         cases.append(('selected_width', replace(self.settings, half_width=selected)))
         if self.args.cross_angles:
-            # A separate cross sweep records angle × half-width. Nominal (zero
+            # A separate cross sweep records angle x half-width. Nominal (zero
             # angle) calibration stays fixed, so this is an ignored-angle study.
             for angle in self.args.cross_angles:
                 config = self.config.with_angle('camera', angle)
@@ -300,28 +338,48 @@ class Study:
                     self.solve_fourier(self.config, angled_image, cal,
                                        replace(self.settings, half_width=w),
                                        f'cross_{angle:g}_width_{w:g}', angle_deg=angle, scan='angle_width')
+        seen = set()
         for name, settings in cases:
+            if name in seen:
+                continue
+            seen.add(name)
             selected_cal = cal
             try:
-                if self.args.recalibrate_windows:
-                    selected_cal, _ = self.calibrate(self.model, settings, name, images=images)
+                if self.args.recalibrate_windows and settings != self.settings:
+                    if name.startswith('width_') or name == 'selected_width':
+                        selected_cal = width_cals[float(settings.half_width)]
+                    else:
+                        selected_cal, _ = self.calibrate(
+                            self.model, settings, name, images=images,
+                            save_training_images=False)
             except (ValueError, np.linalg.LinAlgError) as error:
                 self.append(name, 'fourier_calibrated', status='failed', stage='calibration', reason=str(error))
                 continue
             self.solve_fourier(self.config, image, selected_cal, settings, name,
-                               scan=('width' if name.startswith('width') else
+                               scan=('width' if name.startswith('width') or name == 'selected_width' else
                                      'center' if name.startswith('center') else name.split('_')[0]),
                                calibration_policy=('per_window' if self.args.recalibrate_windows else 'frozen_nominal'))
         self.plot_sweeps('regions')
         self.finish()
 
     def angles(self):
-        nominal_cal, _ = self.calibrate(self.model, self.settings, 'nominal')
+        # Fixed and automatic sideband centres are different extraction
+        # protocols.  Calibrate each protocol on its own geometry so the
+        # comparison is not biased by applying a fixed-centre response to an
+        # automatically recentred window.
+        settings_by_center = {mode: replace(self.settings, center_mode=mode)
+                              for mode in self.args.center_modes}
+        nominal_cals = {}
+        for center_mode, settings in settings_by_center.items():
+            nominal_cals[center_mode], _ = self.calibrate(
+                self.model, settings, f'nominal_{center_mode}', save_training_images=False)
         zero_image = self.observe(self.model, 'angle_zero')
         zero_direct, _ = self.solve_direct(self.model, zero_image, 'angle_zero', component='zero', angle_deg=0,
                                             axis='none', geometry='known_and_ignored')
-        self.solve_fourier(self.config, zero_image, nominal_cal, self.settings, 'angle_zero',
-                           component='zero', angle_deg=0, axis='none', geometry='known_and_ignored')
+        for center_mode, settings in settings_by_center.items():
+            case_name = 'angle_zero' if center_mode == 'fixed' else f'angle_zero_{center_mode}'
+            self.solve_fourier(self.config, zero_image, nominal_cals[center_mode], settings, case_name,
+                               component='zero', angle_deg=0, axis='none', geometry='known_and_ignored')
         for component, axis, angle in itertools.product(self.args.components, self.args.axes, self.args.angles):
             if angle == 0:
                 continue
@@ -338,20 +396,24 @@ class Study:
                 write_json(self.output/f'{name}_null_control.json', context)
                 self.append(name, 'direct', zero_direct['coeffs'], status='verified_null_control_reuse',
                              geometry='known_and_ignored', **context)
-                self.solve_fourier(config, image, nominal_cal, self.settings, name,
-                                   geometry='known_and_ignored', **context)
+                for center_mode, settings in settings_by_center.items():
+                    case_name = name if center_mode == 'fixed' else f'{name}_{center_mode}'
+                    self.solve_fourier(self.config, image, nominal_cals[center_mode], settings, case_name,
+                                       geometry='known_and_ignored', **context)
                 continue
             if 'known' in self.args.geometry:
-                cal, _ = self.calibrate(model, self.settings, name)
+                known_cals = {}
+                for center_mode, settings in settings_by_center.items():
+                    known_cals[center_mode], _ = self.calibrate(
+                        model, settings, f'{name}_known_{center_mode}', save_training_images=False)
                 self.solve_direct(model, image, name+'_known', geometry='known', **context)
-                for center_mode in self.args.center_modes:
-                    self.solve_fourier(config, image, cal, replace(self.settings, center_mode=center_mode),
+                for center_mode, settings in settings_by_center.items():
+                    self.solve_fourier(config, image, known_cals[center_mode], settings,
                                        name+'_known_'+center_mode, geometry='known', **context)
             if 'ignored' in self.args.geometry:
                 self.solve_direct(self.model, image, name+'_ignored', geometry='ignored', **context)
-                for center_mode in self.args.center_modes:
-                    self.solve_fourier(self.config, image, nominal_cal,
-                                       replace(self.settings, center_mode=center_mode),
+                for center_mode, settings in settings_by_center.items():
+                    self.solve_fourier(self.config, image, nominal_cals[center_mode], settings,
                                        name+'_ignored_'+center_mode, geometry='ignored', **context)
         self.plot_sweeps('angles')
         self.finish()
@@ -495,6 +557,8 @@ def main(argv=None):
     parser.add_argument('--thresholds', type=float, nargs='+', default=[0,.1,.3,.5])
     parser.add_argument('--recalibrate-windows', action='store_true', help='diagnostic; default freezes nominal calibration')
     parser.add_argument('--selection-validation-rms', type=float, default=.05)
+    parser.add_argument('--selection-validation-repeats', type=int, default=1,
+                        help='independent mixed validation draws used to choose a window')
     parser.add_argument('--cross-angles', type=float, nargs='*', default=[])
     parser.add_argument('--components', nargs='+', choices=('object','grating','camera'), default=['object','grating','camera'])
     parser.add_argument('--axes', nargs='+', choices=('x','y','diagonal'), default=['x','y'])
@@ -513,6 +577,8 @@ def main(argv=None):
                      'do not run large experiments on this memory-limited machine')
     if args.workers < 1 or args.batch_sources < 1:
         parser.error('--workers and --batch-sources must be positive')
+    if args.selection_validation_repeats < 1:
+        parser.error('--selection-validation-repeats must be positive')
     try:
         with exclusive_study(), interrupt_on_termination():
             study = Study(args, config)

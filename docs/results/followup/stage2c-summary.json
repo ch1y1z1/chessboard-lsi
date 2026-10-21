@@ -1,0 +1,532 @@
+{
+  "stage": "2c_shape_and_anomaly",
+  "shape": {
+    "stage": "2c_shape_aspect",
+    "status": "complete",
+    "batch_started_at": "2026-10-21T14:43:27+00:00",
+    "finished_at": "2026-10-21T14:45:50+00:00",
+    "completed_new": 4,
+    "reused": 1,
+    "failed": 0,
+    "row_count": 5,
+    "rows": [
+      {
+        "case": "center_x_0",
+        "method": "fourier_calibrated",
+        "status": "ok",
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "settings": {
+          "half_width": 20,
+          "aspect": 1.0,
+          "offset_x": 0.0,
+          "offset_y": 0.0,
+          "shape": "rect",
+          "window_sigma": 2.0,
+          "carrier_x": 44,
+          "carrier_y": 44,
+          "recenter_adjust_x": -1,
+          "recenter_adjust_y": -1,
+          "phase_sigma": 10.0,
+          "shear_adjust": 1.0,
+          "erosion": 0,
+          "amplitude_threshold": 0.0,
+          "center_mode": "fixed",
+          "search_radius": 8,
+          "subpixel": false,
+          "regression": "lstsq",
+          "alpha": 0,
+          "lasso_max_iter": 1000,
+          "lasso_tol": 0.0001
+        },
+        "calibration_policy": "frozen_nominal",
+        "centers": [
+          [
+            644.0,
+            600.0
+          ],
+          [
+            600.0,
+            644.0
+          ]
+        ],
+        "coverage": 0.48314305555555553,
+        "phase_residual_rms": 0.05923835658602133,
+        "window_metrics": [
+          {
+            "weight_sum": 1600.0000000000005,
+            "equivalent_noise_bins": 1794.782247955501,
+            "dc_weight": 0.0
+          },
+          {
+            "weight_sum": 1600.0000000000005,
+            "equivalent_noise_bins": 1794.782247955501,
+            "dc_weight": 0.0
+          }
+        ],
+        "calibration_condition": 1.9729207881951338,
+        "coeffs_waves": [
+          0.07066966623186385,
+          0.042400367263784135,
+          0.014463811803689618,
+          0.05658818681879624
+        ],
+        "rmse_waves": 0.0009326805319639062,
+        "rmse_waves_with_defocus_tilt": 0.0009326813638104704,
+        "pv_waves": 0.007573176601243396,
+        "max_coefficient_error_waves": 0.0005605957861392619,
+        "coefficient_errors_waves": [
+          0.0005605957861392619,
+          0.00033492499634937833,
+          0.000441997714544699,
+          0.0005009304622165603
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772,
+        "seconds": 0.0,
+        "source_run": "output/diffraction/followup_20261021/stage2a_center_axis",
+        "reused": true,
+        "reused_from": "output/diffraction/followup_20261021/stage2b_center_grid_49/results_49.json",
+        "reused_source_sha256": "16d5c95ecf1c222f98ccec65bae0d539daf4771528fed7241fadb55ed66ff2eb",
+        "area_definition": "rect: half-width 20 x 20; continuous area 1600 bins^2"
+      },
+      {
+        "case": "shape_circle",
+        "method": "fourier_calibrated",
+        "status": "ok",
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "circle",
+        "aspect": 1.0,
+        "settings": {
+          "half_width": 20,
+          "aspect": 1.0,
+          "offset_x": 0.0,
+          "offset_y": 0.0,
+          "shape": "circle",
+          "window_sigma": 2.0,
+          "carrier_x": 44,
+          "carrier_y": 44,
+          "recenter_adjust_x": -1,
+          "recenter_adjust_y": -1,
+          "phase_sigma": 10.0,
+          "shear_adjust": 1.0,
+          "erosion": 0,
+          "amplitude_threshold": 0.0,
+          "center_mode": "fixed",
+          "search_radius": 8,
+          "subpixel": false,
+          "regression": "lstsq",
+          "alpha": 0,
+          "lasso_max_iter": 1000,
+          "lasso_tol": 0.0001
+        },
+        "area_definition": "circle: half-width 20; radius 20*2/sqrt(pi)=22.568; continuous area 1600 bins^2, equal to rect",
+        "calibration_policy": "frozen_nominal_rect",
+        "centers": [
+          [
+            644.0,
+            600.0
+          ],
+          [
+            600.0,
+            644.0
+          ]
+        ],
+        "coverage": 0.48314305555555553,
+        "phase_residual_rms": 0.05870144658377358,
+        "window_metrics": [
+          {
+            "weight_sum": 1605.0000000000005,
+            "equivalent_noise_bins": 1782.0665588912877,
+            "dc_weight": 0.0
+          },
+          {
+            "weight_sum": 1605.0000000000005,
+            "equivalent_noise_bins": 1782.0665588912877,
+            "dc_weight": 0.0
+          }
+        ],
+        "calibration_condition": 1.9729207881951338,
+        "coeffs_waves": [
+          0.07063901491405784,
+          0.04239159280072404,
+          0.014453696936793853,
+          0.05654914399778385
+        ],
+        "rmse_waves": 0.0008857208250286666,
+        "rmse_waves_with_defocus_tilt": 0.0008857216019812039,
+        "pv_waves": 0.007205573362333861,
+        "max_coefficient_error_waves": 0.0005299444683332516,
+        "coefficient_errors_waves": [
+          0.0005299444683332516,
+          0.000326150533289285,
+          0.00043188284764893344,
+          0.0004618876412041742
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772,
+        "reused": false,
+        "seconds": 10.151078936993144
+      },
+      {
+        "case": "shape_ellipse_0.5",
+        "method": "fourier_calibrated",
+        "status": "ok",
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "ellipse",
+        "aspect": 0.5,
+        "settings": {
+          "half_width": 20,
+          "aspect": 0.5,
+          "offset_x": 0.0,
+          "offset_y": 0.0,
+          "shape": "ellipse",
+          "window_sigma": 2.0,
+          "carrier_x": 44,
+          "carrier_y": 44,
+          "recenter_adjust_x": -1,
+          "recenter_adjust_y": -1,
+          "phase_sigma": 10.0,
+          "shear_adjust": 1.0,
+          "erosion": 0,
+          "amplitude_threshold": 0.0,
+          "center_mode": "fixed",
+          "search_radius": 8,
+          "subpixel": false,
+          "regression": "lstsq",
+          "alpha": 0,
+          "lasso_max_iter": 1000,
+          "lasso_tol": 0.0001
+        },
+        "area_definition": "ellipse: aspect=0.5; hx=20/sqrt(0.5), hy=20*sqrt(0.5); continuous area 1600 bins^2, equal to rect",
+        "calibration_policy": "frozen_nominal_rect",
+        "centers": [
+          [
+            644.0,
+            600.0
+          ],
+          [
+            600.0,
+            644.0
+          ]
+        ],
+        "coverage": 0.48314305555555553,
+        "phase_residual_rms": 0.06022811570579632,
+        "window_metrics": [
+          {
+            "weight_sum": 1589.0000000000002,
+            "equivalent_noise_bins": 1782.9947759676195,
+            "dc_weight": 0.0
+          },
+          {
+            "weight_sum": 1589.0000000000007,
+            "equivalent_noise_bins": 1782.9947759676202,
+            "dc_weight": 0.0
+          }
+        ],
+        "calibration_condition": 1.9729207881951338,
+        "coeffs_waves": [
+          0.07060476254606479,
+          0.04222350247162474,
+          0.014549499795572917,
+          0.05661299864019567
+        ],
+        "rmse_waves": 0.0009074151949834596,
+        "rmse_waves_with_defocus_tilt": 0.0009074158344826059,
+        "pv_waves": 0.006408080155175026,
+        "max_coefficient_error_waves": 0.0005276857064279977,
+        "coefficient_errors_waves": [
+          0.0004956921003402004,
+          0.0001580602041899859,
+          0.0005276857064279977,
+          0.0005257422836159945
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772,
+        "reused": false,
+        "seconds": 8.734147048002342
+      },
+      {
+        "case": "shape_ellipse_2",
+        "method": "fourier_calibrated",
+        "status": "ok",
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "ellipse",
+        "aspect": 2.0,
+        "settings": {
+          "half_width": 20,
+          "aspect": 2.0,
+          "offset_x": 0.0,
+          "offset_y": 0.0,
+          "shape": "ellipse",
+          "window_sigma": 2.0,
+          "carrier_x": 44,
+          "carrier_y": 44,
+          "recenter_adjust_x": -1,
+          "recenter_adjust_y": -1,
+          "phase_sigma": 10.0,
+          "shear_adjust": 1.0,
+          "erosion": 0,
+          "amplitude_threshold": 0.0,
+          "center_mode": "fixed",
+          "search_radius": 8,
+          "subpixel": false,
+          "regression": "lstsq",
+          "alpha": 0,
+          "lasso_max_iter": 1000,
+          "lasso_tol": 0.0001
+        },
+        "area_definition": "ellipse: aspect=2; hx=20/sqrt(2), hy=20*sqrt(2); continuous area 1600 bins^2, equal to rect",
+        "calibration_policy": "frozen_nominal_rect",
+        "centers": [
+          [
+            644.0,
+            600.0
+          ],
+          [
+            600.0,
+            644.0
+          ]
+        ],
+        "coverage": 0.48314305555555553,
+        "phase_residual_rms": 0.05944226631776112,
+        "window_metrics": [
+          {
+            "weight_sum": 1589.0000000000005,
+            "equivalent_noise_bins": 1782.9947759676195,
+            "dc_weight": 0.0
+          },
+          {
+            "weight_sum": 1589.0000000000005,
+            "equivalent_noise_bins": 1782.9947759676195,
+            "dc_weight": 0.0
+          }
+        ],
+        "calibration_condition": 1.9729207881951338,
+        "coeffs_waves": [
+          0.07074777230435057,
+          0.04248691849572909,
+          0.014522948431757823,
+          0.056624035477780915
+        ],
+        "rmse_waves": 0.0010588296096212004,
+        "rmse_waves_with_defocus_tilt": 0.0010588305801843348,
+        "pv_waves": 0.008758931589793593,
+        "max_coefficient_error_waves": 0.0006387018586259813,
+        "coefficient_errors_waves": [
+          0.0006387018586259813,
+          0.00042147622829433184,
+          0.0005011343426129036,
+          0.0005367791212012377
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772,
+        "reused": false,
+        "seconds": 8.594718728010776
+      },
+      {
+        "case": "shape_gaussian",
+        "method": "fourier_calibrated",
+        "status": "ok",
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "shape": "gaussian",
+        "aspect": 1.0,
+        "settings": {
+          "half_width": 20,
+          "aspect": 1.0,
+          "offset_x": 0.0,
+          "offset_y": 0.0,
+          "shape": "gaussian",
+          "window_sigma": 2.0,
+          "carrier_x": 44,
+          "carrier_y": 44,
+          "recenter_adjust_x": -1,
+          "recenter_adjust_y": -1,
+          "phase_sigma": 10.0,
+          "shear_adjust": 1.0,
+          "erosion": 0,
+          "amplitude_threshold": 0.0,
+          "center_mode": "fixed",
+          "search_radius": 8,
+          "subpixel": false,
+          "regression": "lstsq",
+          "alpha": 0,
+          "lasso_max_iter": 1000,
+          "lasso_tol": 0.0001
+        },
+        "area_definition": "gaussian: sx=20*sqrt(2/pi), sy=20*sqrt(2/pi); continuous integrated weight 1600 bins^2, equal to rect area; infinite support",
+        "calibration_policy": "frozen_nominal_rect",
+        "centers": [
+          [
+            644.0,
+            600.0
+          ],
+          [
+            600.0,
+            644.0
+          ]
+        ],
+        "coverage": 0.48314305555555553,
+        "phase_residual_rms": 0.05874648345030878,
+        "window_metrics": [
+          {
+            "weight_sum": 1600.0,
+            "equivalent_noise_bins": 3200.0,
+            "dc_weight": 0.022341103053503772
+          },
+          {
+            "weight_sum": 1599.9999999999998,
+            "equivalent_noise_bins": 3199.999999999998,
+            "dc_weight": 0.022341103053503772
+          }
+        ],
+        "calibration_condition": 1.9729207881951338,
+        "coeffs_waves": [
+          0.06986412793442803,
+          0.04165686367185914,
+          0.014033543899672384,
+          0.05592771251774663
+        ],
+        "rmse_waves": 0.0005023751218403311,
+        "rmse_waves_with_defocus_tilt": 0.0005023762794259388,
+        "pv_waves": 0.004378893342906188,
+        "max_coefficient_error_waves": 0.0004085785955756163,
+        "coefficient_errors_waves": [
+          -0.00024494251129655864,
+          -0.0004085785955756163,
+          1.1729810527464843e-05,
+          -0.00015954383883304973
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772,
+        "reused": false,
+        "seconds": 8.336226445011562
+      }
+    ],
+    "area_definitions": {
+      "center_x_0": "rect: half-width 20 x 20; continuous area 1600 bins^2",
+      "shape_circle": "circle: half-width 20; radius 20*2/sqrt(pi)=22.568; continuous area 1600 bins^2, equal to rect",
+      "shape_ellipse_0.5": "ellipse: aspect=0.5; hx=20/sqrt(0.5), hy=20*sqrt(0.5); continuous area 1600 bins^2, equal to rect",
+      "shape_ellipse_2": "ellipse: aspect=2; hx=20/sqrt(2), hy=20*sqrt(2); continuous area 1600 bins^2, equal to rect",
+      "shape_gaussian": "gaussian: sx=20*sqrt(2/pi), sy=20*sqrt(2/pi); continuous integrated weight 1600 bins^2, equal to rect area; infinite support"
+    },
+    "fixed_calibration_note": "rect half-width-20 calibration is frozen; shape changes are not independently recalibrated",
+    "source": {
+      "baseline_observation_sha256": "66ac6c50565068c2b71e9fad39b0e32d6a726dd4ca9b110a8dd107b9ec0ac309",
+      "baseline_calibration_sha256": "dfb73d816011f167cfdb91f1eba497d03f4c54321d38d53a7117078b9abe2f80",
+      "stage2b_results_sha256": "16d5c95ecf1c222f98ccec65bae0d539daf4771528fed7241fadb55ed66ff2eb"
+    },
+    "peak_memory_mib": 2443.01171875
+  },
+  "anomaly": {
+    "stage": "2c_anomaly_diagnostic",
+    "status": "complete",
+    "points": [
+      "(-2,-3)",
+      "(-2,-2)"
+    ],
+    "stored_values": {
+      "(-2,-3)": {
+        "rmse_waves": 0.0010026753407410833,
+        "pv_waves": 0.008018453786752686,
+        "phase_residual_rms": 0.05938818016552258,
+        "coverage": 0.48314305555555553,
+        "coeffs_waves": [
+          0.07067267807616623,
+          0.04241688375944734,
+          0.01452199723493735,
+          0.05665054362367549
+        ]
+      },
+      "(-2,-2)": {
+        "rmse_waves": 0.001815210918447369,
+        "pv_waves": 0.013997350398553834,
+        "phase_residual_rms": 0.06570518120194943,
+        "coverage": 0.48314305555555553,
+        "coeffs_waves": [
+          0.0712217851872324,
+          0.04238307728297088,
+          0.014469598334177443,
+          0.05741581219191212
+        ]
+      }
+    },
+    "reproduction": {
+      "(-2,-3)": {
+        "rmse_delta_waves": 0.0,
+        "phase_residual_delta": 0.0,
+        "coverage_delta": 0.0,
+        "coeffs_max_abs_delta_waves": 0.0,
+        "centers_equal": true,
+        "settings_identical": true,
+        "raw_coeffs_comparison": "not available in source stage2b results"
+      },
+      "(-2,-2)": {
+        "rmse_delta_waves": 0.0,
+        "phase_residual_delta": 0.0,
+        "coverage_delta": 0.0,
+        "coeffs_max_abs_delta_waves": 0.0,
+        "centers_equal": true,
+        "settings_identical": true,
+        "raw_coeffs_comparison": "not available in source stage2b results"
+      }
+    },
+    "reproduction_conclusion": "stable exact reproduction; storage/nondeterminism is not the cause",
+    "neighbour_median_rmse_waves": 0.001815210918447369,
+    "neighbour_median_minus_anomaly_waves": 0.0008125355777062857,
+    "sideband_comparison": [
+      {
+        "sideband": 0,
+        "wrapped_difference_rms_rad": 0.020095837319932936,
+        "wrapped_difference_max_abs_rad": 6.277678132406279,
+        "unwrapped_difference_rms_rad": 0.05913214689390725,
+        "unwrapped_difference_max_abs_rad": 1.6257485967506016,
+        "unwrapped_difference_p99_abs_rad": 0.006903482242343564,
+        "fraction_abs_wrapped_difference_gt_pi_over_2": 1.1498779692005186e-05,
+        "fraction_abs_unwrapped_difference_gt_pi": 0.0,
+        "amplitude_ratio_median": 0.9999091506949325,
+        "window_overlap_fraction": 0.951219512195122
+      },
+      {
+        "sideband": 1,
+        "wrapped_difference_rms_rad": 0.01490793284676876,
+        "wrapped_difference_max_abs_rad": 6.236056328916142,
+        "unwrapped_difference_rms_rad": 0.003554246332858651,
+        "unwrapped_difference_max_abs_rad": 0.026679308435266356,
+        "unwrapped_difference_p99_abs_rad": 0.013906675221478685,
+        "fraction_abs_wrapped_difference_gt_pi_over_2": 4.312042384501945e-06,
+        "fraction_abs_unwrapped_difference_gt_pi": 0.0,
+        "amplitude_ratio_median": 0.9996222098252754,
+        "window_overlap_fraction": 0.951219512195122
+      }
+    ],
+    "max_wrapped_difference_rms_rad": 0.020095837319932936,
+    "max_unwrapped_difference_rms_rad": 0.05913214689390725,
+    "interpretation": "phase fields are similar after common processing; the isolated low value remains unexplained despite stable reproduction",
+    "unwrap_seed": {
+      "rng": 0
+    },
+    "large_arrays_saved": false,
+    "source": {
+      "baseline_observation_sha256": "66ac6c50565068c2b71e9fad39b0e32d6a726dd4ca9b110a8dd107b9ec0ac309",
+      "baseline_observation_array_sha256": "595d25d4924ee1aa6bf6a80ed3e59caa0d17f4d206134c61c1e879ee41fd80c7",
+      "baseline_calibration_sha256": "dfb73d816011f167cfdb91f1eba497d03f4c54321d38d53a7117078b9abe2f80",
+      "stage2b_results_sha256": "16d5c95ecf1c222f98ccec65bae0d539daf4771528fed7241fadb55ed66ff2eb"
+    },
+    "peak_memory_mib": 2574.32421875
+  },
+  "batch_started_at": "2026-10-21T14:43:27+00:00",
+  "finished_at": "2026-10-21T14:48:58+00:00",
+  "batch_wall_seconds": 331.0,
+  "peak_memory_mib": 2574.32421875,
+  "execution_note": "The combined script produced and saved the five shape rows, then failed while comparing a raw_coeffs field that stage 2b did not store. The anomaly diagnosis was rerun in a separate new directory without redoing the shape scan; failed partial diagnostic directories were removed."
+}

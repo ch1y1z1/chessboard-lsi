@@ -1,0 +1,374 @@
+{
+  "stage": "2a_center_axis",
+  "status": "complete",
+  "batch_started_at": "2026-10-21T14:25:22+00:00",
+  "merged_at": "2026-10-21T14:29:39+00:00",
+  "batch_wall_seconds": 272.0,
+  "planned_points": 13,
+  "completed_points": 13,
+  "failed_points": 0,
+  "row_count": 13,
+  "best_point_on_this_test_image": {
+    "case": "center_x_3",
+    "method": "fourier_calibrated",
+    "status": "ok",
+    "offset_x": 3.0,
+    "offset_y": 0.0,
+    "settings": {
+      "half_width": 20,
+      "aspect": 1.0,
+      "offset_x": 3.0,
+      "offset_y": 0.0,
+      "shape": "rect",
+      "window_sigma": 2.0,
+      "carrier_x": 44,
+      "carrier_y": 44,
+      "recenter_adjust_x": -1,
+      "recenter_adjust_y": -1,
+      "phase_sigma": 10.0,
+      "shear_adjust": 1.0,
+      "erosion": 0,
+      "amplitude_threshold": 0.0,
+      "center_mode": "fixed",
+      "search_radius": 8,
+      "subpixel": false,
+      "regression": "lstsq",
+      "alpha": 0,
+      "lasso_max_iter": 1000,
+      "lasso_tol": 0.0001
+    },
+    "calibration_policy": "frozen_nominal",
+    "centers": [
+      [
+        647.0,
+        600.0
+      ],
+      [
+        603.0,
+        644.0
+      ]
+    ],
+    "coverage": 0.48314305555555553,
+    "phase_residual_rms": 0.05938010026291772,
+    "window_metrics": [
+      {
+        "weight_sum": 1600.0000000000002,
+        "equivalent_noise_bins": 1794.7822479555007,
+        "dc_weight": 0.0
+      },
+      {
+        "weight_sum": 1600.0000000000005,
+        "equivalent_noise_bins": 1794.782247955501,
+        "dc_weight": 0.0
+      }
+    ],
+    "calibration_condition": 1.9729207881951338,
+    "coeffs_waves": [
+      0.07064234820775907,
+      0.04241423214567337,
+      0.014424763276403555,
+      0.05647487512759646
+    ],
+    "rmse_waves": 0.0008463436818813264,
+    "rmse_waves_with_defocus_tilt": 0.0008463444043705518,
+    "pv_waves": 0.00705558471064224,
+    "max_coefficient_error_waves": 0.0005332777620344759,
+    "coefficient_errors_waves": [
+      0.0005332777620344759,
+      0.0003487898782386159,
+      0.00040294918725863535,
+      0.00038761877101678444
+    ],
+    "recovered": true,
+    "recovery_tolerance_waves": 0.01,
+    "evaluation_pixels": 26772,
+    "seconds": 9.607763526000781,
+    "source_run": "output/diffraction/followup_20261021/stage2a_center_axis"
+  },
+  "nominal_point": {
+    "case": "center_x_0",
+    "method": "fourier_calibrated",
+    "status": "ok",
+    "offset_x": 0.0,
+    "offset_y": 0.0,
+    "settings": {
+      "half_width": 20,
+      "aspect": 1.0,
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "shape": "rect",
+      "window_sigma": 2.0,
+      "carrier_x": 44,
+      "carrier_y": 44,
+      "recenter_adjust_x": -1,
+      "recenter_adjust_y": -1,
+      "phase_sigma": 10.0,
+      "shear_adjust": 1.0,
+      "erosion": 0,
+      "amplitude_threshold": 0.0,
+      "center_mode": "fixed",
+      "search_radius": 8,
+      "subpixel": false,
+      "regression": "lstsq",
+      "alpha": 0,
+      "lasso_max_iter": 1000,
+      "lasso_tol": 0.0001
+    },
+    "calibration_policy": "frozen_nominal",
+    "centers": [
+      [
+        644.0,
+        600.0
+      ],
+      [
+        600.0,
+        644.0
+      ]
+    ],
+    "coverage": 0.48314305555555553,
+    "phase_residual_rms": 0.05923835658602133,
+    "window_metrics": [
+      {
+        "weight_sum": 1600.0000000000005,
+        "equivalent_noise_bins": 1794.782247955501,
+        "dc_weight": 0.0
+      },
+      {
+        "weight_sum": 1600.0000000000005,
+        "equivalent_noise_bins": 1794.782247955501,
+        "dc_weight": 0.0
+      }
+    ],
+    "calibration_condition": 1.9729207881951338,
+    "coeffs_waves": [
+      0.07066966623186385,
+      0.042400367263784135,
+      0.014463811803689618,
+      0.05658818681879624
+    ],
+    "rmse_waves": 0.0009326805319639062,
+    "rmse_waves_with_defocus_tilt": 0.0009326813638104704,
+    "pv_waves": 0.007573176601243396,
+    "max_coefficient_error_waves": 0.0005605957861392619,
+    "coefficient_errors_waves": [
+      0.0005605957861392619,
+      0.00033492499634937833,
+      0.000441997714544699,
+      0.0005009304622165603
+    ],
+    "recovered": true,
+    "recovery_tolerance_waves": 0.01,
+    "evaluation_pixels": 26772,
+    "seconds": 9.165791187988361,
+    "source_run": "output/diffraction/followup_20261021/stage2a_center_axis"
+  },
+  "axis_summary": {
+    "x": [
+      {
+        "offset": -3.0,
+        "rmse_waves": 0.0018454492431006961
+      },
+      {
+        "offset": -2.0,
+        "rmse_waves": 0.001831842232949361
+      },
+      {
+        "offset": -1.0,
+        "rmse_waves": 0.0009478386022185216
+      },
+      {
+        "offset": 0.0,
+        "rmse_waves": 0.0009326805319639062
+      },
+      {
+        "offset": 1.0,
+        "rmse_waves": 0.0008894688098689565
+      },
+      {
+        "offset": 2.0,
+        "rmse_waves": 0.0008501341663086481
+      },
+      {
+        "offset": 3.0,
+        "rmse_waves": 0.0008463436818813264
+      }
+    ],
+    "y": [
+      {
+        "offset": -3.0,
+        "rmse_waves": 0.0009283678429093705
+      },
+      {
+        "offset": -2.0,
+        "rmse_waves": 0.0009215853251071175
+      },
+      {
+        "offset": -1.0,
+        "rmse_waves": 0.000927242323346611
+      },
+      {
+        "offset": 1.0,
+        "rmse_waves": 0.00093095092686812
+      },
+      {
+        "offset": 2.0,
+        "rmse_waves": 0.0009302277653068445
+      },
+      {
+        "offset": 3.0,
+        "rmse_waves": 0.0009214103659051301
+      }
+    ]
+  },
+  "observation_and_calibration": {
+    "baseline_directory": "work/handoff-20261021/output/diffraction/reference_compare",
+    "baseline_observation": {
+      "path": "work/handoff-20261021/output/diffraction/reference_compare/baseline_observation.npz",
+      "file_sha256": "66ac6c50565068c2b71e9fad39b0e32d6a726dd4ca9b110a8dd107b9ec0ac309",
+      "observed_array_sha256": "595d25d4924ee1aa6bf6a80ed3e59caa0d17f4d206134c61c1e879ee41fd80c7",
+      "raw_intensity_array_sha256": "7b4d84e50e6c1767cd62b207b547a276efc7a22589014f82141ff8c12940857e",
+      "truth_array_sha256": "61efb9cf9e8f7f10afdf62ea5b55ec20ff4275ced8b7139f59a09c547f1cf5da"
+    },
+    "baseline_calibration": {
+      "path": "work/handoff-20261021/output/diffraction/reference_compare/baseline_calibration.npz",
+      "file_sha256": "dfb73d816011f167cfdb91f1eba497d03f4c54321d38d53a7117078b9abe2f80",
+      "json_path": "work/handoff-20261021/output/diffraction/reference_compare/baseline_calibration.json",
+      "json_sha256": "574b18ac3dc3f5348fe856472907c5a3c00e4a37a26b4bbd7246302b22715f5f",
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0
+      },
+      "condition": 1.9729207881951345,
+      "held_out_mixed_validation": {
+        "rmse_waves": 0.00013254448092404843,
+        "rmse_waves_with_defocus_tilt": 0.00013254486406417363,
+        "pv_waves": 0.0010475569892416617,
+        "max_coefficient_error_waves": 0.0001231450459283868,
+        "coefficient_errors_waves": [
+          3.2644364115520796e-07,
+          -0.0001231450459283868,
+          4.843594503494645e-05,
+          -5.50247930750352e-07
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772
+      }
+    },
+    "baseline_results": {
+      "path": "work/handoff-20261021/output/diffraction/reference_compare/results.json",
+      "file_sha256": "3a8dbde5bdfae19495117d8e1f5cb97e6cacd3d7bc33069be0a81582431f6960"
+    },
+    "frozen_run_comparison": {
+      "path": "output/diffraction/followup_20261021/regions_width_frozen/regions_observation.npz",
+      "max_abs_observed_difference": 1.4876988529977098e-14,
+      "used_for_this_scan": false,
+      "reason": "canonical baseline observation is used so its file/array hashes match the existing baseline exactly"
+    },
+    "direct_reference": {
+      "reused": true,
+      "source": "work/handoff-20261021/output/diffraction/reference_compare/results.json",
+      "row": {
+        "case": "baseline",
+        "method": "direct",
+        "status": "ok",
+        "seconds": 22.376347041979898,
+        "converged": true,
+        "full_intensity_rms": 5.165183252425839e-17,
+        "starts": 1,
+        "nfev": 6,
+        "gain": 3788305977967.3467,
+        "background": -6.16113640508264e-18,
+        "coeffs_waves": [
+          0.07010907044572459,
+          0.042065442267434756,
+          0.014021814089144921,
+          0.05608725635657968
+        ],
+        "rmse_waves": 4.240075395645104e-18,
+        "rmse_waves_with_defocus_tilt": 4.240177507875452e-18,
+        "pv_waves": 1.1094931125764304e-16,
+        "max_coefficient_error_waves": 1.734723475976807e-18,
+        "coefficient_errors_waves": [
+          0.0,
+          0.0,
+          1.734723475976807e-18,
+          0.0
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772
+      },
+      "note": "same canonical observation; not refitted in this batch"
+    },
+    "large_arrays_copied": false
+  },
+  "source_runs": [
+    {
+      "directory": "output/diffraction/followup_20261021/stage2a_center_axis",
+      "status": "complete",
+      "row_count": 10,
+      "planned_points": 13,
+      "manifest_sha256": "dd5bbb451da5cba4940088398e4279ffe512abd3923d4c923fa8223576b2edb9",
+      "results_sha256": "779c788e8a04e5ee44e02ec06fbce97642b242b798ce00e9d94ace4b704885d4",
+      "elapsed_seconds": 96.82395480800187,
+      "peak_memory_mib": 2629.59375,
+      "note": "first run emitted 10 rows although the historical manifest said planned 13; see execution_issue"
+    },
+    {
+      "directory": "output/diffraction/followup_20261021/stage2a_center_axis_supplement_yneg",
+      "status": "complete",
+      "row_count": 3,
+      "planned_points": 3,
+      "manifest_sha256": "b32759447f4ebedbbef77c9c4f01ca077971b47acaad7d3272e41390f3f5da4f",
+      "results_sha256": "dfc34ee844c9019bc0f69ea0ff02bb82bf0ae6296a1c426d37da4544e24c5549",
+      "elapsed_seconds": 30.134820389008382,
+      "peak_memory_mib": 2631.3125
+    }
+  ],
+  "output_directory": "output/diffraction/followup_20261021/stage2a_center_axis_complete13",
+  "notes": [
+    "Only 13 single-axis points were run; no 7x7 fill or other scan was started.",
+    "Nominal half-width 20 and nominal calibration were frozen; no per-centre recalibration.",
+    "The canonical baseline observation was used so hashes match the existing baseline.",
+    "The first generator default omitted y -1..-3; those were run separately and merged.",
+    "Test-image results are sensitivity analysis, not a production selection rule."
+  ],
+  "batch_finished_at": "2026-10-21T14:29:54+00:00",
+  "peak_memory_mib_max": 2631.3125,
+  "per_point_seconds": {
+    "mean_seconds": 9.280273858692873,
+    "min_seconds": 8.385432834009407,
+    "max_seconds": 10.051554341975134,
+    "peak_memory_mib_max": 2631.3125
+  },
+  "trend_summary": {
+    "nominal_rmse_waves": 0.0009326805319639062,
+    "x_negative_extreme_rmse_waves": 0.0018454492431006961,
+    "x_positive_extreme_rmse_waves": 0.0008463436818813264,
+    "y_min_rmse_waves": 0.0009214103659051301,
+    "y_max_rmse_waves": 0.00093095092686812,
+    "note": "single-axis test-image sensitivity only; no production centre selected"
+  },
+  "baseline_nominal_fourier_rmse_waves": 0.0009326805319630556,
+  "nominal_minus_baseline_waves": 8.505566043148782e-16,
+  "nominal_ratio_to_baseline": 1.000000000000912,
+  "x_minus3_ratio_to_nominal": 1.9786509741066551
+}

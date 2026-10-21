@@ -1,0 +1,155 @@
+{
+  "stage": "3b_noise_init",
+  "status": "complete",
+  "run": "output/diffraction/followup_20261021/stage3b_noise_init_v4",
+  "row_count": 19,
+  "noise": [
+    {
+      "case": "noise_snr40_seed42",
+      "noise_seed": 42,
+      "ft_rmse_waves": 0.0010291145380672702,
+      "direct_rmse_waves": 0.0005116938853492129,
+      "direct_nfev": 6,
+      "direct_converged": true
+    },
+    {
+      "case": "noise_snr40_seed43",
+      "noise_seed": 43,
+      "ft_rmse_waves": 0.001033727669673287,
+      "direct_rmse_waves": 0.00024072491501038503,
+      "direct_nfev": 6,
+      "direct_converged": true
+    },
+    {
+      "case": "noise_snr40_seed44",
+      "noise_seed": 44,
+      "ft_rmse_waves": 0.0009600743170739004,
+      "direct_rmse_waves": 0.00042621590355930867,
+      "direct_nfev": 6,
+      "direct_converged": true
+    }
+  ],
+  "rms": [
+    {
+      "case": "rms_0.05_dir0",
+      "rms_waves": 0.05,
+      "direction": 0,
+      "ft_rmse_waves": 0.00031375575708839657,
+      "direct_rmse_waves": 5.203637180111302e-18,
+      "direct_starts": 2,
+      "direct_nfev": 6,
+      "direct_converged": true
+    },
+    {
+      "case": "rms_0.05_dir1",
+      "rms_waves": 0.05,
+      "direction": 1,
+      "ft_rmse_waves": 0.00016707777837635213,
+      "direct_rmse_waves": 1.4557818789472305e-17,
+      "direct_starts": 2,
+      "direct_nfev": 5,
+      "direct_converged": true
+    },
+    {
+      "case": "rms_0.2_dir0",
+      "rms_waves": 0.2,
+      "direction": 0,
+      "ft_rmse_waves": 0.012468428952943963,
+      "direct_rmse_waves": 0.0,
+      "direct_starts": 2,
+      "direct_nfev": 7,
+      "direct_converged": true
+    },
+    {
+      "case": "rms_0.2_dir1",
+      "rms_waves": 0.2,
+      "direction": 1,
+      "ft_rmse_waves": 0.003635761764748182,
+      "direct_rmse_waves": 0.0,
+      "direct_starts": 2,
+      "direct_nfev": 7,
+      "direct_converged": true
+    },
+    {
+      "case": "rms_0.4_dir0",
+      "rms_waves": 0.4,
+      "direction": 0,
+      "ft_rmse_waves": 0.06617198187343175,
+      "direct_rmse_waves": 1.79098501379833e-15,
+      "direct_starts": 2,
+      "direct_nfev": 12,
+      "direct_converged": true
+    },
+    {
+      "case": "rms_0.4_dir1",
+      "rms_waves": 0.4,
+      "direction": 1,
+      "ft_rmse_waves": 0.021542291080150135,
+      "direct_rmse_waves": 0.0,
+      "direct_starts": 2,
+      "direct_nfev": 13,
+      "direct_converged": true
+    }
+  ],
+  "initialisation": {
+    "case": "init_stability_0.2_dir0",
+    "starts": 5,
+    "screen_initials": 8,
+    "trials": [
+      {
+        "trial": 0,
+        "converged": true,
+        "nfev": 7,
+        "rmse_waves": 0.0,
+        "initial_vector_norm": 0.0
+      },
+      {
+        "trial": 1,
+        "converged": true,
+        "nfev": 7,
+        "rmse_waves": 0.0,
+        "initial_vector_norm": 0.09982415969588859
+      },
+      {
+        "trial": 2,
+        "converged": true,
+        "nfev": 7,
+        "rmse_waves": 0.0,
+        "initial_vector_norm": 0.10018682298059786
+      },
+      {
+        "trial": 3,
+        "converged": true,
+        "nfev": 7,
+        "rmse_waves": 0.0,
+        "initial_vector_norm": 0.02998593302700225
+      },
+      {
+        "trial": 4,
+        "converged": true,
+        "nfev": 7,
+        "rmse_waves": 0.0,
+        "initial_vector_norm": 0.030016758834711076
+      }
+    ],
+    "best_trial": 3,
+    "all_converged": true
+  },
+  "peak_memory_mib_observed": 1023.0,
+  "batch_started_at_approx": "2026-10-21T15:54:30+00:00",
+  "batch_finished_at": "2026-10-21T16:10:01+00:00",
+  "batch_seconds_approx": 931,
+  "noise_definition": "SNR = 20 log10(clean peak / Gaussian noise sd); peak=1 after normalisation",
+  "noise_ft_calibration": "frozen zero-angle rect half-width-20 calibration",
+  "direct_initialisation": {
+    "noise": "single zero start",
+    "rms": "zero + one independent random start",
+    "stability": "zero + four candidates screened by observed intensity residual"
+  },
+  "truth_usage": "evaluation and amplitude scaling only; no truth initialisation",
+  "limitations": [
+    "40 dB uses three fixed noise seeds; this is not a general recovery-rate estimate.",
+    "0.05/0.2/0.4 waves use two random mode directions; no exhaustive mode study.",
+    "The 5-start stability case uses one 0.2-wave direction and observed-residual screening."
+  ]
+}

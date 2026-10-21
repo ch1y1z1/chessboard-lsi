@@ -1,0 +1,14 @@
+{
+  "source": "stage3-angle-progress.md and stage3-angle-summary.json from research commit 29be2cc",
+  "source_table_sha256": "6e9eb4afdcfaa4a0d21abe71d18385e86eaa6fbd8c3f9e0cc8dd57061b0874dd",
+  "change": "sort zero-angle baseline with negative and positive angles; mask exact zeros on logarithmic axes without changing their values",
+  "precision_note": "Nonzero RMSE values are the committed six-significant-digit display table; raw remote run arrays and result tables were not modified.",
+  "validation": {
+    "nonzero_rows": 48,
+    "unique_row_keys": 48,
+    "series_checked": 24,
+    "all_angles_sorted": true,
+    "exact_zeros_masked": true
+  },
+  "experiments_rerun": false
+}
