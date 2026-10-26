@@ -18,4 +18,4 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --all-groups
       - run: uv run pytest -q
-      - run: uv run python experiment.py --profile test --starts 1 --max-nfev 20 --output output/ci-smoke
+      - run: uv run python -m lsi compare --profile test --output output/ci-smoke
