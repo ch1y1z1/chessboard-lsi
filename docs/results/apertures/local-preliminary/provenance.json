@@ -1,0 +1,499 @@
+{
+  "scope": "local four-source preliminary study; no remote run",
+  "runs": [
+    {
+      "directory": "output/apertures_local_20261026",
+      "manifest_sha256": "e8f86d11895ee7257a19b53eefcf60e6f78619d9503f2b44cac956e8fb2100e2",
+      "results_sha256": "912c80bc7a816c1b8636bf745b13d2c4d974da8f6eb681e1d9ced67abbf972b1",
+      "system": {
+        "wavelength": 6.7e-09,
+        "error_mode": "ON",
+        "N_lattice": 60,
+        "N_super_lattice": 4,
+        "super_lattice_period": 3.35e-06,
+        "shift_z": -0.0001,
+        "tilted_angle": 0.0,
+        "tilt_axis_x": 1.0,
+        "tilt_axis_y": 0.0,
+        "f1": 1.2,
+        "f2": 0.24,
+        "NA_in": 0.00769,
+        "NA_out": 0.02,
+        "Nz": 5,
+        "grating_type": "Square",
+        "grating_period": 1.34e-06,
+        "duty_cycle": 50.0,
+        "z_grating": 0.000134,
+        "dx_grating": 6.7e-08,
+        "up_sample_grating": 2,
+        "shift_x_grating": 0.0,
+        "shift_y_grating": 0.0,
+        "shift_z_grating": 0.0,
+        "tilted_angle_grating": 0.0,
+        "tilt_axis_x_grating": 1.0,
+        "tilt_axis_y_grating": 0.0,
+        "z_cam": 0.0536,
+        "dx_cam": 5e-05,
+        "tilted_angle_cam": 0.0,
+        "tilt_axis_x_cam": 1.0,
+        "tilt_axis_y_cam": 0.0
+      },
+      "fit": {
+        "indices": [
+          7,
+          25,
+          11,
+          15
+        ],
+        "starts": 1,
+        "samples": 1500,
+        "max_nfev": 35,
+        "screen_initials": 0,
+        "seed": 42
+      },
+      "fourier": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 2.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "seconds": 7.901079082977958,
+      "peak_memory_mib": 362.578125,
+      "git_commit": "3e2d8e56ca8f3c308b4a999fe88b58833d906a8f",
+      "source_sha256": {
+        "lsi/basis.py": "19dae3eef78920b70e26e4d1eedcb589adeefb5deea67b1eae3d80f02913e624",
+        "lsi/run.py": "6f335fa07b52a8f91e4ec2d8539414f50e43f846b15d806e6d7975da9f067108",
+        "lsi/execution.py": "77766c922456e6c2605516551fc467a48958027791cfef5f29ba1535b0a5f613",
+        "lsi/config.py": "083d3a72315da87b807a07054741e8162af0ca7058b74cc38d38c0acc1b89753",
+        "lsi/io.py": "338e540056fd96798d21ff6123c17cd2ea9b6b715db0156be13bbe0d9d8976d6",
+        "lsi/__init__.py": "dba8d7dc9d07340a34e6e482e87627e8be0afc5d9463e5f7ef3c85c0e50ae5db",
+        "lsi/cli.py": "0d3c2c364fc21b88878777eb5da5a89efcc540c1e29753a8d037ef8a357d50fe",
+        "lsi/forward.py": "04bb3863e60ceeb3acbf89458f272c09c94e8981149bc70495a76ab4a75a113c",
+        "lsi/evaluate.py": "4a5c906395baa5d78ca19a86aabdade5ab1d727451d5e2a868669ff99933ce08",
+        "lsi/direct.py": "c1b488406aa31fb292db0a204e23352a446c8b0eadbc8b6dbf8e128c2442b946",
+        "lsi/fourier.py": "57ba2b4c39f3fab7116c307fba9b2249ffd92411b23ce7ca641b6ce6f7fffed2",
+        "lsi/__main__.py": "f38fd2f2c920c29c828645e87ed64743d567aaaef7fba7a15d2c7d7f8094f91f",
+        "tools/check_reference.py": "295851175e5be44446c5ff0fb65082e3725240d77d95e250acc4b37a41d28c5b",
+        "tools/make_report.py": "cd893f09f2e0b635003120710cb3051ab960d16f964b7dfee9e9d369afe63209",
+        "pyproject.toml": "31e236ce845849daa2f3be4790e62b2d93e99b1073a76a38b721b7f5a2b9bf31",
+        "uv.lock": "695b52207000330b633518ff5bc26426c1eb2d7ac2f572dc8cd4b3ea88fbf6fc"
+      },
+      "dependencies": {
+        "numpy": "2.5.3",
+        "scipy": "1.18.1",
+        "scikit-image": "0.26.0",
+        "scikit-learn": "1.9.1"
+      },
+      "scene": {
+        "indices": [
+          7,
+          25,
+          11,
+          15
+        ],
+        "coefficients": [
+          0.25,
+          0.15,
+          0.05,
+          0.2
+        ],
+        "rms": 0.1,
+        "snr_db": null,
+        "seed": 42
+      },
+      "sweep": {
+        "pupils": [
+          {
+            "NA_in": 0.00769,
+            "NA_out": 0.02
+          },
+          {
+            "NA_in": 0.004,
+            "NA_out": 0.02
+          },
+          {
+            "NA_in": 0.012,
+            "NA_out": 0.02
+          },
+          {
+            "NA_in": 0.00769,
+            "NA_out": 0.016
+          },
+          {
+            "NA_in": 0.006152,
+            "NA_out": 0.016
+          }
+        ],
+        "directions": [
+          [
+            0.25,
+            0.15,
+            0.05,
+            0.2
+          ]
+        ],
+        "center_modes": [
+          "fixed",
+          "auto"
+        ],
+        "snr_db": [
+          null,
+          40
+        ],
+        "noise_seeds": [
+          42
+        ]
+      },
+      "calibration_amplitude": 0.02,
+      "command": "apertures",
+      "profile": "test"
+    },
+    {
+      "directory": "output/apertures_local_refinement_20261026",
+      "manifest_sha256": "7461b5ee9a5718ec8f628d020c0eb2c164adc55d5b704aa0a82358cd4dde3c33",
+      "results_sha256": "68d63f0e950533e541c8ccba15164595d31ea72035d47722a17330ed2370d207",
+      "system": {
+        "wavelength": 6.7e-09,
+        "error_mode": "ON",
+        "N_lattice": 120,
+        "N_super_lattice": 4,
+        "super_lattice_period": 3.35e-06,
+        "shift_z": -0.0001,
+        "tilted_angle": 0.0,
+        "tilt_axis_x": 1.0,
+        "tilt_axis_y": 0.0,
+        "f1": 1.2,
+        "f2": 0.24,
+        "NA_in": 0.00769,
+        "NA_out": 0.02,
+        "Nz": 5,
+        "grating_type": "Square",
+        "grating_period": 1.34e-06,
+        "duty_cycle": 50.0,
+        "z_grating": 0.000134,
+        "dx_grating": 3.35e-08,
+        "up_sample_grating": 2,
+        "shift_x_grating": 0.0,
+        "shift_y_grating": 0.0,
+        "shift_z_grating": 0.0,
+        "tilted_angle_grating": 0.0,
+        "tilt_axis_x_grating": 1.0,
+        "tilt_axis_y_grating": 0.0,
+        "z_cam": 0.0536,
+        "dx_cam": 2.5e-05,
+        "tilted_angle_cam": 0.0,
+        "tilt_axis_x_cam": 1.0,
+        "tilt_axis_y_cam": 0.0
+      },
+      "fit": {
+        "indices": [
+          7,
+          25,
+          11,
+          15
+        ],
+        "starts": 1,
+        "samples": 1500,
+        "max_nfev": 35,
+        "screen_initials": 0,
+        "seed": 42
+      },
+      "fourier": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 4.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "seconds": 6.819076832965948,
+      "peak_memory_mib": 719.140625,
+      "git_commit": "3e2d8e56ca8f3c308b4a999fe88b58833d906a8f",
+      "source_sha256": {
+        "lsi/basis.py": "19dae3eef78920b70e26e4d1eedcb589adeefb5deea67b1eae3d80f02913e624",
+        "lsi/run.py": "6f335fa07b52a8f91e4ec2d8539414f50e43f846b15d806e6d7975da9f067108",
+        "lsi/execution.py": "77766c922456e6c2605516551fc467a48958027791cfef5f29ba1535b0a5f613",
+        "lsi/config.py": "083d3a72315da87b807a07054741e8162af0ca7058b74cc38d38c0acc1b89753",
+        "lsi/io.py": "338e540056fd96798d21ff6123c17cd2ea9b6b715db0156be13bbe0d9d8976d6",
+        "lsi/__init__.py": "dba8d7dc9d07340a34e6e482e87627e8be0afc5d9463e5f7ef3c85c0e50ae5db",
+        "lsi/cli.py": "0d3c2c364fc21b88878777eb5da5a89efcc540c1e29753a8d037ef8a357d50fe",
+        "lsi/forward.py": "04bb3863e60ceeb3acbf89458f272c09c94e8981149bc70495a76ab4a75a113c",
+        "lsi/evaluate.py": "4a5c906395baa5d78ca19a86aabdade5ab1d727451d5e2a868669ff99933ce08",
+        "lsi/direct.py": "c1b488406aa31fb292db0a204e23352a446c8b0eadbc8b6dbf8e128c2442b946",
+        "lsi/fourier.py": "57ba2b4c39f3fab7116c307fba9b2249ffd92411b23ce7ca641b6ce6f7fffed2",
+        "lsi/__main__.py": "f38fd2f2c920c29c828645e87ed64743d567aaaef7fba7a15d2c7d7f8094f91f",
+        "tools/check_reference.py": "295851175e5be44446c5ff0fb65082e3725240d77d95e250acc4b37a41d28c5b",
+        "tools/make_report.py": "cd893f09f2e0b635003120710cb3051ab960d16f964b7dfee9e9d369afe63209",
+        "pyproject.toml": "31e236ce845849daa2f3be4790e62b2d93e99b1073a76a38b721b7f5a2b9bf31",
+        "uv.lock": "695b52207000330b633518ff5bc26426c1eb2d7ac2f572dc8cd4b3ea88fbf6fc"
+      },
+      "dependencies": {
+        "numpy": "2.5.3",
+        "scipy": "1.18.1",
+        "scikit-image": "0.26.0",
+        "scikit-learn": "1.9.1"
+      },
+      "scene": {
+        "indices": [
+          7,
+          25,
+          11,
+          15
+        ],
+        "coefficients": [
+          0.25,
+          0.15,
+          0.05,
+          0.2
+        ],
+        "rms": 0.1,
+        "snr_db": null,
+        "seed": 42
+      },
+      "sweep": {
+        "pupils": [
+          {
+            "NA_in": 0.00769,
+            "NA_out": 0.02
+          }
+        ],
+        "directions": [
+          [
+            0.25,
+            0.15,
+            0.05,
+            0.2
+          ]
+        ],
+        "center_modes": [
+          "fixed",
+          "auto"
+        ],
+        "snr_db": [
+          null,
+          40
+        ],
+        "noise_seeds": [
+          42
+        ]
+      },
+      "calibration_amplitude": 0.02,
+      "command": "apertures",
+      "profile": "test"
+    },
+    {
+      "directory": "output/apertures_local_boundaries_20261026",
+      "manifest_sha256": "267fe2c5af6fb3d3f7290148a91a21705de669d44c732f586b983e4399d0ca39",
+      "results_sha256": "767e1d6c6b0675b7dcd2c64cdb4d72651e3db64425a7bbac93cd1e93b362ff63",
+      "system": {
+        "wavelength": 6.7e-09,
+        "error_mode": "ON",
+        "N_lattice": 120,
+        "N_super_lattice": 4,
+        "super_lattice_period": 3.35e-06,
+        "shift_z": -0.0001,
+        "tilted_angle": 0.0,
+        "tilt_axis_x": 1.0,
+        "tilt_axis_y": 0.0,
+        "f1": 1.2,
+        "f2": 0.24,
+        "NA_in": 0.00769,
+        "NA_out": 0.02,
+        "Nz": 5,
+        "grating_type": "Square",
+        "grating_period": 1.34e-06,
+        "duty_cycle": 50.0,
+        "z_grating": 0.000134,
+        "dx_grating": 3.35e-08,
+        "up_sample_grating": 2,
+        "shift_x_grating": 0.0,
+        "shift_y_grating": 0.0,
+        "shift_z_grating": 0.0,
+        "tilted_angle_grating": 0.0,
+        "tilt_axis_x_grating": 1.0,
+        "tilt_axis_y_grating": 0.0,
+        "z_cam": 0.0536,
+        "dx_cam": 2.5e-05,
+        "tilted_angle_cam": 0.0,
+        "tilt_axis_x_cam": 1.0,
+        "tilt_axis_y_cam": 0.0
+      },
+      "fit": {
+        "indices": [
+          7,
+          25,
+          11,
+          15
+        ],
+        "starts": 1,
+        "samples": 1500,
+        "max_nfev": 35,
+        "screen_initials": 0,
+        "seed": 42
+      },
+      "fourier": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 4.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "seconds": 11.272304250043817,
+      "peak_memory_mib": 616.578125,
+      "git_commit": "3e2d8e56ca8f3c308b4a999fe88b58833d906a8f",
+      "source_sha256": {
+        "lsi/basis.py": "19dae3eef78920b70e26e4d1eedcb589adeefb5deea67b1eae3d80f02913e624",
+        "lsi/run.py": "6f335fa07b52a8f91e4ec2d8539414f50e43f846b15d806e6d7975da9f067108",
+        "lsi/execution.py": "77766c922456e6c2605516551fc467a48958027791cfef5f29ba1535b0a5f613",
+        "lsi/config.py": "083d3a72315da87b807a07054741e8162af0ca7058b74cc38d38c0acc1b89753",
+        "lsi/io.py": "338e540056fd96798d21ff6123c17cd2ea9b6b715db0156be13bbe0d9d8976d6",
+        "lsi/__init__.py": "dba8d7dc9d07340a34e6e482e87627e8be0afc5d9463e5f7ef3c85c0e50ae5db",
+        "lsi/cli.py": "0d3c2c364fc21b88878777eb5da5a89efcc540c1e29753a8d037ef8a357d50fe",
+        "lsi/forward.py": "04bb3863e60ceeb3acbf89458f272c09c94e8981149bc70495a76ab4a75a113c",
+        "lsi/evaluate.py": "4a5c906395baa5d78ca19a86aabdade5ab1d727451d5e2a868669ff99933ce08",
+        "lsi/direct.py": "c1b488406aa31fb292db0a204e23352a446c8b0eadbc8b6dbf8e128c2442b946",
+        "lsi/fourier.py": "57ba2b4c39f3fab7116c307fba9b2249ffd92411b23ce7ca641b6ce6f7fffed2",
+        "lsi/__main__.py": "f38fd2f2c920c29c828645e87ed64743d567aaaef7fba7a15d2c7d7f8094f91f",
+        "tools/check_reference.py": "295851175e5be44446c5ff0fb65082e3725240d77d95e250acc4b37a41d28c5b",
+        "tools/make_report.py": "cd893f09f2e0b635003120710cb3051ab960d16f964b7dfee9e9d369afe63209",
+        "pyproject.toml": "31e236ce845849daa2f3be4790e62b2d93e99b1073a76a38b721b7f5a2b9bf31",
+        "uv.lock": "695b52207000330b633518ff5bc26426c1eb2d7ac2f572dc8cd4b3ea88fbf6fc"
+      },
+      "dependencies": {
+        "numpy": "2.5.3",
+        "scipy": "1.18.1",
+        "scikit-image": "0.26.0",
+        "scikit-learn": "1.9.1"
+      },
+      "scene": {
+        "indices": [
+          7,
+          25,
+          11,
+          15
+        ],
+        "coefficients": [
+          0.25,
+          0.15,
+          0.05,
+          0.2
+        ],
+        "rms": 0.1,
+        "snr_db": null,
+        "seed": 42
+      },
+      "sweep": {
+        "pupils": [
+          {
+            "NA_in": 0.012,
+            "NA_out": 0.02
+          },
+          {
+            "NA_in": 0.00769,
+            "NA_out": 0.016
+          }
+        ],
+        "directions": [
+          [
+            0.25,
+            0.15,
+            0.05,
+            0.2
+          ]
+        ],
+        "center_modes": [
+          "fixed",
+          "auto"
+        ],
+        "snr_db": [
+          null,
+          40
+        ],
+        "noise_seeds": [
+          42
+        ]
+      },
+      "calibration_amplitude": 0.02,
+      "command": "apertures",
+      "profile": "test"
+    }
+  ],
+  "observations_sha256": {
+    "output/apertures_local_20261026/na_00_in0.00769_out0.02/dir0_clean_observation.npz": "b8b801a18fd7b11a5a3d795bdb456b841acb89633e42135ba0057ee2c96368fe",
+    "output/apertures_local_20261026/na_00_in0.00769_out0.02/dir0_snr40_seed42_observation.npz": "b95c18f14682b7fdbf090df10156b87034eaa81dfc49bc66fa96ef241f11d5fa",
+    "output/apertures_local_20261026/na_01_in0.004_out0.02/dir0_clean_observation.npz": "35d31af18b350a8cbbec1b8e31ab058f0f8e458a5d68688353564948c61085df",
+    "output/apertures_local_20261026/na_01_in0.004_out0.02/dir0_snr40_seed42_observation.npz": "38c12e0f62c9c2e88c7c50b7d2da7b8c30e3040067ce161e7633d433c1b2efa3",
+    "output/apertures_local_20261026/na_02_in0.012_out0.02/dir0_clean_observation.npz": "aa700947c668f366c54139ffb2d19c41bee124eaa061e83867e7a13aa9d5bbb3",
+    "output/apertures_local_20261026/na_02_in0.012_out0.02/dir0_snr40_seed42_observation.npz": "afcdcb0f54ce7bc7537ddf6714c7ccf04218be4fa9182cca9cc8de39315b8a1c",
+    "output/apertures_local_20261026/na_03_in0.00769_out0.016/dir0_clean_observation.npz": "55d2bc6db8f9d59b305570517a18afb62e0a51c8c40c56998a1e4f31136e1ddc",
+    "output/apertures_local_20261026/na_03_in0.00769_out0.016/dir0_snr40_seed42_observation.npz": "9574fde0566af877c5989ae093c31a50894db28674ef2b096cd3f7ae00fc28d4",
+    "output/apertures_local_20261026/na_04_in0.006152_out0.016/dir0_clean_observation.npz": "4c6e75cdd4ed703930c56ae9c3faf6c4fea009c825c698134c5a1521592be7f5",
+    "output/apertures_local_20261026/na_04_in0.006152_out0.016/dir0_snr40_seed42_observation.npz": "94e37181a5c529230c26131fe439d35cbf3f138137756ac6fa663a6c660a88b0",
+    "output/apertures_local_refinement_20261026/na_00_in0.00769_out0.02/dir0_clean_observation.npz": "f4ab2760b5864b65aa5da1245926b71a07e3d6c17b18a830de73be74809354cf",
+    "output/apertures_local_refinement_20261026/na_00_in0.00769_out0.02/dir0_snr40_seed42_observation.npz": "17d3acbd378c2b786fe29e4ee643af07cfa81a14f092c21c29fa971c23df2fd9",
+    "output/apertures_local_boundaries_20261026/na_00_in0.012_out0.02/dir0_clean_observation.npz": "ceb2e6b06b2a639614f060990b33d7b6eb8f8d2fc51b9ed52066513338e673ee",
+    "output/apertures_local_boundaries_20261026/na_00_in0.012_out0.02/dir0_snr40_seed42_observation.npz": "6fab43a5095f77b18e5b0264769fa8ebb8dd5430606c91cbd0f20c2a47202ff7",
+    "output/apertures_local_boundaries_20261026/na_01_in0.00769_out0.016/dir0_clean_observation.npz": "ccc849aa1a097591a13199e2f18009f81d10260dc52025c4e95cc3a44843f9c3",
+    "output/apertures_local_boundaries_20261026/na_01_in0.00769_out0.016/dir0_snr40_seed42_observation.npz": "0305720f007784f985828ce742f4381f9aa82c8608f871f317c50f50a86dcc50"
+  },
+  "total_compute_seconds": 25.992460165987723,
+  "peak_memory_mib": 719.140625,
+  "audit": {
+    "rows": 48,
+    "unique_keys": 48,
+    "observations": 16,
+    "all_status_ok": true,
+    "all_direct_converged": true,
+    "native_rms_checked": true,
+    "observed_noise_exactly_reproduced": true,
+    "rmse_independently_recalculated": true
+  }
+}

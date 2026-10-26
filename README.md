@@ -36,6 +36,9 @@ uv run python -m lsi --help
 
 # 本机只做四源小场景检查；此场景不能用于原采样精度结论。
 uv run python -m lsi compare --profile test --output output/smoke
+
+# 本地 NA 初步实验：240×240、4 源；显式允许超过 80×80 测试夹具的网格。
+uv run python -m lsi apertures --config configs/apertures-local.json --allow-large-run --output output/apertures-local
 ```
 
 命令只选工作流、profile、配置和输出目录；科学参数集中写在 JSON。
@@ -108,6 +111,9 @@ uv run python -m tools.check_reference --profile test \
 四类小检查覆盖独立参考场/边带、解析导数、重构物理单位及工作流数据。还冻结了 PR16 同一四源场景的无噪声与三个含噪样本，保证重构前后的系数和 RMSE 在容差内一致。
 
 原采样研究数据与图保存在 [最终报告](docs/results/followup/final-report.md)。这些是历史仿真结果，重构没有重新运行原采样扫描。原始大数组继续保存在远端，Git 内只保留摘要、必要黄金数组和图。
-历史报告中的角度扫描为部件倾角；用户确认的第三目标是 `NA_in/NA_out` 通光角范围，正在通过 `apertures` 补做，不能用旧倾角结果替代。
+历史报告中的角度扫描为部件倾角；用户确认的第三目标是 `NA_in/NA_out` 通光角范围，不能用旧倾角结果替代。
+本次只在本地运行四源小场景，见 [NA 初步结果](docs/results/apertures/local-preliminary-report.md)。
+240 网格的傅里叶误差对采样很敏感，另用 480 网格复核三个代表点；仍未完成采样收敛验证，不能给出普遍的 NA 排序。
+完整原采样方案保留在 `configs/apertures.json`，当前未运行，也未向远端下发任务。
 
 模型匹配、无噪声算例的数值零不能当作仪器精度；参考倾斜是相位坡度近似，尚未计算严格旋转平面。
