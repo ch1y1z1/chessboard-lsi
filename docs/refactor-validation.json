@@ -70,7 +70,9 @@
       "fourier_calibrated"
     ],
     "coefficient_rtol": 1e-09,
-    "coefficient_atol": 1e-11
+    "coefficient_atol": 1e-11,
+    "noisy_direct_atol_waves": 1e-08,
+    "noisy_direct_atol_reason": "Linux CI/macOS finite-tolerance TRF endpoints differ by about 1e-9 waves; frozen arrays and forward operators unchanged."
   },
   "historical_data_unchanged_sha256": {
     "docs/results/reference-parity-separable.json": "25e3ba5e1df36de8edeb30d67181e25e45e0c4fa0cfc49b65068ee2e551aa9cc",

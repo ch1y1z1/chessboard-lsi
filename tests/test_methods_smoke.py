@@ -29,9 +29,13 @@ def test_frozen_pr16_clean_and_noisy_results(reference):
         direct = fit_direct(model, image, **frozen['direct'])['coeffs']
         for method, coefficients in [('fourier_calibrated', fourier), ('direct', direct)]:
             expected = next(r for r in frozen['rows'] if r['seed'] == seed and r['method'] == method)
-            np.testing.assert_allclose(coefficients, expected['coeffs_waves'], rtol=1e-9, atol=1e-11)
+            # Noisy TRF fits stop at finite tolerance; Linux/macOS BLAS rounding
+            # changes the final step by ~1e-9 waves, far below the noise error.
+            atol = 1e-8 if method == 'direct' and seed is not None else 1e-11
+            np.testing.assert_allclose(coefficients, expected['coeffs_waves'], rtol=1e-9,
+                                       atol=atol, err_msg=f'{method}, seed={seed}')
             assert wavefront_metrics(model, coefficients, truth)['rmse_waves'] == pytest.approx(
-                expected['rmse_waves'], rel=1e-9, abs=1e-11)
+                expected['rmse_waves'], rel=1e-9, abs=atol)
 
 
 def test_physical_units_gain_background_and_mode_convention():
