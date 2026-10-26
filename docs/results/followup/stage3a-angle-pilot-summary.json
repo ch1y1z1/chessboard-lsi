@@ -1,0 +1,38 @@
+{
+  "stage": "3a_angle_pilot_camera_x_pos025",
+  "status": "complete",
+  "seconds": 636.9188288229925,
+  "peak_memory_mib": 3260.58984375,
+  "row_count": 9,
+  "geometry": "camera x +0.25 deg; original N1200/2400, 64 sources, 0.1 waves, zero noise",
+  "zero_baseline": {
+    "direct": 0.000932680531962685,
+    "ft_fixed": 0.000932680531962685,
+    "ft_auto": 0.0008439690238419382
+  },
+  "known": {
+    "direct_rmse_waves": 6.306594093423953e-18,
+    "ft_fixed_rmse_waves": 0.0016144866890338558,
+    "ft_auto_rmse_waves": 0.0008228758746471762
+  },
+  "ignored": {
+    "direct_rmse_waves": 0.029821189116306126,
+    "direct_converged": false,
+    "direct_nfev": 60,
+    "ft_fixed_rmse_waves": 0.26331693034519094,
+    "ft_auto_rmse_waves": 0.2630804026337541
+  },
+  "calibrations": [
+    "nominal_fixed",
+    "nominal_auto",
+    "camera_x_0.25_known_fixed",
+    "camera_x_0.25_known_auto"
+  ],
+  "notes": [
+    "known geometry uses tilted model and independent calibration",
+    "ignored geometry uses nominal model and zero-angle calibration",
+    "direct starts from zero initialisation only",
+    "ignored direct did not converge in 60 evaluations and has large non-zero RMSE; optimisation stop is not recovery",
+    "zero-angle auto centre differs from fixed and is not a production selection"
+  ]
+}

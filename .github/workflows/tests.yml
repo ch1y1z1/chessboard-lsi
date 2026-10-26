@@ -18,4 +18,4 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --all-groups
       - run: uv run pytest -q
-      - run: uv run python experiment.py
+      - run: uv run python -m lsi compare --profile test --output output/ci-smoke

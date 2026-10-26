@@ -1,0 +1,297 @@
+{
+  "stage": "3_angles_merged",
+  "status": "complete",
+  "geometries": [
+    [
+      "camera",
+      "x",
+      -0.25
+    ],
+    [
+      "camera",
+      "x",
+      0.25
+    ],
+    [
+      "camera",
+      "y",
+      -0.25
+    ],
+    [
+      "camera",
+      "y",
+      0.25
+    ],
+    [
+      "grating",
+      "x",
+      -0.25
+    ],
+    [
+      "grating",
+      "x",
+      0.25
+    ],
+    [
+      "grating",
+      "y",
+      -0.25
+    ],
+    [
+      "grating",
+      "y",
+      0.25
+    ]
+  ],
+  "row_count": 48,
+  "zero_rows": [
+    {
+      "case": "angle_zero",
+      "method": "direct",
+      "status": "ok",
+      "seconds": 32.860839609988034,
+      "converged": true,
+      "full_intensity_rms": 4.088327536775846e-17,
+      "starts": 1,
+      "nfev": 6,
+      "gain": 3788305977967.252,
+      "background": -6.626387085985754e-18,
+      "component": "zero",
+      "angle_deg": 0,
+      "axis": "none",
+      "geometry": "known_and_ignored",
+      "coeffs_waves": [
+        0.07010907044572459,
+        0.042065442267434756,
+        0.01402181408914492,
+        0.05608725635657968
+      ],
+      "rmse_waves": 0.0,
+      "rmse_waves_with_defocus_tilt": 0.0,
+      "pv_waves": 0.0,
+      "max_coefficient_error_waves": 0.0,
+      "coefficient_errors_waves": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "angle_zero",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "coverage": 0.48314305555555553,
+      "phase_residual_rms": 0.059238356586021876,
+      "centers": [
+        [
+          644.0,
+          600.0
+        ],
+        [
+          600.0,
+          644.0
+        ]
+      ],
+      "seconds": 12.390843714994844,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "calibration_condition": 1.9729207881951834,
+      "calibration_settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "component": "zero",
+      "angle_deg": 0,
+      "axis": "none",
+      "geometry": "known_and_ignored",
+      "coeffs_waves": [
+        0.07066966623186305,
+        0.04240036726379691,
+        0.01446381180367763,
+        0.05658818681879692
+      ],
+      "rmse_waves": 0.000932680531962685,
+      "rmse_waves_with_defocus_tilt": 0.0009326813638092493,
+      "pv_waves": 0.007573176601299893,
+      "max_coefficient_error_waves": 0.000560595786138457,
+      "coefficient_errors_waves": [
+        0.000560595786138457,
+        0.00033492499636215284,
+        0.0004419977145327103,
+        0.0005009304622172403
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    },
+    {
+      "case": "angle_zero_auto",
+      "method": "fourier_calibrated",
+      "status": "ok",
+      "coverage": 0.48314305555555553,
+      "phase_residual_rms": 0.05923769055390011,
+      "centers": [
+        [
+          646.0,
+          600.0
+        ],
+        [
+          600.0,
+          646.0
+        ]
+      ],
+      "seconds": 11.428734840010293,
+      "window_metrics": [
+        {
+          "weight_sum": 1600.0000000000002,
+          "equivalent_noise_bins": 1794.7822479555007,
+          "dc_weight": 0.0
+        },
+        {
+          "weight_sum": 1600.0000000000005,
+          "equivalent_noise_bins": 1794.782247955501,
+          "dc_weight": 0.0
+        }
+      ],
+      "calibration_condition": 1.9740524370157415,
+      "calibration_settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "auto",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "auto",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0,
+        "lasso_max_iter": 1000,
+        "lasso_tol": 0.0001
+      },
+      "component": "zero",
+      "angle_deg": 0,
+      "axis": "none",
+      "geometry": "known_and_ignored",
+      "coeffs_waves": [
+        0.07062332118365129,
+        0.04238963774769997,
+        0.01443534300615612,
+        0.05650447211602245
+      ],
+      "rmse_waves": 0.0008439690238419382,
+      "rmse_waves_with_defocus_tilt": 0.0008439697464052216,
+      "pv_waves": 0.006923575881647162,
+      "max_coefficient_error_waves": 0.0005142507379266997,
+      "coefficient_errors_waves": [
+        0.0005142507379266997,
+        0.00032419548026521583,
+        0.00041352891701120116,
+        0.0004172157594427711
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 26772
+    }
+  ],
+  "failed": [],
+  "sources": [
+    "output/diffraction/followup_20261021/angles_pilot_camera_x_pos025",
+    "output/diffraction/followup_20261021/angles_batch_camera_pm025",
+    "output/diffraction/followup_20261021/angles_batch_grating_pm025"
+  ],
+  "notes": [
+    "known uses tilted model + independent calibration",
+    "ignored uses nominal model + zero-angle calibration",
+    "fixed/auto centres use the corresponding geometry's fixed/auto calibration",
+    "direct uses zero initialisation, no truth initialisation",
+    "optimisation stop is not recovery; ignored geometries retain large errors"
+  ]
+}

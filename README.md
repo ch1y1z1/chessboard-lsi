@@ -1,69 +1,106 @@
-# 棋盘光栅二维剪切干涉：最小可复现实验
+# chessboard-lsi
 
-刘志祥博士论文《二维剪切干涉检测技术研究》（电子科技大学，2018）核心算法
-的最小 Python 实现：45° 旋转棋盘光栅剪切干涉仪的前向光强模型，以及三条
-波前反演路线。论文全文见 `references/二维剪切干涉检测技术研究_刘志祥.pdf`。
+BUV0725 / Retrieval0806 参考衍射模型下的二维剪切干涉波前反演。
+一套物理模型，两种解算器，三个实验工作流。系统参数、场景真值和反演设置独立保存。
 
-## 计算链条
+## 代码
 
-```
-干涉强度 I(x,y)
-    ├─ 相移模式：N 步闭式解调   psi = atan2(-S, C)          （论文 2.3）
-    ├─ 傅里叶模式：二维 FFT 提取 +f0 载频瓣 -> arg c(x,y)   （论文 2.4）
-    └─ LM 直接反演：min ||I - I(c)||^2（不经解调/解包裹）
-            ↓（前两条路线）
-差分波前 dW_x = W(x+s,y)-W(x-s,y)，dW_y 同理
-            ↓
-差分 Zernike 最小二乘：c = (ΔZ^T ΔZ)^{-1} ΔZ^T ΔW           （式 2-28~2-31）
-            ↓
-波前 Zernike 系数（waves）
-```
-
-## 结构
-
-三个模块按计算链条组织，每个文件对应读者脑中的一个阶段：
-
-```
+```text
 lsi/
-├── model.py        # 前向物理：网格/系统参数 -> 光栅级次 -> Zernike 基 -> I=|E|²
-├── invert.py       # 论文反演链：解调 -> 解包裹 -> 差分 Zernike 最小二乘
-└── lm.py           # LM 直接光强反演：解析雅可比 + 增广最小二乘阻尼步
-experiment.py       # 三条路线端到端演示（输出到 output/）
-test_lsi.py         # 端到端回归测试
+  config.py     系统参数 SystemConfig、场景 Scene、拟合预算 FitConfig
+  basis.py      RMS 归一化环形 Zernike，沿用参考的零基编号
+  forward.py    三段传播、全部源强度叠加、解析强度导数
+  fourier.py    边带窗、掩膜、解包裹、差分拟合、独立响应标定
+  direct.py     原始光强残差上的 SciPy TRF 非线性最小二乘
+  evaluate.py   固定光瞳上的波前误差
+  run.py        compare / regions / angles，负责科学实验流程
+  io.py         配置、观测、结果表、轨迹和源码快照
+  cli.py        简短命令入口
+
+tools/
+  check_reference.py   与用户提供的原参考脚本逐段核对
+  make_report.py       只读已保存结果，生成比较图
+
+configs/        可直接编辑的实验 JSON
 ```
 
-## 前向模型
-
-所有级次在探测器上相干叠加，光瞳重叠区自动出现，无需手工区域簿记：
-
-```python
-E(x,y) = Σ_ab A_ab · P(x+as, y+bs) · exp(i[2πW(x+as,y+bs) + δ_ab + 2πf0(ax+by)])
-I(x,y) = |E|²
-```
-
-`test_lsi.py` 将该叠加模型与论文显式五光束公式 (2-14) 做逐点对照
-（误差 ~1e-16）。
+`forward.py` 接收显式系数，不读取真值。`Scene` 只由观测生成和评价使用。
+默认模型保留全部 64 源、1200×1200 相机、2400×2400 光栅、环形光瞳及周期方孔。
+50% 孔边长占空比对应 25% 开口面积。可分离传播与逐段 CZT 是相同离散算子的两种计算方式；生产默认使用前者，后者供数值核对。
 
 ## 运行
 
+```bash
+uv sync --locked
+uv run python -m lsi --help
+
+# 本机只做四源小场景检查；此场景不能用于原采样精度结论。
+uv run python -m lsi compare --profile test --output output/smoke
 ```
-uv sync                          # 安装依赖（numpy/scipy/matplotlib + pytest）
-uv run pytest -q                 # 端到端回归测试
-uv run python experiment.py      # 三条路线演示 + output/ 两张图
+
+命令只选工作流、profile、配置和输出目录；科学参数集中写在 JSON。
+`--profile` 可以覆盖 JSON 中的 profile，用于检查相同实验配置的小场景执行路径。
+以下原采样任务仅在内存充足的机器上串行执行：
+
+```bash
+uv run python -m lsi compare --config configs/compare.json --allow-large-run --output output/compare
+uv run python -m lsi compare --config configs/noise.json --allow-large-run --output output/noise
+uv run python -m lsi regions --config configs/regions.json --allow-large-run --output output/regions
+uv run python -m lsi angles --config configs/angles.json --allow-large-run --output output/angles
 ```
 
-`experiment.py` 第 5 节还比较单帧无相移、无载频的 LM 反演：沿用演示真值，
-拟合 Z2..Z13，使用全图像素。比较零初值与 10 个随机方向在
-0.03、0.1、0.3 waves 波前 RMS 下的 30 个非零初值（随机种子 42）。
-控制台报告每次光强残差、允许整体变号的最大系数误差及各组恢复次数；
-`output/lm_unmodulated.csv` 保存完整初值与拟合系数。初始化不使用真值，
-最佳运行按光强残差选择；真值仅用于仿真评价。
+配置的六个部分分别是：
 
-## 约定
+| 字段 | 内容 |
+|---|---|
+| `profile` / `system` | 命名采样场景，以及物理参数覆盖值 |
+| `scene` | 真实模式 `indices`、系数 `coefficients`、目标 `rms`、`snr_db` 和噪声 `seed` |
+| `fit` | 待估计模式 `indices`、`starts`、`samples`、`max_nfev`、`screen_initials`、初始化 `seed` |
+| `fourier` | 频谱半宽、中心、形状、掩膜、平滑及回归设置，详见 `FourierSettings` |
+| `calibration_amplitude` | 正负单模式独立标定的幅度，默认 0.02 waves |
+| `sweep` | 当前工作流的扫描列表，示例见 `configs/` |
 
-- 光瞳归一化为单位圆，波前单位为 waves；
-- Zernike 为 Fringe/Wyant 排序（Z1=平移、Z4=离焦、Z7=彗差）；
-- 差分一律为双边 `W(x+s)-W(x-s)`；
-- 理想棋盘光栅（50% 占空比，5 光束），标量模型，`0 < NA ≤ 1`；
-- 演示波前 ≤ ~2 波长：更大像差会使调制度在剪切区内变号，
-  解调路线失效（论文 2.3.2）。
+系数单位为 waves；`scene.rms=null` 保留输入系数原始幅度。噪声先对干净强度作峰值归一化，再加入标准差 `10**(-snr_db/20)` 的 Gaussian 噪声。同一带噪图分别交给两种方法。
+
+`regions` 默认冻结名义标定；把 `sweep.recalibrate` 改成 `true` 才逐设置重标定。
+`angles` 分别记录已知倾角和忽略倾角的结果；fixed/auto 各自独立标定，属于完整流程比较。
+直接法联合拟合波前、正增益和常数背景，保存所有初值，包括未收敛结果。
+傅里叶 waves 结果使用独立零像差与正负单模式标定；原始相位拟合系数仍可通过 `FourierExtractor.extract` 读取，单位为 a.u.。
+
+超过四源小网格必须显式指定 `--allow-large-run`；同一用户一次只运行一个任务。
+输出目录必须为空，中断保存已完成行和状态。默认逐点保存轻量结果，不为每个扫描点重复保存完整频谱/场数组。
+
+## 数据与图
+
+```text
+manifest.json                  实际配置、随机种子、代码散列、耗时和状态
+results.json / results.csv     每个工况的系数、误差和优化状态
+*_observation.npz              原始强度、同一带噪观测、真值和固定光瞳
+*_calibration.npz / .json       标定响应、独立参考、训练图散列和条件数
+*_validation.npz               未参与标定的混合波前验证
+*_direct_trials.json           所有初值及其迭代轨迹
+*_sample_rows.npy              直接法实际使用的像素
+source_snapshot/               本次运行的源码和锁文件
+```
+
+绘图单独安装可选依赖，不运行前向传播或优化：
+
+```bash
+uv run --group report python -m tools.make_report output/smoke
+```
+
+主 RMSE/PV 在固定物镜环形光瞳内去除活塞、双向倾斜和离焦；另报保留倾斜/离焦的 RMSE 和全部系数误差。`converged` 是优化停止标记，`recovered` 是声明阈值下的误差判断，两者独立。
+
+## 数值验收
+
+```bash
+uv run pytest -q
+uv run python -m tools.check_reference --profile test \
+  --reference-directory /path/to/BUV0725 --output output/reference-check.json
+```
+
+四类小检查覆盖独立参考场/边带、解析导数、重构物理单位及工作流数据。还冻结了 PR16 同一四源场景的无噪声与三个含噪样本，保证重构前后的系数和 RMSE 在容差内一致。
+
+原采样研究数据与图保存在 [最终报告](docs/results/followup/final-report.md)。这些是历史仿真结果，重构没有重新运行原采样扫描。原始大数组继续保存在远端，Git 内只保留摘要、必要黄金数组和图。
+
+模型匹配、无噪声算例的数值零不能当作仪器精度；参考倾斜是相位坡度近似，尚未计算严格旋转平面。

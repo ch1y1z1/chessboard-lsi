@@ -1,0 +1,517 @@
+{
+  "description": "Existing completed results only; no experiment was rerun to create this summary.",
+  "reference_comparison": {
+    "artifact_directory": "output/diffraction/reference_compare",
+    "config": {
+      "wavelength": 6.7e-09,
+      "distance_stage1": 2.0,
+      "error_mode": "ON",
+      "N_lattice": 120,
+      "N_super_lattice": 10,
+      "super_lattice_period": 3.35e-06,
+      "hole_diameter": 5e-08,
+      "lattice_distance": 1.5e-07,
+      "N_hole_rows": 1,
+      "shift_x": 0.0,
+      "shift_y": 0.0,
+      "shift_z": -0.0001,
+      "tilted_angle": 0.0,
+      "tilt_axis_x": 1.0,
+      "tilt_axis_y": 0.0,
+      "f1": 1.2,
+      "f2": 0.24,
+      "NA_in": 0.00769,
+      "NA_out": 0.02,
+      "Nz": 5,
+      "basis_factor": 0.01,
+      "c_Zernike": [
+        0.25,
+        0.15,
+        0.05,
+        0.2,
+        0.0
+      ],
+      "n_radial": [
+        2,
+        5,
+        3,
+        3,
+        1
+      ],
+      "l_azimuthal": [
+        1,
+        -5,
+        -1,
+        3,
+        0
+      ],
+      "grating_type": "Square",
+      "grating_period": 1.34e-06,
+      "duty_cycle": 50.0,
+      "z_grating": 0.000134,
+      "dx_grating": 1.675e-08,
+      "up_sample_grating": 2,
+      "shift_x_grating": 0.0,
+      "shift_y_grating": 0.0,
+      "shift_z_grating": 0.0,
+      "tilted_angle_grating": 0.0,
+      "tilt_axis_x_grating": 1.0,
+      "tilt_axis_y_grating": 0.0,
+      "z_cam": 0.0536,
+      "dx_cam": 1e-05,
+      "tilted_angle_cam": 0.0,
+      "tilt_axis_x_cam": 1.0,
+      "tilt_axis_y_cam": 0.0
+    },
+    "arguments": {
+      "command": "compare",
+      "profile": "reference",
+      "config": null,
+      "output": "output/diffraction/reference_compare",
+      "modes": "7,25,11,15",
+      "workers": 2,
+      "batch_sources": 2,
+      "backend": "separable",
+      "starts": 1,
+      "screen_initials": 0,
+      "samples": 8192,
+      "max_nfev": 30,
+      "seed": 42,
+      "truth_rms": 0.1,
+      "calibration_amplitude": 0.02,
+      "recovery_tolerance": 0.01,
+      "snr_db": null,
+      "widths": [
+        8,
+        12,
+        16,
+        20,
+        24,
+        28,
+        32
+      ],
+      "offsets": [
+        -3,
+        -2,
+        -1,
+        0,
+        1,
+        2,
+        3
+      ],
+      "shapes": [
+        "rect",
+        "circle",
+        "ellipse",
+        "gaussian"
+      ],
+      "erosions": [
+        0,
+        2,
+        4,
+        8,
+        12
+      ],
+      "aspects": [
+        0.5,
+        1,
+        2
+      ],
+      "thresholds": [
+        0,
+        0.1,
+        0.3,
+        0.5
+      ],
+      "recalibrate_windows": false,
+      "selection_validation_rms": 0.05,
+      "cross_angles": [],
+      "components": [
+        "object",
+        "grating",
+        "camera"
+      ],
+      "axes": [
+        "x",
+        "y"
+      ],
+      "angles": [
+        -1,
+        -0.5,
+        -0.25,
+        0,
+        0.25,
+        0.5,
+        1
+      ],
+      "geometry": [
+        "known",
+        "ignored"
+      ],
+      "center_modes": [
+        "fixed",
+        "auto"
+      ],
+      "reference_directory": "/Users/chiyizi/sjtu/二维剪切干涉/BUV0725",
+      "all_sources": false
+    },
+    "source_sha256": {
+      "metrics.py": "cc2795a89c903c4642c69d65d18ce9cd66e39f00c3f4276ac209a97f115f0f7b",
+      "config.py": "55c88dd5e9f342b260a5691f130bf06c611327699e748202318fbaca3995603d",
+      "__init__.py": "89504490bc7c92def80a985216abe0d807e0302fcce361982fd7bf3cb373ab2b",
+      "model.py": "b74959d9ed0bd1f16e62e576ed43e50d6f10718724c1f1ecbe04a8f13ed82c83",
+      "propagation.py": "b67f920ade1fa352a6531bfefbd0c647b0b90836d094041cad136e9820bbd821",
+      "lm.py": "4242537acd3536b5a9d2657069345a0c943629496648cb31e3543472f9093022",
+      "invert.py": "9eeb8cfa63233490d6b27ae6ecc92bca5c23b834ce3d1ddfa7635d11a3622394",
+      "direct.py": "7d477d8afe9270497c3e2717a0be5130fe30360752d4538dcf3cec4b31870987",
+      "fourier.py": "531e82131cb214ba78c1e0db25543cb2a3cc61f0710c7d9bdc89e0998950c863",
+      "annular.py": "54a8cb7957809705f4b16db5d1b583e8f7ef5a230bef26b8976becb8fcd5eef4",
+      "reference_check.py": "d7a90bcc0b5a6d1d8511780f17ce889950119c181383b6a6bef9fe9765af5ac9",
+      "study.py": "e947507b1ea5769865c5d9ccaa1fc233b7caf910699113b69cd6ebfa49c1c691"
+    },
+    "rows": [
+      {
+        "case": "baseline",
+        "method": "fourier_original",
+        "status": "raw_units_not_pupil_waves",
+        "units": "reference_phase_fit_au",
+        "phase_residual_rms": 0.2449623060671351,
+        "coverage": 0.48314305555555553,
+        "seconds": 12.532058166980278
+      },
+      {
+        "case": "baseline",
+        "method": "fourier_calibrated",
+        "status": "ok",
+        "coverage": 0.48314305555555553,
+        "phase_residual_rms": 0.05923835658602135,
+        "centers": [
+          [
+            644.0,
+            600.0
+          ],
+          [
+            600.0,
+            644.0
+          ]
+        ],
+        "seconds": 10.361529415997211,
+        "window_metrics": [
+          {
+            "weight_sum": 1600.0000000000005,
+            "equivalent_noise_bins": 1794.782247955501,
+            "dc_weight": 0.0
+          },
+          {
+            "weight_sum": 1600.0000000000005,
+            "equivalent_noise_bins": 1794.782247955501,
+            "dc_weight": 0.0
+          }
+        ],
+        "calibration_condition": 1.9729207881951345,
+        "calibration_settings": {
+          "half_width": 20,
+          "aspect": 1.0,
+          "offset_x": 0,
+          "offset_y": 0,
+          "shape": "rect",
+          "window_sigma": 2.0,
+          "carrier_x": 44,
+          "carrier_y": 44,
+          "recenter_adjust_x": -1,
+          "recenter_adjust_y": -1,
+          "phase_sigma": 10.0,
+          "shear_adjust": 1.0,
+          "erosion": 0,
+          "amplitude_threshold": 0.0,
+          "center_mode": "fixed",
+          "search_radius": 8,
+          "subpixel": false,
+          "regression": "lstsq",
+          "alpha": 0
+        },
+        "settings": {
+          "half_width": 20,
+          "aspect": 1.0,
+          "offset_x": 0,
+          "offset_y": 0,
+          "shape": "rect",
+          "window_sigma": 2.0,
+          "carrier_x": 44,
+          "carrier_y": 44,
+          "recenter_adjust_x": -1,
+          "recenter_adjust_y": -1,
+          "phase_sigma": 10.0,
+          "shear_adjust": 1.0,
+          "erosion": 0,
+          "amplitude_threshold": 0.0,
+          "center_mode": "fixed",
+          "search_radius": 8,
+          "subpixel": false,
+          "regression": "lstsq",
+          "alpha": 0
+        },
+        "coeffs_waves": [
+          0.07066966623186358,
+          0.042400367263796715,
+          0.014463811803677918,
+          0.0565881868187969
+        ],
+        "rmse_waves": 0.0009326805319630556,
+        "rmse_waves_with_defocus_tilt": 0.0009326813638096199,
+        "pv_waves": 0.007573176601301947,
+        "max_coefficient_error_waves": 0.0005605957861389843,
+        "coefficient_errors_waves": [
+          0.0005605957861389843,
+          0.00033492499636195855,
+          0.00044199771453299827,
+          0.0005009304622172195
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772
+      },
+      {
+        "case": "baseline",
+        "method": "direct",
+        "status": "ok",
+        "seconds": 22.376347041979898,
+        "converged": true,
+        "full_intensity_rms": 5.165183252425839e-17,
+        "starts": 1,
+        "nfev": 6,
+        "gain": 3788305977967.3467,
+        "background": -6.16113640508264e-18,
+        "coeffs_waves": [
+          0.07010907044572459,
+          0.042065442267434756,
+          0.014021814089144921,
+          0.05608725635657968
+        ],
+        "rmse_waves": 4.240075395645104e-18,
+        "rmse_waves_with_defocus_tilt": 4.240177507875452e-18,
+        "pv_waves": 1.1094931125764304e-16,
+        "max_coefficient_error_waves": 1.734723475976807e-18,
+        "coefficient_errors_waves": [
+          0.0,
+          0.0,
+          1.734723475976807e-18,
+          0.0
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772
+      }
+    ],
+    "calibration": {
+      "config": {
+        "wavelength": 6.7e-09,
+        "distance_stage1": 2.0,
+        "error_mode": "ON",
+        "N_lattice": 120,
+        "N_super_lattice": 10,
+        "super_lattice_period": 3.35e-06,
+        "hole_diameter": 5e-08,
+        "lattice_distance": 1.5e-07,
+        "N_hole_rows": 1,
+        "shift_x": 0.0,
+        "shift_y": 0.0,
+        "shift_z": -0.0001,
+        "tilted_angle": 0.0,
+        "tilt_axis_x": 1.0,
+        "tilt_axis_y": 0.0,
+        "f1": 1.2,
+        "f2": 0.24,
+        "NA_in": 0.00769,
+        "NA_out": 0.02,
+        "Nz": 5,
+        "basis_factor": 0.01,
+        "c_Zernike": [
+          0.25,
+          0.15,
+          0.05,
+          0.2,
+          0.0
+        ],
+        "n_radial": [
+          2,
+          5,
+          3,
+          3,
+          1
+        ],
+        "l_azimuthal": [
+          1,
+          -5,
+          -1,
+          3,
+          0
+        ],
+        "grating_type": "Square",
+        "grating_period": 1.34e-06,
+        "duty_cycle": 50.0,
+        "z_grating": 0.000134,
+        "dx_grating": 1.675e-08,
+        "up_sample_grating": 2,
+        "shift_x_grating": 0.0,
+        "shift_y_grating": 0.0,
+        "shift_z_grating": 0.0,
+        "tilted_angle_grating": 0.0,
+        "tilt_axis_x_grating": 1.0,
+        "tilt_axis_y_grating": 0.0,
+        "z_cam": 0.0536,
+        "dx_cam": 1e-05,
+        "tilted_angle_cam": 0.0,
+        "tilt_axis_x_cam": 1.0,
+        "tilt_axis_y_cam": 0.0
+      },
+      "settings": {
+        "half_width": 20,
+        "aspect": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "shape": "rect",
+        "window_sigma": 2.0,
+        "carrier_x": 44,
+        "carrier_y": 44,
+        "recenter_adjust_x": -1,
+        "recenter_adjust_y": -1,
+        "phase_sigma": 10.0,
+        "shear_adjust": 1.0,
+        "erosion": 0,
+        "amplitude_threshold": 0.0,
+        "center_mode": "fixed",
+        "search_radius": 8,
+        "subpixel": false,
+        "regression": "lstsq",
+        "alpha": 0
+      },
+      "amplitude_waves": 0.02,
+      "units": "object-pupil waves",
+      "phase_reference": "independent zero-aberration image",
+      "condition": 1.9729207881951345,
+      "seconds": 65.72775675001321,
+      "held_out_mixed_validation": {
+        "rmse_waves": 0.00013254448092404843,
+        "rmse_waves_with_defocus_tilt": 0.00013254486406417363,
+        "pv_waves": 0.0010475569892416617,
+        "max_coefficient_error_waves": 0.0001231450459283868,
+        "coefficient_errors_waves": [
+          3.2644364115520796e-07,
+          -0.0001231450459283868,
+          4.843594503494645e-05,
+          -5.50247930750352e-07
+        ],
+        "recovered": true,
+        "recovery_tolerance_waves": 0.01,
+        "evaluation_pixels": 26772
+      },
+      "training_cases": "zero and symmetric single modes; no mixed test wavefronts"
+    },
+    "seconds": 154.5144114580471,
+    "peak_memory_mib": 1446.609375,
+    "scope": "One mixed four-mode, 0.1 waves RMS, noiseless same-model simulation; no instrument accuracy or general recovery-rate claim."
+  },
+  "reference_parity": {
+    "errors": {
+      "source_field_relative_l2": 1.706432238110698e-11,
+      "objective_field_relative_l2": 1.710614284939472e-15,
+      "grating_field_relative_l2": 7.195318737031621e-14,
+      "grating_mask_relative_l2": 0.0,
+      "camera_field_relative_l2": 1.5911494926216417e-11,
+      "all_sources_intensity_relative_l2": 5.035555408676388e-12
+    },
+    "passed": true,
+    "tolerance": 1e-08,
+    "all_sources_checked": true,
+    "source_sha256": {
+      "point2plate.py": "938624c7d2a471ecdef52dda3d8340033d36f2aae5cf993ad6e4c9715d09a9ca",
+      "obj_sys_ft.py": "0fa3e3901134a3fe5772fc3d5775fc8c20a0e8e3b0816924f01a95ebc959dc76",
+      "grating2cam.py": "f686e958bd531426c1512b1bccda268e7888633e74444aa3bda5888136da60d5"
+    },
+    "config": {
+      "wavelength": 6.7e-09,
+      "distance_stage1": 2.0,
+      "error_mode": "ON",
+      "N_lattice": 120,
+      "N_super_lattice": 10,
+      "super_lattice_period": 3.35e-06,
+      "hole_diameter": 5e-08,
+      "lattice_distance": 1.5e-07,
+      "N_hole_rows": 1,
+      "shift_x": 0.0,
+      "shift_y": 0.0,
+      "shift_z": -0.0001,
+      "tilted_angle": 0.0,
+      "tilt_axis_x": 1.0,
+      "tilt_axis_y": 0.0,
+      "f1": 1.2,
+      "f2": 0.24,
+      "NA_in": 0.00769,
+      "NA_out": 0.02,
+      "Nz": 5,
+      "basis_factor": 0.01,
+      "c_Zernike": [
+        0.25,
+        0.15,
+        0.05,
+        0.2,
+        0.0
+      ],
+      "n_radial": [
+        2,
+        5,
+        3,
+        3,
+        1
+      ],
+      "l_azimuthal": [
+        1,
+        -5,
+        -1,
+        3,
+        0
+      ],
+      "grating_type": "Square",
+      "grating_period": 1.34e-06,
+      "duty_cycle": 50.0,
+      "z_grating": 0.000134,
+      "dx_grating": 1.675e-08,
+      "up_sample_grating": 2,
+      "shift_x_grating": 0.0,
+      "shift_y_grating": 0.0,
+      "shift_z_grating": 0.0,
+      "tilted_angle_grating": 0.0,
+      "tilt_axis_x_grating": 1.0,
+      "tilt_axis_y_grating": 0.0,
+      "z_cam": 0.0536,
+      "dx_cam": 1e-05,
+      "tilted_angle_cam": 0.0,
+      "tilt_axis_x_cam": 1.0,
+      "tilt_axis_y_cam": 0.0
+    }
+  },
+  "interrupted_runs": [
+    {
+      "artifact_directory": "output/diffraction/angles",
+      "profile": "quick",
+      "status": "interrupted",
+      "row_count": 56,
+      "stop_reason": "User requested stopping experiments because this machine has limited memory; no further large runs authorized on this machine."
+    },
+    {
+      "artifact_directory": "output/diffraction/reference_regions",
+      "profile": "reference",
+      "status": "interrupted",
+      "row_count": 4,
+      "stop_reason": "User requested stopping experiments because this machine has limited memory; no further large runs authorized on this machine."
+    },
+    {
+      "artifact_directory": "output/diffraction/reference_angles",
+      "profile": "reference",
+      "status": "interrupted",
+      "row_count": 2,
+      "stop_reason": "User requested stopping experiments because this machine has limited memory; no further large runs authorized on this machine."
+    }
+  ]
+}

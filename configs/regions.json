@@ -1,0 +1,14 @@
+{
+  "profile": "reference",
+  "scene": {"rms": 0.1},
+  "fit": {"starts": 1},
+  "sweep": {
+    "widths": [8, 12, 16, 20, 22, 24, 28, 32],
+    "offsets": [-3, -2, -1, 0, 1, 2, 3],
+    "shapes": ["rect", "circle", "gaussian"],
+    "aspects": [0.5, 2],
+    "erosions": [2, 4, 8, 12],
+    "thresholds": [0.1, 0.3, 0.5],
+    "recalibrate": false
+  }
+}

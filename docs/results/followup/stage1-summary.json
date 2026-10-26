@@ -1,0 +1,100 @@
+{
+  "stage": 1,
+  "title": "recalibrated width-32 supplement",
+  "status": "complete",
+  "started_at": "2026-10-21T14:22:29+00:00",
+  "finished_at": "2026-10-21T14:22:41+00:00",
+  "wall_seconds": 11.65179545400315,
+  "completed": [
+    "reconstructed recalibrated half-width 32 from saved calibration and observation",
+    "merged widths 8,12,16,20,24,28,32 for the recalibrated scan",
+    "summarized the already-complete independent validation selection"
+  ],
+  "not_done": [
+    "center-offset scan",
+    "shape/aspect scan",
+    "spatial-mask scan",
+    "angle scans",
+    "noise and initialization studies",
+    "formal Chinese report and PR"
+  ],
+  "key_results": {
+    "recalibrated_width_32_rmse_waves": 0.0007985093664063633,
+    "recalibrated_width_24_rmse_waves": 0.000826601367071858,
+    "recalibrated_width_28_rmse_waves": 0.0007917873981092122,
+    "recalibrated_width_20_rmse_waves": 0.000932680531962685,
+    "frozen_width_22_best_test_truth_rmse_waves": 0.0009008607706910473,
+    "frozen_width_32_rmse_waves": 0.0011219945947183996,
+    "validation_selected_width": 32.0,
+    "validation_rms_waves": 0.05,
+    "validation_repeats": 2,
+    "direct_reference_rmse_waves": 0.0,
+    "recalibrated_width_32_minus_28_waves": 6.721968297151125e-06,
+    "frozen_width_22_vs_32_delta_waves": 0.0002211338240273523
+  },
+  "resources": {
+    "compute_seconds": 9.151764095993713,
+    "wall_seconds": 11.65179545400315,
+    "peak_memory_mib": 2440.5625,
+    "workers": 1,
+    "batch_sources": 1
+  },
+  "code": {
+    "branch": "diffraction-window-tilt-followup",
+    "head": "b9b2f228c19e1060649c0a5978f2c813ce06d24f",
+    "modified_tracked": [
+      "lsi/study.py"
+    ],
+    "untracked": [
+      "scripts/",
+      "work/"
+    ],
+    "committed": false
+  },
+  "outputs": {
+    "supplement_dir": "output/diffraction/followup_20261021/regions_width_recal_supplement_w32",
+    "combined_widths": "output/diffraction/followup_20261021/regions_width_recal_supplement_w32/combined_widths.json",
+    "manifest": "output/diffraction/followup_20261021/regions_width_recal_supplement_w32/manifest.json",
+    "progress": "docs/results/followup/stage1-progress.md"
+  },
+  "estimate": {
+    "this_batch_compute_seconds": 9.151764095993713,
+    "this_batch_wall_seconds": 107.0,
+    "measured_throughput": {
+      "fourier_solve_seconds_approx": [
+        10,
+        15
+      ],
+      "geometry_specific_calibration_seconds_approx": 34,
+      "single_start_direct_seconds_approx": 40
+    },
+    "remaining_research": "Region center/shape/mask scans and angle scans are measured at roughly 10-15 s per Fourier solve and ~34 s per geometry-specific calibration; remaining compute is approximately 1.5-2.5 h, plus report/PR work. Angle, noise and initialization stages have not been trial-run, so their ETA remains uncertain."
+  },
+  "limitations": [
+    "The 0.05-wave validation samples selected width 32. For the recalibrated scan, width 32 is only 6.7e-6 waves worse than the test-truth best at 28; for the frozen scan, width 32 is 2.21e-4 waves worse than the test-truth best at 22. This does not establish amplitude as the cause because the wavefront mixture and small validation set also differ.",
+    "The frozen experiment used 3 validation samples and the recalibrated experiment used 2; both are small.",
+    "The recalibrated width-32 row reuses a saved per-window calibration, not a fresh calibration run.",
+    "The source run remains marked interrupted; the supplement is a separate derived result."
+  ],
+  "batch_started_at": "2026-10-21T14:21:47+00:00",
+  "batch_finished_at": "2026-10-21T14:23:34+00:00",
+  "batch_wall_seconds": 107.0,
+  "qa_check": {
+    "method": "reconstructed saved width_28 calibration row independently",
+    "reproduced_rmse_waves": 0.0007917873981092122,
+    "source_row_rmse_waves": 0.0007917873981092122,
+    "absolute_delta_waves": 0.0,
+    "note": "exact match confirms the supplement reconstruction path against an existing source row"
+  },
+  "scientific_scope": {
+    "recalibrated_low_point": "28 bin, 7.9178739811e-4 waves; 32 bin, 7.9850936641e-4 waves",
+    "scope": "low point / approximate plateau within the tested 8-32 bins on this test image only; not a general optimum",
+    "protocols_separate": "frozen nominal calibration and per-window recalibration are different protocols; curves are reported separately",
+    "validation_sample_counts": {
+      "frozen": 3,
+      "recalibrated": 2
+    },
+    "selection_comparison_requirement": "future comparisons must use the same independent validation set and separate selection from test",
+    "corrupt_source_npz": "width_32_fourier.npz is corrupt and must not be reused; supplement uses saved calibration and observation"
+  }
+}
