@@ -7,8 +7,8 @@ from time import perf_counter
 import numpy as np
 from scipy import fft
 from scipy.signal import CZT
-from .config import DiffractionConfig
-from .annular import basis, configured_coeffs
+from .config import SystemConfig
+from .basis import basis
 
 
 class CenteredCZT:
@@ -36,7 +36,7 @@ def tilt_phase(x, y, degrees, ax, ay, k):
 
 class DiffractionModel:
     def __init__(self, config=None, indices=None, batch_sources=2, workers=1, backend='separable'):
-        self.config = c = config or DiffractionConfig()
+        self.config = c = config or SystemConfig()
         self.indices = tuple(indices if indices is not None else (7, 25, 11, 15))
         if len(set(self.indices)) != len(self.indices) or 0 in self.indices:
             raise ValueError("fit distinct non-piston modes")
@@ -57,13 +57,6 @@ class DiffractionModel:
         self.theta = np.arctan2(fy, fx)
         self.pupil = (self.rho >= c.epsilon) & (self.rho <= 1)
         self.Z = basis(self.indices, self.rho, self.theta, c.epsilon, c.Nz)
-        # Never leak configured test-truth coefficients into the inverse model.
-        # A scene containing further nonzero terms must expose those as unknowns.
-        all_c = configured_coeffs(c)
-        fixed = [j for j, v in enumerate(all_c) if v and j not in self.indices]
-        if fixed:
-            raise ValueError(f"configured nonzero modes {fixed} are absent from fit indices; expand indices")
-        self.fixed_wavefront = np.zeros((n, n))
         z = c.z_grating - c.shift_z_grating
         self.pre_g = np.exp(1j * np.pi * (self.x_img**2 + self.y_img**2) / (c.wavelength * z))
         self.pre_g *= tilt_phase(self.x_img, self.y_img, c.tilted_angle_grating,
@@ -187,7 +180,7 @@ class DiffractionModel:
             raise ValueError("invalid coefficients")
         start = perf_counter()
         self.prepare_sources()
-        H = self.pupil * np.exp(2j * np.pi * (np.tensordot(coeffs, self.Z, axes=1) + self.fixed_wavefront))
+        H = self.pupil * np.exp(2j * np.pi * (np.tensordot(coeffs, self.Z, axes=1)))
         if rows is not None:
             rows = np.asarray(rows, int)
             if rows.ndim != 1 or np.any((rows < 0) | (rows >= self.n*self.n)):
@@ -239,4 +232,4 @@ class DiffractionModel:
         return (image, derivative) if jacobian else image
 
     def wavefront(self, coeffs):
-        return np.tensordot(coeffs, self.Z, axes=1) + self.fixed_wavefront
+        return np.tensordot(coeffs, self.Z, axes=1)

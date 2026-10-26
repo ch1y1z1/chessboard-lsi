@@ -37,7 +37,7 @@ def fit_direct(model, observed, starts=2, seed=42, samples=8192, max_nfev=60,
     screened = []
     for i in range(max(starts-1, screen_initials)):
         direction = rng.normal(size=count)
-        rms = np.std(model.wavefront(direction)[model.pupil] - model.fixed_wavefront[model.pupil])
+        rms = np.std(model.wavefront(direction)[model.pupil])
         amplitude = (.03, .1, .3)[i % 3] if screen_initials else initial_rms
         candidate = direction * amplitude / max(rms, 1e-12)
         candidate = np.clip(candidate, -coefficient_bound*.99, coefficient_bound*.99)

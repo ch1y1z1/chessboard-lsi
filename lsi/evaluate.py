@@ -1,6 +1,6 @@
 """Common, fixed-pupil evaluation; never accept a sign flip as recovery."""
 import numpy as np
-from .annular import basis
+from .basis import basis
 
 
 def wavefront_metrics(model, fitted, truth, recovery_tolerance=0.01):

@@ -302,9 +302,9 @@ Git 只保存小型 JSON/CSV/PNG 摘要与脚本，`work/` 被忽略，不把大
 
 - 代码：分支 `diffraction-window-tilt-followup`，起点 `b9b2f22`，本地 checkpoint `e76fda3`；
   后续 PR 不自动合并，PR15 也不自动合并。
-- 关键脚本：`scripts/center_axis_scan.py`、`center_grid_fill.py`、`shape_and_anomaly.py`、
-  `mask_scan.py`、`angle_batch.py`、`noise_init_study.py`、`selection_strategy.py`、
-  `complete_recal_width32.py`、`merge_angles.py`。
+- 历史阶段结果由一次性远端扫描脚本生成；重构后这些脚本不再作为生产代码保留。
+  当前运行入口为 `python -m lsi`，实验配置见 `configs/`；新结构说明见仓库 README。
+  原始阶段脚本可按本报告记录的提交 `8628f3c` 从 Git 历史取出，历史报告中的批次目录不会被新运行覆盖。
 - 摘要：`docs/results/followup/stage1-*` 到 `stage3c-*`；图：`docs/results/followup/figures/`。
 - 后续 PR：[#16](https://github.com/ch1y1z1/chessboard-lsi/pull/16)（base `shear-code-overview`，OPEN，未合并）。
 - 本地 checkpoint：`e76fda3`（阶段 1–2d）；研究提交：`2a6a07e`；远端交付末提交：`29be2cc`。

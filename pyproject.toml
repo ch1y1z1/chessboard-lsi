@@ -13,15 +13,16 @@ license-files = ["LICENSE"]
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
-    "matplotlib>=3.7",
     "scikit-image>=0.22",
     "scikit-learn>=1.3",
 ]
 
 [dependency-groups]
-dev = [
-    "pytest>=7",
-]
+dev = ["pytest>=7"]
+report = ["matplotlib>=3.7"]
 
 [tool.setuptools]
 packages = ["lsi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

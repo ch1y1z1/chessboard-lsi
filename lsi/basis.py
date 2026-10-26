@@ -51,11 +51,3 @@ def basis(indices, rho, theta, epsilon, Nz=5):
     if any(i < 0 or i >= len(labels) for i in indices):
         raise ValueError("mode index outside the configured basis")
     return np.stack([annular_zernike(*labels[i], epsilon, rho, theta) for i in indices])
-
-
-def configured_coeffs(config):
-    labels = mode_labels(config.Nz)
-    result = np.zeros(len(labels))
-    for c, nn, l in zip(config.c_Zernike, config.n_radial, config.l_azimuthal):
-        result[labels.index((2 * nn - abs(l), l))] += c
-    return result

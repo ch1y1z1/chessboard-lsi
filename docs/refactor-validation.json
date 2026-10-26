@@ -1,0 +1,98 @@
+{
+  "baseline_commit": "8628f3c",
+  "full_resolution_experiments_rerun": false,
+  "tests": {
+    "command": "uv run pytest -q",
+    "passed": 8,
+    "seconds": 3.28
+  },
+  "small_scene_reference": {
+    "errors": {
+      "source_field_relative_l2": 1.7462306573106653e-11,
+      "objective_field_relative_l2": 1.758225841206519e-15,
+      "grating_field_relative_l2": 1.8378446424025363e-14,
+      "grating_mask_relative_l2": 0.0,
+      "camera_field_relative_l2": 1.4217601432697148e-11,
+      "all_sources_intensity_relative_l2": 3.2551245117374988e-12
+    },
+    "passed": true,
+    "tolerance": 1e-08,
+    "all_sources_checked": true,
+    "source_sha256": {
+      "point2plate.py": "938624c7d2a471ecdef52dda3d8340033d36f2aae5cf993ad6e4c9715d09a9ca",
+      "obj_sys_ft.py": "0fa3e3901134a3fe5772fc3d5775fc8c20a0e8e3b0816924f01a95ebc959dc76",
+      "grating2cam.py": "f686e958bd531426c1512b1bccda268e7888633e74444aa3bda5888136da60d5"
+    },
+    "config": {
+      "wavelength": 6.7e-09,
+      "error_mode": "ON",
+      "N_lattice": 20,
+      "N_super_lattice": 4,
+      "super_lattice_period": 3.35e-06,
+      "shift_z": -0.0001,
+      "tilted_angle": 0.0,
+      "tilt_axis_x": 1.0,
+      "tilt_axis_y": 0.0,
+      "f1": 1.2,
+      "f2": 0.24,
+      "NA_in": 0.00769,
+      "NA_out": 0.02,
+      "Nz": 5,
+      "grating_type": "Square",
+      "grating_period": 1.34e-06,
+      "duty_cycle": 50.0,
+      "z_grating": 0.000134,
+      "dx_grating": 6.7e-08,
+      "up_sample_grating": 2,
+      "shift_x_grating": 0.0,
+      "shift_y_grating": 0.0,
+      "shift_z_grating": 0.0,
+      "tilted_angle_grating": 0.0,
+      "tilt_axis_x_grating": 1.0,
+      "tilt_axis_y_grating": 0.0,
+      "z_cam": 0.0536,
+      "dx_cam": 0.0001,
+      "tilted_angle_cam": 0.0,
+      "tilt_axis_x_cam": 1.0,
+      "tilt_axis_y_cam": 0.0
+    }
+  },
+  "frozen_comparison": {
+    "fixture": "tests/data/refactor_baseline.json",
+    "cases": [
+      "clean",
+      "seed42",
+      "seed43",
+      "seed44"
+    ],
+    "methods": [
+      "direct",
+      "fourier_calibrated"
+    ],
+    "coefficient_rtol": 1e-09,
+    "coefficient_atol": 1e-11
+  },
+  "historical_data_unchanged_sha256": {
+    "docs/results/reference-parity-separable.json": "25e3ba5e1df36de8edeb30d67181e25e45e0c4fa0cfc49b65068ee2e551aa9cc",
+    "docs/results/reference-parity.json": "23eb9e910c7d7a1cbc0df637baa61a91ee4eb5b6f5f1609cf7bf43aee498cea8",
+    "docs/results/verified-summary.json": "dbb6ab34c2232df4b713e2aa26727a5f60e59cc99c043d9a13122c3157e2d6e4",
+    "docs/results/followup/stage3b-summary.json": "13ff4aee04f760c0f4601afd2f42622c37a83ebbfa76961ea5631037b4e7c518",
+    "docs/results/followup/stage3c-summary.json": "21238f01d56f704218cf6f25f710271df0765b67c5fd5f0233884f6f79837dd1",
+    "docs/results/followup/stage2a-summary.json": "9e6a3f8412c7d346b41152490379405b08342ba80bed083315f9b3b100c3781b",
+    "docs/results/followup/stage3a-angle-pilot-summary.json": "fcd376d89a1313c4f568db42ded207127972ef0e23b12e296e5fc4910f70460a",
+    "docs/results/followup/stage1-summary.json": "c0fd8fe0206ef0547939b4528912d18e022d99b3ca896a551c71f299241d5fc5",
+    "docs/results/followup/stage2c-summary.json": "42fa10347bbaed571e2514fa13fbd55a03e48053291130a3400eddd4f2f5caa0",
+    "docs/results/followup/stage3d-angle-0p5-summary.json": "6306322debf8f3c38ea6dbbf46fc086e91843bc810891b82aeff34ce36bfd5b5",
+    "docs/results/followup/stage2d-summary.json": "557dc316e125fe158eafb0babfba8bf59268b8ec62f31d036c3afd1676ff5dee",
+    "docs/results/followup/stage3-angle-summary.json": "5a62d78804a56454167d40771771bba8bd9519cedcb480078efbf03ac6e82e66",
+    "docs/results/followup/stage2b-summary.json": "cc4886b83a865828b9bedbf06fb732e2861f1762b8036b71f8db86aaa796b148",
+    "docs/results/followup/figures/angle_known_ignored-review.json": "dd56eaf5faf147a083fa54f171291e5472f0d2fe09514ac54514cff7238ffc5c",
+    "tests/data/reference_fields.json": "a455fa8fc9f54134b3dff18cfc3921e76e11afcfbc13246926d06e5003fbfcf6",
+    "tests/data/reference_fields.npz": "f45b7662b496ed0d36e5b4e3f5f4324d9c37155edebee2aecbee447cc3e7a263",
+    "tests/data/reference_sidebands.npz": "f49566f52d2452c93af7bf297273b51bf6e1162764fb1d055e87126c1dc6c64f"
+  },
+  "notes": [
+    "Only four-source small scenes run locally.",
+    "Original resolution PR16 figures and results remain historical evidence, not a new validation run."
+  ]
+}

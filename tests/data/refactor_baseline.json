@@ -1,0 +1,287 @@
+{
+  "baseline_commit": "8628f3c",
+  "description": "Frozen small-scene values from PR16 before refactoring; independent reference fields remain in reference_fields.npz.",
+  "config": {
+    "wavelength": 6.7e-09,
+    "distance_stage1": 2.0,
+    "error_mode": "ON",
+    "N_lattice": 20,
+    "N_super_lattice": 4,
+    "super_lattice_period": 3.35e-06,
+    "hole_diameter": 5e-08,
+    "lattice_distance": 1.5e-07,
+    "N_hole_rows": 1,
+    "shift_x": 0.0,
+    "shift_y": 0.0,
+    "shift_z": -0.0001,
+    "tilted_angle": 0.0,
+    "tilt_axis_x": 1.0,
+    "tilt_axis_y": 0.0,
+    "f1": 1.2,
+    "f2": 0.24,
+    "NA_in": 0.00769,
+    "NA_out": 0.02,
+    "Nz": 5,
+    "basis_factor": 0.01,
+    "c_Zernike": [
+      0.25,
+      0.15,
+      0.05,
+      0.2,
+      0.0
+    ],
+    "n_radial": [
+      2,
+      5,
+      3,
+      3,
+      1
+    ],
+    "l_azimuthal": [
+      1,
+      -5,
+      -1,
+      3,
+      0
+    ],
+    "grating_type": "Square",
+    "grating_period": 1.34e-06,
+    "duty_cycle": 50.0,
+    "z_grating": 0.000134,
+    "dx_grating": 6.7e-08,
+    "up_sample_grating": 2,
+    "shift_x_grating": 0.0,
+    "shift_y_grating": 0.0,
+    "shift_z_grating": 0.0,
+    "tilted_angle_grating": 0.0,
+    "tilt_axis_x_grating": 1.0,
+    "tilt_axis_y_grating": 0.0,
+    "z_cam": 0.0536,
+    "dx_cam": 0.0001,
+    "tilted_angle_cam": 0.0,
+    "tilt_axis_x_cam": 1.0,
+    "tilt_axis_y_cam": 0.0
+  },
+  "truth": [
+    0.04,
+    -0.025,
+    0.03,
+    0.035
+  ],
+  "settings": {
+    "half_width": 8,
+    "aspect": 1.0,
+    "offset_x": 0,
+    "offset_y": 0,
+    "shape": "rect",
+    "window_sigma": 2.0,
+    "carrier_x": 29,
+    "carrier_y": 29,
+    "recenter_adjust_x": -1,
+    "recenter_adjust_y": -1,
+    "phase_sigma": 1,
+    "shear_adjust": 1.0,
+    "erosion": 0,
+    "amplitude_threshold": 0.0,
+    "center_mode": "fixed",
+    "search_radius": 8,
+    "subpixel": false,
+    "regression": "lstsq",
+    "alpha": 0.02,
+    "lasso_max_iter": 1000,
+    "lasso_tol": 0.0001
+  },
+  "direct": {
+    "starts": 1,
+    "samples": 1500,
+    "max_nfev": 35,
+    "seed": 42
+  },
+  "calibration_amplitude": 0.02,
+  "rows": [
+    {
+      "seed": null,
+      "method": "fourier_calibrated",
+      "coeffs_waves": [
+        0.03738995721046863,
+        -0.3593585658505472,
+        0.027922297265621104,
+        -0.0031922197846909984
+      ],
+      "rmse_waves": 0.3361530797931304,
+      "rmse_waves_with_defocus_tilt": 0.336190507054507,
+      "pv_waves": 2.2835327879197136,
+      "max_coefficient_error_waves": 0.3343585658505472,
+      "coefficient_errors_waves": [
+        -0.0026100427895313708,
+        -0.3343585658505472,
+        -0.002077702734378895,
+        -0.038192219784691
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 4274
+    },
+    {
+      "seed": null,
+      "method": "direct",
+      "coeffs_waves": [
+        0.04,
+        -0.024999999999999953,
+        0.030000000000000002,
+        0.03500000000000016
+      ],
+      "rmse_waves": 1.6697593415330807e-16,
+      "rmse_waves_with_defocus_tilt": 1.6698907255917305e-16,
+      "pv_waves": 1.1311907799204966e-15,
+      "max_coefficient_error_waves": 1.5959455978986625e-16,
+      "coefficient_errors_waves": [
+        0.0,
+        4.85722573273506e-17,
+        3.469446951953614e-18,
+        1.5959455978986625e-16
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 4274
+    },
+    {
+      "seed": 42,
+      "method": "fourier_calibrated",
+      "coeffs_waves": [
+        -0.025540273472018527,
+        -0.2645751952683714,
+        0.0937016836286909,
+        0.7043398151598803
+      ],
+      "rmse_waves": 0.7180523216224354,
+      "rmse_waves_with_defocus_tilt": 0.7181059025416117,
+      "pv_waves": 5.406047482186935,
+      "max_coefficient_error_waves": 0.6693398151598803,
+      "coefficient_errors_waves": [
+        -0.06554027347201853,
+        -0.23957519526837143,
+        0.0637016836286909,
+        0.6693398151598803
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 4274
+    },
+    {
+      "seed": 42,
+      "method": "direct",
+      "coeffs_waves": [
+        0.04094895857725569,
+        -0.02804278697968567,
+        0.029348371931497034,
+        0.03775492067090512
+      ],
+      "rmse_waves": 0.004236993030949283,
+      "rmse_waves_with_defocus_tilt": 0.0042374019909757815,
+      "pv_waves": 0.03387243330593465,
+      "max_coefficient_error_waves": 0.003042786979685668,
+      "coefficient_errors_waves": [
+        0.0009489585772556874,
+        -0.003042786979685668,
+        -0.000651628068502965,
+        0.002754920670905117
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 4274
+    },
+    {
+      "seed": 43,
+      "method": "fourier_calibrated",
+      "coeffs_waves": [
+        0.012788722402528763,
+        -0.16490695155392734,
+        0.04691822543284722,
+        0.2012026621763598
+      ],
+      "rmse_waves": 0.2200893980280153,
+      "rmse_waves_with_defocus_tilt": 0.220107720398247,
+      "pv_waves": 1.872833030973312,
+      "max_coefficient_error_waves": 0.1662026621763598,
+      "coefficient_errors_waves": [
+        -0.027211277597471238,
+        -0.13990695155392735,
+        0.01691822543284722,
+        0.1662026621763598
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 4274
+    },
+    {
+      "seed": 43,
+      "method": "direct",
+      "coeffs_waves": [
+        0.03914172548712936,
+        -0.020170165171157182,
+        0.03054924932644794,
+        0.0348923375568067
+      ],
+      "rmse_waves": 0.0049179447358561066,
+      "rmse_waves_with_defocus_tilt": 0.004918500596042886,
+      "pv_waves": 0.036038948892850815,
+      "max_coefficient_error_waves": 0.004829834828842819,
+      "coefficient_errors_waves": [
+        -0.0008582745128706409,
+        0.004829834828842819,
+        0.0005492493264479398,
+        -0.00010766244319330293
+      ],
+      "recovered": true,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 4274
+    },
+    {
+      "seed": 44,
+      "method": "fourier_calibrated",
+      "coeffs_waves": [
+        0.038729322617391496,
+        -1.0553632425278239,
+        0.024534162422093414,
+        -0.1466162211519042
+      ],
+      "rmse_waves": 1.0450810541871365,
+      "rmse_waves_with_defocus_tilt": 1.0451967724882878,
+      "pv_waves": 7.374657701731131,
+      "max_coefficient_error_waves": 1.030363242527824,
+      "coefficient_errors_waves": [
+        -0.0012706773826085052,
+        -1.030363242527824,
+        -0.005465837577906585,
+        -0.1816162211519042
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 4274
+    },
+    {
+      "seed": 44,
+      "method": "direct",
+      "coeffs_waves": [
+        0.04035227866294264,
+        -0.036651181269338313,
+        0.03016459011752732,
+        0.03610329654743239
+      ],
+      "rmse_waves": 0.011701634730530208,
+      "rmse_waves_with_defocus_tilt": 0.011702920098591373,
+      "pv_waves": 0.0788933251357637,
+      "max_coefficient_error_waves": 0.011651181269338312,
+      "coefficient_errors_waves": [
+        0.0003522786629426358,
+        -0.011651181269338312,
+        0.0001645901175273204,
+        0.0011032965474323878
+      ],
+      "recovered": false,
+      "recovery_tolerance_waves": 0.01,
+      "evaluation_pixels": 4274
+    }
+  ]
+}

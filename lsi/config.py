@@ -1,24 +1,16 @@
 """BUV0725 physical parameters. Lengths are metres, angles are degrees."""
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, fields, replace
-import json
-from pathlib import Path
+from dataclasses import asdict, dataclass, replace
 
 
 @dataclass(frozen=True)
-class DiffractionConfig:
+class SystemConfig:
     wavelength: float = 6.7e-9
-    distance_stage1: float = 2.0
     error_mode: str = "ON"
     N_lattice: int = 120
     N_super_lattice: int = 10
     super_lattice_period: float = 3.35e-6
-    hole_diameter: float = 50e-9
-    lattice_distance: float = 150e-9
-    N_hole_rows: int = 1
-    shift_x: float = 0.0
-    shift_y: float = 0.0
     shift_z: float = -100e-6
     tilted_angle: float = 0.0
     tilt_axis_x: float = 1.0
@@ -28,10 +20,6 @@ class DiffractionConfig:
     NA_in: float = 0.00769
     NA_out: float = 0.02
     Nz: int = 5
-    basis_factor: float = 0.01
-    c_Zernike: tuple[float, ...] = (0.25, 0.15, 0.05, 0.2, 0.0)
-    n_radial: tuple[int, ...] = (2, 5, 3, 3, 1)
-    l_azimuthal: tuple[int, ...] = (1, -5, -1, 3, 0)
     grating_type: str = "Square"
     grating_period: float = 1.34e-6
     duty_cycle: float = 50.0
@@ -51,10 +39,6 @@ class DiffractionConfig:
     tilt_axis_y_cam: float = 0.0
 
     def __post_init__(self):
-        for name in ("c_Zernike", "n_radial", "l_azimuthal"):
-            object.__setattr__(self, name, tuple(getattr(self, name)))
-        if len({len(self.c_Zernike), len(self.n_radial), len(self.l_azimuthal)}) != 1:
-            raise ValueError("coefficient and mode lists must have equal lengths")
         if self.N_lattice < 2 or self.N_super_lattice < 3 or self.up_sample_grating < 1:
             raise ValueError("invalid grid dimensions")
         if not 0 <= self.NA_in < self.NA_out or self.NA_out <= 0:
@@ -85,12 +69,6 @@ class DiffractionConfig:
     def epsilon(self):
         return self.NA_in / self.NA_out
 
-    @classmethod
-    def from_json(cls, path):
-        data = json.loads(Path(path).read_text())
-        names = {f.name for f in fields(cls)}
-        return cls(**{k: v for k, v in data.items() if k in names})
-
     def to_dict(self):
         return asdict(self)
 
@@ -99,9 +77,7 @@ class DiffractionConfig:
         if name == "reference":
             return cls()
         if name == "retrieval":
-            return cls(error_mode="OFF", shift_z=0.0,
-                       c_Zernike=(0.25, 0.15, 0.05, 0.2),
-                       n_radial=(2, 5, 3, 3), l_azimuthal=(1, -5, -1, 3))
+            return cls(error_mode="OFF", shift_z=0.0)
         if name == "quick":
             # Same physical FOVs and all 64 sources, coarser numerical sampling.
             return replace(cls(), N_lattice=30, dx_cam=40e-6, dx_grating=67e-9)
@@ -117,3 +93,38 @@ class DiffractionConfig:
         return replace(self, **{"tilted_angle" + suffix: float(angle),
                                 "tilt_axis_x" + suffix: ax,
                                 "tilt_axis_y" + suffix: ay})
+
+
+@dataclass(frozen=True)
+class Scene:
+    """Simulation truth and measurement noise; never passed to either solver."""
+
+    indices: tuple[int, ...] = (7, 25, 11, 15)
+    coefficients: tuple[float, ...] = (.25, .15, .05, .2)
+    rms: float | None = .1
+    snr_db: float | None = None
+    seed: int = 42
+
+    def coefficients_for(self, indices, Nz=5):
+        import numpy as np
+        if len(self.indices) != len(self.coefficients) or len(set(self.indices)) != len(self.indices):
+            raise ValueError("scene modes and coefficients must match and be distinct")
+        if any(j < 1 or j >= (Nz + 1)**2 for j in self.indices):
+            raise ValueError("scene mode outside the configured non-piston basis")
+        truth = dict(zip(self.indices, self.coefficients))
+        missing = {j for j, c in truth.items() if c and j not in indices}
+        if missing:
+            raise ValueError(f"nonzero scene modes {sorted(missing)} are absent from fit indices")
+        return np.array([truth.get(j, 0.) for j in indices], dtype=float)
+
+
+@dataclass(frozen=True)
+class FitConfig:
+    """Unknown modes and the finite optimization budget."""
+
+    indices: tuple[int, ...] = (7, 25, 11, 15)
+    starts: int = 2
+    samples: int | None = 8192
+    max_nfev: int = 60
+    screen_initials: int = 0
+    seed: int = 42

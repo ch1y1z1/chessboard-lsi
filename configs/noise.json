@@ -1,0 +1,6 @@
+{
+  "profile": "reference",
+  "scene": {"rms": 0.1, "snr_db": 40},
+  "fit": {"starts": 1},
+  "sweep": {"noise_seeds": [42, 43, 44]}
+}

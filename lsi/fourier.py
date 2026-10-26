@@ -10,7 +10,7 @@ import numpy as np
 from scipy import ndimage, linalg
 from skimage.restoration import unwrap_phase
 from sklearn.linear_model import Lasso
-from .annular import basis, mode_labels
+from .basis import basis, mode_labels
 
 _UNWRAP_RANDOM = ({'rng': 0} if 'rng' in signature(unwrap_phase).parameters else {'seed': 0})
 

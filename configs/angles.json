@@ -1,0 +1,12 @@
+{
+  "profile": "reference",
+  "scene": {"rms": 0.1},
+  "fit": {"starts": 1, "max_nfev": 60},
+  "sweep": {
+    "components": ["camera", "grating"],
+    "axes": ["x", "y"],
+    "angles": [-0.25, 0.25],
+    "geometry": ["known", "ignored"],
+    "center_modes": ["fixed", "auto"]
+  }
+}
