@@ -12,7 +12,7 @@ from .run import Experiment, settings_for
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('compare', 'regions', 'angles'))
+    parser.add_argument('command', choices=('compare', 'regions', 'apertures', 'angles'))
     parser.add_argument('--profile', choices=('reference', 'retrieval', 'quick', 'test'))
     parser.add_argument('--config', type=Path, help='experiment JSON: system, scene, fit, fourier, sweep')
     parser.add_argument('--output', type=Path, required=True)
@@ -37,7 +37,8 @@ def main(argv=None):
                                 calibration_amplitude=data.get('calibration_amplitude', .02))
         experiment.manifest.update(command=args.command, profile=profile, sweep=options)
         try:
-            experiment.initialize()
+            if args.command != 'apertures':
+                experiment.initialize()
             getattr(experiment, args.command)(options)
         except (Exception, KeyboardInterrupt) as error:
             experiment.finish('interrupted' if isinstance(error, KeyboardInterrupt) else 'failed', str(error))

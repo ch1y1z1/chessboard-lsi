@@ -1,0 +1,20 @@
+{
+  "profile": "reference",
+  "scene": {"rms": 0.1},
+  "fit": {"starts": 2, "samples": 8192, "max_nfev": 60, "seed": 42},
+  "sweep": {
+    "pupils": [
+      {"NA_in": 0.00769, "NA_out": 0.02},
+      {"NA_in": 0.004, "NA_out": 0.02},
+      {"NA_in": 0.012, "NA_out": 0.02},
+      {"NA_in": 0.00769, "NA_out": 0.016},
+      {"NA_in": 0.00769, "NA_out": 0.012},
+      {"NA_in": 0.006152, "NA_out": 0.016},
+      {"NA_in": 0.004614, "NA_out": 0.012}
+    ],
+    "directions": [[0.25, 0.15, 0.05, 0.2], [0.2, -0.3, 0.4, 0.1]],
+    "center_modes": ["fixed", "auto"],
+    "snr_db": [null, 40],
+    "noise_seeds": [42, 43, 44]
+  }
+}
