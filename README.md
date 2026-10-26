@@ -1,7 +1,7 @@
 # chessboard-lsi
 
 BUV0725 / Retrieval0806 参考衍射模型下的二维剪切干涉波前反演。
-一套物理模型，两种解算器，三个实验工作流。系统参数、场景真值和反演设置独立保存。
+一套物理模型，两种解算器，比较、选区和通光角范围三项主要研究。系统参数、场景真值和反演设置独立保存。
 
 ## 代码
 
@@ -13,7 +13,7 @@ lsi/
   fourier.py    边带窗、掩膜、解包裹、差分拟合、独立响应标定
   direct.py     原始光强残差上的 SciPy TRF 非线性最小二乘
   evaluate.py   固定光瞳上的波前误差
-  run.py        compare / regions / angles，负责科学实验流程
+  run.py        compare / regions / apertures；另保留部件倾角 angles 对照
   io.py         配置、观测、结果表、轨迹和源码快照
   cli.py        简短命令入口
 
@@ -36,6 +36,9 @@ uv run python -m lsi --help
 
 # 本机只做四源小场景检查；此场景不能用于原采样精度结论。
 uv run python -m lsi compare --profile test --output output/smoke
+
+# 本地 NA 初步实验：240×240、4 源；显式允许超过 80×80 测试夹具的网格。
+uv run python -m lsi apertures --config configs/apertures-local.json --allow-large-run --output output/apertures-local
 ```
 
 命令只选工作流、profile、配置和输出目录；科学参数集中写在 JSON。
@@ -46,6 +49,7 @@ uv run python -m lsi compare --profile test --output output/smoke
 uv run python -m lsi compare --config configs/compare.json --allow-large-run --output output/compare
 uv run python -m lsi compare --config configs/noise.json --allow-large-run --output output/noise
 uv run python -m lsi regions --config configs/regions.json --allow-large-run --output output/regions
+uv run python -m lsi apertures --config configs/apertures.json --allow-large-run --output output/apertures
 uv run python -m lsi angles --config configs/angles.json --allow-large-run --output output/angles
 ```
 
@@ -63,7 +67,12 @@ uv run python -m lsi angles --config configs/angles.json --allow-large-run --out
 系数单位为 waves；`scene.rms=null` 保留输入系数原始幅度。噪声先对干净强度作峰值归一化，再加入标准差 `10**(-snr_db/20)` 的 Gaussian 噪声。同一带噪图分别交给两种方法。
 
 `regions` 默认冻结名义标定；把 `sweep.recalibrate` 改成 `true` 才逐设置重标定。
-`angles` 分别记录已知倾角和忽略倾角的结果；fixed/auto 各自独立标定，属于完整流程比较。
+`apertures` 改变外 NA 和内外 NA 比例，比较不同通光角范围；每个 NA 工况重新生成观测和独立标定，
+使用该工况自身完整环形光瞳评价，并把输入系数方向归一化到同一目标 RMS。
+它比较的是相同模式方向、相同 RMS 的不同光瞳问题，并非固定物理波前被不同孔径裁切。
+`angles` 是另保留的部件安装倾角研究，与通光角范围不同；分别记录已知倾角和忽略倾角的结果。
+两个工作流中的 fixed/auto 都各自独立标定，属于完整流程比较。
+NA 范围、噪声口径、采样边界和完整实验设计见 [通光角研究协议](docs/aperture-study.md)。
 直接法联合拟合波前、正增益和常数背景，保存所有初值，包括未收敛结果。
 傅里叶 waves 结果使用独立零像差与正负单模式标定；原始相位拟合系数仍可通过 `FourierExtractor.extract` 读取，单位为 a.u.。
 
@@ -102,5 +111,9 @@ uv run python -m tools.check_reference --profile test \
 四类小检查覆盖独立参考场/边带、解析导数、重构物理单位及工作流数据。还冻结了 PR16 同一四源场景的无噪声与三个含噪样本，保证重构前后的系数和 RMSE 在容差内一致。
 
 原采样研究数据与图保存在 [最终报告](docs/results/followup/final-report.md)。这些是历史仿真结果，重构没有重新运行原采样扫描。原始大数组继续保存在远端，Git 内只保留摘要、必要黄金数组和图。
+历史报告中的角度扫描为部件倾角；用户确认的第三目标是 `NA_in/NA_out` 通光角范围，不能用旧倾角结果替代。
+本次只在本地运行四源小场景，见 [NA 初步结果](docs/results/apertures/local-preliminary-report.md)。
+240 网格的傅里叶误差对采样很敏感，另用 480 网格复核三个代表点；仍未完成采样收敛验证，不能给出普遍的 NA 排序。
+完整原采样方案保留在 `configs/apertures.json`，当前未运行，也未向远端下发任务。
 
 模型匹配、无噪声算例的数值零不能当作仪器精度；参考倾斜是相位坡度近似，尚未计算严格旋转平面。

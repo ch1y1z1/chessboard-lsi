@@ -1,0 +1,121 @@
+{
+  "scope": "Four-source 80x80 preflight only; no full-resolution NA research run locally.",
+  "base_commit": "6da7b93caf426f50f509edfe2dec474d1a5a483d",
+  "tests": {
+    "command": "uv run pytest -q",
+    "passed": 9,
+    "seconds": 4.85
+  },
+  "reference_coefficients_waves": [
+    0.04,
+    -0.025,
+    0.03,
+    0.035
+  ],
+  "reference_checks": [
+    {
+      "errors": {
+        "source_field_relative_l2": 1.7462306573106653e-11,
+        "objective_field_relative_l2": 6.225542736226715e-16,
+        "grating_field_relative_l2": 1.3446909106818043e-14,
+        "grating_mask_relative_l2": 0.0,
+        "camera_field_relative_l2": 1.2072680257556143e-11,
+        "all_sources_intensity_relative_l2": 1.3188036704351276e-11
+      },
+      "passed": true,
+      "tolerance": 1e-08,
+      "all_sources_checked": true,
+      "source_sha256": {
+        "point2plate.py": "938624c7d2a471ecdef52dda3d8340033d36f2aae5cf993ad6e4c9715d09a9ca",
+        "obj_sys_ft.py": "0fa3e3901134a3fe5772fc3d5775fc8c20a0e8e3b0816924f01a95ebc959dc76",
+        "grating2cam.py": "f686e958bd531426c1512b1bccda268e7888633e74444aa3bda5888136da60d5"
+      },
+      "config": {
+        "wavelength": 6.7e-09,
+        "error_mode": "ON",
+        "N_lattice": 20,
+        "N_super_lattice": 4,
+        "super_lattice_period": 3.35e-06,
+        "shift_z": -0.0001,
+        "tilted_angle": 0.0,
+        "tilt_axis_x": 1.0,
+        "tilt_axis_y": 0.0,
+        "f1": 1.2,
+        "f2": 0.24,
+        "NA_in": 0.004614,
+        "NA_out": 0.012,
+        "Nz": 5,
+        "grating_type": "Square",
+        "grating_period": 1.34e-06,
+        "duty_cycle": 50.0,
+        "z_grating": 0.000134,
+        "dx_grating": 6.7e-08,
+        "up_sample_grating": 2,
+        "shift_x_grating": 0.0,
+        "shift_y_grating": 0.0,
+        "shift_z_grating": 0.0,
+        "tilted_angle_grating": 0.0,
+        "tilt_axis_x_grating": 1.0,
+        "tilt_axis_y_grating": 0.0,
+        "z_cam": 0.0536,
+        "dx_cam": 0.0001,
+        "tilted_angle_cam": 0.0,
+        "tilt_axis_x_cam": 1.0,
+        "tilt_axis_y_cam": 0.0
+      }
+    },
+    {
+      "errors": {
+        "source_field_relative_l2": 1.7462306573106653e-11,
+        "objective_field_relative_l2": 8.975385693009231e-16,
+        "grating_field_relative_l2": 2.3384167796080142e-14,
+        "grating_mask_relative_l2": 0.0,
+        "camera_field_relative_l2": 1.3871200782426976e-11,
+        "all_sources_intensity_relative_l2": 1.7245124475274846e-11
+      },
+      "passed": true,
+      "tolerance": 1e-08,
+      "all_sources_checked": true,
+      "source_sha256": {
+        "point2plate.py": "938624c7d2a471ecdef52dda3d8340033d36f2aae5cf993ad6e4c9715d09a9ca",
+        "obj_sys_ft.py": "0fa3e3901134a3fe5772fc3d5775fc8c20a0e8e3b0816924f01a95ebc959dc76",
+        "grating2cam.py": "f686e958bd531426c1512b1bccda268e7888633e74444aa3bda5888136da60d5"
+      },
+      "config": {
+        "wavelength": 6.7e-09,
+        "error_mode": "ON",
+        "N_lattice": 20,
+        "N_super_lattice": 4,
+        "super_lattice_period": 3.35e-06,
+        "shift_z": -0.0001,
+        "tilted_angle": 0.0,
+        "tilt_axis_x": 1.0,
+        "tilt_axis_y": 0.0,
+        "f1": 1.2,
+        "f2": 0.24,
+        "NA_in": 0.012,
+        "NA_out": 0.02,
+        "Nz": 5,
+        "grating_type": "Square",
+        "grating_period": 1.34e-06,
+        "duty_cycle": 50.0,
+        "z_grating": 0.000134,
+        "dx_grating": 6.7e-08,
+        "up_sample_grating": 2,
+        "shift_x_grating": 0.0,
+        "shift_y_grating": 0.0,
+        "shift_z_grating": 0.0,
+        "tilted_angle_grating": 0.0,
+        "tilt_axis_x_grating": 1.0,
+        "tilt_axis_y_grating": 0.0,
+        "z_cam": 0.0536,
+        "dx_cam": 0.0001,
+        "tilted_angle_cam": 0.0,
+        "tilt_axis_x_cam": 1.0,
+        "tilt_axis_y_cam": 0.0
+      }
+    }
+  ],
+  "historical_numerical_evidence_unchanged_files": 17,
+  "local_full_resolution_run": false
+}

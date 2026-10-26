@@ -3,6 +3,7 @@
     uv run --group report python -m tools.make_report output/my-run
 """
 import argparse
+from dataclasses import replace
 import json
 from pathlib import Path
 
@@ -36,10 +37,14 @@ def make_report(directory, case=None):
     selected = [r for r in valid if r['case'] == (case or valid[0]['case'])]
     if not selected:
         raise ValueError(f'no results for case {case}')
+    if manifest.get('command') == 'apertures':
+        selected = [r for r in valid if r['observation'] == selected[0]['observation']]
     with np.load(directory / selected[0]['observation']) as saved:
         image, truth, pupil = saved['observed'], saved['truth_wavefront'], saved['pupil']
     # Reconstruct the pupil wavefront from saved coefficients only.
     system = SystemConfig(**manifest['system'])
+    if 'NA_in' in selected[0]:
+        system = replace(system, NA_in=selected[0]['NA_in'], NA_out=selected[0]['NA_out'])
     frequency = np.fft.fftshift(np.fft.fftfreq(system.n, system.super_lattice_period / system.N_lattice))
     fx, fy = np.meshgrid(frequency, frequency)
     rho, theta = system.wavelength * np.hypot(fx, fy) / system.NA_out, np.arctan2(fy, fx)
@@ -50,6 +55,8 @@ def make_report(directory, case=None):
         fitted = np.full(truth.shape, np.nan)
         fitted[pupil] = np.asarray(row['coeffs_waves']) @ Z
         method = 'Direct' if row['method'] == 'direct' else 'Fourier'
+        if row.get('center_mode'):
+            method += f" ({row['center_mode']})"
         entries.extend([(fitted, method + ' / waves', 'wavefront'),
                         (fitted - truth, method + ' full error / waves', 'error')])
     error_limit = max(max(float(np.nanmax(abs(v))) for v, _, kind in entries if kind == 'error'), 1e-12)

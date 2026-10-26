@@ -58,3 +58,36 @@ def test_no_implicit_large_or_parallel_run(tmp_path):
             with exclusive_study(tmp_path / 'lock'):
                 pass
     assert len(SystemConfig.profile('quick').sources) == 64
+
+
+def test_apertures_use_each_native_pupil_and_shared_observation(tmp_path):
+    output, rows = run_small(tmp_path, 'apertures', {
+        'pupils': [{'NA_in': .00769, 'NA_out': .02}, {'NA_in': .012, 'NA_out': .02},
+                   {'NA_in': .004614, 'NA_out': .012}],
+        'directions': [[.25, .15, .05, .2], [.2, -.3, .4, .1]],
+        'center_modes': ['fixed', 'auto'], 'snr_db': [None, 40], 'noise_seeds': [42]})
+    assert len(rows) == 36 and all(row['status'] == 'ok' for row in rows)
+    assert {r['epsilon'] for r in rows} == {.3845, .6}
+    assert len({r['evaluation_pixels'] for r in rows}) == 3
+    observations = {row['observation'] for row in rows}
+    assert len(observations) == 12
+    for path in observations:
+        paired = [r for r in rows if r['observation'] == path]
+        assert len(paired) == 3 and {r['method'] for r in paired} == {'direct', 'fourier_calibrated'}
+        with np.load(output / path) as saved:
+            assert np.std(saved['truth_wavefront'][saved['pupil']]) == pytest.approx(.04)
+            for row in paired:
+                np.testing.assert_allclose(np.array(row['coeffs_waves']) - saved['truth'],
+                                           row['coefficient_errors_waves'], atol=1e-12)
+        assert {r['pupil_policy'] for r in paired} == {'native_pupil_per_condition'}
+        for row in paired:
+            assert row['angle_min_deg'] == pytest.approx(np.degrees(np.arcsin(row['NA_in'])))
+            assert row['rmse_fraction_input'] == pytest.approx(row['rmse_waves'] / .04)
+            if row['method'] == 'direct' and row['snr_db'] is None:
+                assert row['rmse_waves'] < 1e-6
+    for row in rows:
+        if row['method'] == 'fourier_calibrated':
+            assert row['settings'] == row['calibration_settings']
+    manifest = json.loads((output / 'manifest.json').read_text())
+    assert manifest['status'] == 'complete' and len(manifest['aperture_runs']) == 3
+    assert manifest['pupil_policy'] == 'native_pupil_per_condition'
