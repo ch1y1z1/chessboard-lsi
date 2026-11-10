@@ -1,0 +1,20 @@
+start legacy1200 single
+done legacy1200 single fraction 0.24937655860349123 seconds 2.148557157255709
+start legacy_padded single
+done legacy_padded single fraction 0.24937655860349123 seconds 3.836327009834349
+start quarter_matched single
+done quarter_matched single fraction 0.25000000000000455 seconds 4.280746439471841
+start full_matched single
+done full_matched single fraction 1.0000000000000182 seconds 4.236972165293992
+start quarter_p067 single
+done quarter_p067 single fraction 0.25 seconds 4.248759564943612
+start legacy1200 multi64
+done legacy1200 multi64 fraction 0.24937655860349123 seconds 6.1372747188434005
+start legacy_padded multi64
+done legacy_padded multi64 fraction 0.24937655860349123 seconds 14.275825574994087
+start quarter_matched multi64
+done quarter_matched multi64 fraction 0.25000000000000455 seconds 40.64807072468102
+start full_matched multi64
+done full_matched multi64 fraction 1.0000000000000182 seconds 40.322849133983254
+start quarter_p067 multi64
+done quarter_p067 multi64 fraction 0.25 seconds 40.610328131355345

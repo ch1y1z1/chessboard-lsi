@@ -1,0 +1,13 @@
+source,pipeline,condition,rms_waves
+single,archived_q2_OLS_unwrap,clean,0.011403571
+single,q2_principal,clean,0.019139483412678217
+single,q1_principal,clean,0.0004361246617159825
+single,archived_q2_OLS_unwrap,40db,0.011408989
+single,q2_principal,40db,0.019194772899044393
+single,q1_principal,40db,0.0004435180246768197
+multi64,archived_q2_OLS_unwrap,clean,0.017186011
+multi64,q2_principal,clean,0.019585416601151633
+multi64,q1_principal,clean,0.00037088704728895436
+multi64,archived_q2_OLS_unwrap,40db,0.020614244
+multi64,q2_principal,40db,0.019689575030860967
+multi64,q1_principal,40db,0.0003800475989402608

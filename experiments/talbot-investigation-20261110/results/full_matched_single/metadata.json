@@ -1,0 +1,176 @@
+{
+  "case": "full_matched",
+  "kind": "single",
+  "config": {
+    "wavelength": 6.7e-09,
+    "error_mode": "ON",
+    "N_lattice": 120,
+    "N_super_lattice": 14,
+    "super_lattice_period": 3.35e-06,
+    "shift_z": -0.0001,
+    "tilted_angle": 0,
+    "tilt_axis_x": 1,
+    "tilt_axis_y": 0,
+    "f1": 1.2,
+    "f2": 0.24,
+    "NA_in": 0.00769,
+    "NA_out": 0.02,
+    "Nz": 5,
+    "grating_type": "Square",
+    "grating_period": 6.7e-07,
+    "duty_cycle": 50,
+    "z_grating": 0.000130335839599,
+    "dx_grating": 1.675e-08,
+    "up_sample_grating": 2,
+    "shift_x_grating": 0.0,
+    "shift_y_grating": 0.0,
+    "shift_z_grating": 0.0,
+    "tilted_angle_grating": 0,
+    "tilt_axis_x_grating": 1,
+    "tilt_axis_y_grating": 0,
+    "z_cam": 0.0536,
+    "dx_cam": 1e-05,
+    "tilted_angle_cam": 0,
+    "tilt_axis_x_cam": 1,
+    "tilt_axis_y_cam": 0,
+    "source_kind": "single"
+  },
+  "sources": [
+    [
+      7,
+      7
+    ]
+  ],
+  "R_m": 0.000134335839599,
+  "zeff_m": 0.00013400000000000247,
+  "zT_m": 0.00013400000000000003,
+  "talbot_fraction": 1.0000000000000182,
+  "shear_continuous_pixels": 53.734335839599,
+  "truth_coeffs": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.035063527822953834,
+    0.0,
+    0.0,
+    0.0,
+    0.0070127055645907675,
+    0.0,
+    0.0,
+    0.0,
+    0.02805082225836307,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0210381166937723,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "truth_rms": 0.05000000000000001,
+  "zero": {
+    "peak": 1.0725046532211284e-14,
+    "total": 1.4313138461693953e-09,
+    "image_rms": 1.6380728574012369e-15,
+    "zero_fraction": 0.17655576814058957,
+    "bands": {
+      "1": {
+        "center": 63,
+        "peak_over_dc": 0.5470913427607342,
+        "root_power_over_dc": 1.0292247547833555
+      },
+      "2": {
+        "center": 125,
+        "peak_over_dc": 0.036708801417134146,
+        "root_power_over_dc": 0.11376762681518349
+      },
+      "3": {
+        "center": 188,
+        "peak_over_dc": 0.14981284774016776,
+        "root_power_over_dc": 0.2737511256215173
+      },
+      "4": {
+        "center": 251,
+        "peak_over_dc": 0.026397370301183318,
+        "root_power_over_dc": 0.08170079763170722
+      }
+    },
+    "geometry": {
+      "rule": "opposite-order carrier=round(2*N*dx_cam*R/(p*(R+z_cam))); half_width=floor(0.4*fundamental)",
+      "focus_shift_m": -4.000000000000001e-06,
+      "actual_focus_to_grating_paraxial_m": 0.00013433583959900075,
+      "nominal_carrier_bins": 125.37313432836123,
+      "selected_carrier_bins": 125,
+      "half_width_bins": 25,
+      "shadow_fundamental_bins": 62.686567164180616,
+      "selected_diffraction_orders": [
+        -1,
+        1
+      ],
+      "validation": "Directly isolated original CZT fields: 0/+1 peak=63; -1/+1 peak=125",
+      "selection_uses_truth": false,
+      "interpretation": "Paraxial geometric anchor; zero-wavefront spectra recorded independently."
+    }
+  },
+  "truth": {
+    "peak": 1.1956900455826997e-14,
+    "total": 1.4314031987437588e-09,
+    "image_rms": 1.6378924845242767e-15,
+    "zero_fraction": 0.18369614512471655,
+    "bands": {
+      "1": {
+        "center": 63,
+        "peak_over_dc": 0.5397874551260802,
+        "root_power_over_dc": 1.0261051719199443
+      },
+      "2": {
+        "center": 125,
+        "peak_over_dc": 0.03942093758781414,
+        "root_power_over_dc": 0.11833441870837991
+      },
+      "3": {
+        "center": 188,
+        "peak_over_dc": 0.13783540158732396,
+        "root_power_over_dc": 0.2665764874579369
+      },
+      "4": {
+        "center": 251,
+        "peak_over_dc": 0.025719459582685646,
+        "root_power_over_dc": 0.0899653203292446
+      }
+    },
+    "geometry": {
+      "rule": "opposite-order carrier=round(2*N*dx_cam*R/(p*(R+z_cam))); half_width=floor(0.4*fundamental)",
+      "focus_shift_m": -4.000000000000001e-06,
+      "actual_focus_to_grating_paraxial_m": 0.00013433583959900075,
+      "nominal_carrier_bins": 125.37313432836123,
+      "selected_carrier_bins": 125,
+      "half_width_bins": 25,
+      "shadow_fundamental_bins": 62.686567164180616,
+      "selected_diffraction_orders": [
+        -1,
+        1
+      ],
+      "validation": "Directly isolated original CZT fields: 0/+1 peak=63; -1/+1 peak=125",
+      "selection_uses_truth": false,
+      "interpretation": "Paraxial geometric anchor; zero-wavefront spectra recorded independently."
+    }
+  },
+  "seconds": 4.236409900709987
+}

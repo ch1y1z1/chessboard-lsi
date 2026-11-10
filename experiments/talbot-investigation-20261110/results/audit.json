@@ -1,0 +1,698 @@
+{
+  "passed": true,
+  "count": 173,
+  "checks": [
+    {
+      "label": "full evaluation pupil has 52428 samples",
+      "passed": true
+    },
+    {
+      "label": "singleq2_principal rank",
+      "passed": true
+    },
+    {
+      "label": "singleq2_principalclean piston",
+      "passed": true
+    },
+    {
+      "label": "singleq2_principalclean raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleq2_principalclean raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleq2_principalclean pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleq2_principal40db piston",
+      "passed": true
+    },
+    {
+      "label": "singleq2_principal40db raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleq2_principal40db raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleq2_principal40db pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleq1_principal rank",
+      "passed": true
+    },
+    {
+      "label": "singleq1_principalclean piston",
+      "passed": true
+    },
+    {
+      "label": "singleq1_principalclean raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleq1_principalclean raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleq1_principalclean pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleq1_principal40db piston",
+      "passed": true
+    },
+    {
+      "label": "singleq1_principal40db raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleq1_principal40db raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleq1_principal40db pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64q2_principal rank",
+      "passed": true
+    },
+    {
+      "label": "multi64q2_principalclean piston",
+      "passed": true
+    },
+    {
+      "label": "multi64q2_principalclean raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64q2_principalclean raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64q2_principalclean pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64q2_principal40db piston",
+      "passed": true
+    },
+    {
+      "label": "multi64q2_principal40db raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64q2_principal40db raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64q2_principal40db pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64q1_principal rank",
+      "passed": true
+    },
+    {
+      "label": "multi64q1_principalclean piston",
+      "passed": true
+    },
+    {
+      "label": "multi64q1_principalclean raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64q1_principalclean raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64q1_principalclean pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64q1_principal40db piston",
+      "passed": true
+    },
+    {
+      "label": "multi64q1_principal40db raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64q1_principal40db raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64q1_principal40db pupil count",
+      "passed": true
+    },
+    {
+      "label": "single archived zero reproduced",
+      "passed": true
+    },
+    {
+      "label": "single archived clean reproduced",
+      "passed": true
+    },
+    {
+      "label": "singleholdout0q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleholdout0q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleholdout0q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleholdout0q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleholdout0q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleholdout0q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleholdout0q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleholdout0q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleholdout1q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleholdout1q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleholdout1q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleholdout1q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleholdout1q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleholdout1q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleholdout1q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleholdout1q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleholdout2q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleholdout2q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleholdout2q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleholdout2q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleholdout2q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleholdout2q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleholdout2q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleholdout2q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleseed41q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleseed41q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleseed41q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleseed41q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleseed41q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleseed41q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleseed41q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleseed41q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleseed42q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleseed42q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleseed42q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleseed42q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleseed42q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleseed42q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleseed42q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleseed42q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleseed43q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleseed43q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleseed43q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleseed43q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleseed43q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleseed43q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleseed43q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleseed43q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleseed44q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleseed44q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleseed44q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleseed44q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleseed44q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleseed44q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleseed44q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleseed44q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleseed45q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleseed45q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleseed45q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleseed45q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "singleseed45q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "singleseed45q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "singleseed45q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "singleseed45q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64 archived zero reproduced",
+      "passed": true
+    },
+    {
+      "label": "multi64 archived clean reproduced",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout0q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout0q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout0q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout0q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout0q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout0q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout0q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout0q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout1q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout1q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout1q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout1q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout1q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout1q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout1q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout1q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout2q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout2q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout2q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout2q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout2q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout2q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout2q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64holdout2q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64seed41q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64seed41q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64seed41q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64seed41q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64seed41q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64seed41q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64seed41q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64seed41q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64seed42q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64seed42q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64seed42q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64seed42q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64seed42q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64seed42q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64seed42q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64seed42q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64seed43q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64seed43q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64seed43q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64seed43q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64seed43q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64seed43q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64seed43q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64seed43q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64seed44q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64seed44q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64seed44q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64seed44q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64seed44q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64seed44q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64seed44q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64seed44q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64seed45q2_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64seed45q2_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64seed45q2_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64seed45q2_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "multi64seed45q1_principal piston",
+      "passed": true
+    },
+    {
+      "label": "multi64seed45q1_principal raw RMS",
+      "passed": true
+    },
+    {
+      "label": "multi64seed45q1_principal raw PV",
+      "passed": true
+    },
+    {
+      "label": "multi64seed45q1_principal pupil count",
+      "passed": true
+    },
+    {
+      "label": "full_matched_multi64 fraction",
+      "passed": true
+    },
+    {
+      "label": "full_matched_single fraction",
+      "passed": true
+    },
+    {
+      "label": "quarter_matched_multi64 fraction",
+      "passed": true
+    },
+    {
+      "label": "quarter_matched_single fraction",
+      "passed": true
+    }
+  ]
+}

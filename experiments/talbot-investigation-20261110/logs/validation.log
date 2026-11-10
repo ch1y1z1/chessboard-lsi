@@ -1,0 +1,6 @@
+holdout single 0.005 {'q2_principal': 0.0008684104608549939, 'q1_principal': 2.998673187570079e-05}
+holdout single 0.02 {'q2_principal': 0.006173888043569769, 'q1_principal': 7.948971658412796e-05}
+holdout single 0.05 {'q2_principal': 0.015887535294051507, 'q1_principal': 0.0008845416092793944}
+holdout multi64 0.005 {'q2_principal': 0.000904179366083922, 'q1_principal': 2.8954198208127755e-05}
+holdout multi64 0.02 {'q2_principal': 0.006452555189310597, 'q1_principal': 7.703477218565752e-05}
+holdout multi64 0.05 {'q2_principal': 0.016161957777334347, 'q1_principal': 0.0008281232355160053}
