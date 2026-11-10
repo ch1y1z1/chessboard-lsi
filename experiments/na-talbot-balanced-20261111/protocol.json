@@ -24,6 +24,7 @@
   "lm_sample_seed": 62011,
   "lm_max_nfev": 120,
   "blas_threads": 4,
+  "fft_threads": 8,
   "limits": {
     "image_outer5_energy": 0.003,
     "grating_outer5_energy": 0.001,

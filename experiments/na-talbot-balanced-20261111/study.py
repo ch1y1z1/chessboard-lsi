@@ -544,7 +544,8 @@ def main():
         return
     assert args.allow_large_run
     assert os.uname().nodename == "sjtu-gxyserver", "Production computation must run on SJTU"
-    with exclusive_study(), interrupt_on_termination(), threadpool_limits(limits=PROTOCOL["blas_threads"]):
+    with exclusive_study(), interrupt_on_termination(), threadpool_limits(
+            limits=PROTOCOL["blas_threads"]), fft.set_workers(PROTOCOL["fft_threads"]):
         with Monitor(args.output, args.stage) as monitor:
             if args.stage == "preflight":
                 assert args.reference

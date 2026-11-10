@@ -68,7 +68,7 @@ The three random holdouts test FT calibration generalization separately.
 
 Only SJTU may run numerical preflight and production. Use the private Conda
 environment /data/yk/conda/envs/shear-reference-lm-py312, CPU only, one numerical
-process, four BLAS threads, a user-wide study lock, 30-second status/ETA logs,
+process, four BLAS threads, eight FFT threads, a user-wide study lock, 30-second status/ETA logs,
 SIGTERM preservation, 36 GiB RSS stop and a 20-hour invocation cap.
 
 Before each invocation, commit and push its actual code/config and an immutable
