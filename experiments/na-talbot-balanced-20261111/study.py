@@ -330,7 +330,7 @@ def preflight(out, reference, monitor):
         intensity_nyquist_dx = c.wavelength*z/(2*model.object_n*model.dx_img)
         assert probe_dx < intensity_nyquist_dx
         probe_x = (np.arange(probe_n)-probe_n//2)*probe_dx
-        probe = CenteredCZT(model.n, probe_n, model.dx_img,
+        probe = CenteredCZT(model.object_n, probe_n, model.dx_img,
             probe_x[0]/(c.wavelength*z), probe_dx/(c.wavelength*z))
         px, py = np.meshgrid(probe_x, probe_x)
         probe_post = np.exp(1j*model.k*z)/(1j*c.wavelength*z)*np.exp(

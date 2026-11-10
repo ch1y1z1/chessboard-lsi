@@ -8,7 +8,7 @@ import numpy as np
 from scipy import fft
 from threadpoolctl import threadpool_limits
 
-from study import BalancedConfig, DiffractionModel, ExtendedCameraModel
+from study import BalancedConfig, CenteredCZT, DiffractionModel, ExtendedCameraModel
 
 
 def relative(a, b):
@@ -38,6 +38,14 @@ def main():
     exact = abs(extended.propagate_image(image))**2
     czt = relative(large, exact)
     assert czt < 1e-9, czt
+    probe_x = (np.arange(extended.ng)-extended.ng//2)*cfg.dx_grating
+    probe = CenteredCZT(extended.object_n, extended.ng, extended.dx_img,
+        probe_x[0]/(cfg.wavelength*cfg.z_grating),
+        cfg.dx_grating/(cfg.wavelength*cfg.z_grating))
+    probe_field = probe(image*extended.pre_g)*extended.post_g
+    grating = extended.propagate_image(image, plane="grating")
+    probe_error = relative(probe_field, grating)
+    assert probe_error < 1e-12, probe_error
     rows = np.sort(np.random.default_rng(3511).choice(large.size, 64, replace=False))
     sampled, jac = extended.evaluate(truth, jacobian=True, rows=rows)
     subset = relative(sampled, large.ravel()[rows])
@@ -53,7 +61,8 @@ def main():
         errors.append(error)
     result = dict(passed=True, object_n=cfg.n, camera_n=extended.n,
         central_reference_relative_l2=central, whole_czt_relative_l2=czt,
-        subset_relative_l2=subset, jacobian_relative_errors=errors,
+        subset_relative_l2=subset, grating_probe_relative_l2=probe_error,
+        jacobian_relative_errors=errors,
         description="Tiny actual reference/separable/CZT/Jacobian checks; not a production precision result.")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2)+"\n")
