@@ -248,6 +248,7 @@ class Monitor:
         self.started = time.monotonic()
         self.state = dict(status="running", stage=stage)
         self.stop = threading.Event()
+        self.high_temperature_samples = 0
 
     def event(self, name, **values):
         row = dict(timestamp_utc=utc(), event=name, **values)
@@ -263,6 +264,11 @@ class Monitor:
                               elapsed_seconds=time.monotonic()-self.started,
                               rss_gib=psutil.Process().memory_info().rss/1024**3,
                               peak_rss_gib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2)
+            torch = sys.modules.get("torch")
+            if torch is not None and torch.cuda.is_initialized():
+                self.state.update(gpu_allocated_gib=torch.cuda.memory_allocated()/1024**3,
+                    gpu_reserved_gib=torch.cuda.memory_reserved()/1024**3,
+                    gpu_peak_allocated_gib=torch.cuda.max_memory_allocated()/1024**3)
             save(self.output/"status.json", self.state)
 
     def loop(self):
@@ -274,6 +280,24 @@ class Monitor:
             if self.state["rss_gib"] > PROTOCOL["limits"]["rss_gib"]:
                 self.event("memory_limit", rss_gib=self.state["rss_gib"])
                 os.kill(os.getpid(), signal.SIGTERM)
+            if self.state.get("gpu_reserved_gib", 0) > 16:
+                self.event("gpu_memory_limit", gpu_reserved_gib=self.state["gpu_reserved_gib"])
+                os.kill(os.getpid(), signal.SIGTERM)
+            if "gpu_reserved_gib" in self.state:
+                device = os.environ["CUDA_VISIBLE_DEVICES"]
+                try:
+                    temperature = int(subprocess.check_output(["nvidia-smi",
+                        "--query-gpu=temperature.gpu", "--format=csv,noheader,nounits",
+                        "--id="+device], text=True, timeout=5).strip())
+                except (subprocess.SubprocessError, ValueError) as error:
+                    self.event("gpu_temperature_read_failed", error=repr(error))
+                    os.kill(os.getpid(), signal.SIGTERM)
+                    return
+                self.update(gpu_temperature_c=temperature)
+                self.high_temperature_samples = self.high_temperature_samples+1 if temperature >= 80 else 0
+                if self.high_temperature_samples >= 3:
+                    self.event("sustained_gpu_temperature", temperature_c=temperature)
+                    os.kill(os.getpid(), signal.SIGTERM)
             if time.monotonic()-self.started > PROTOCOL["limits"]["max_runtime_hours"]*3600:
                 self.event("runtime_limit")
                 os.kill(os.getpid(), signal.SIGTERM)
@@ -607,7 +631,7 @@ def fit_lm(model, zero, observed, folder, name, monitor):
     return solution.x[:35], result
 
 
-def run(out, preflight_dir, monitor):
+def run(out, preflight_dir, monitor, device="cpu"):
     checked = json.loads((preflight_dir/"preflight.json").read_text())
     assert checked["passed"] and checked["completed_na"] == 4
     assert json.loads((preflight_dir/"version.json").read_text())["protocol"] == PROTOCOL
@@ -619,6 +643,9 @@ def run(out, preflight_dir, monitor):
             folder.mkdir(exist_ok=True)
             monitor.update(na_out=na, source_kind=kind, stage="setup")
             model = ExtendedCameraModel(c, INDICES, batch_sources=1, workers=1)
+            if device == "cuda":
+                from gpu_backend import GPUCameraModel
+                model = GPUCameraModel(model)
             truth = truth_for(model)
             zero = model.evaluate(np.zeros(35))
             raw = model.evaluate(truth)
@@ -687,6 +714,8 @@ def main():
     parser.add_argument("--preflight", type=Path)
     parser.add_argument("--expected-commit", required=True)
     parser.add_argument("--allow-large-run", action="store_true")
+    parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
+    parser.add_argument("--gpu-check", type=Path)
     args = parser.parse_args()
     head = subprocess.check_output(["git", "-C", str(REPO), "rev-parse", "HEAD"], text=True).strip()
     assert head == args.expected_commit
@@ -698,7 +727,9 @@ def main():
         command=sys.argv, hostname=os.uname().nodename, start_utc=utc(),
         python=sys.version, numpy=np.__version__,
         source_hashes={str(f.relative_to(REPO)): hashlib.sha256(f.read_bytes()).hexdigest()
-                      for f in [Path(__file__), HERE/"protocol.json", *sorted((REPO/"lsi").glob("*.py"))]}))
+                      for f in [Path(__file__), HERE/"protocol.json",
+                                HERE/"gpu_backend.py", *sorted((REPO/"lsi").glob("*.py"))]},
+        device=args.device, cuda_visible_devices=os.environ.get("CUDA_VISIBLE_DEVICES")))
     if args.stage == "design":
         save(args.output/"design.json", [
             dict(na_out=na, config=config(na).to_dict(), geometry=geometry(config(na)))
@@ -716,7 +747,26 @@ def main():
                 preflight(args.output, args.reference, monitor)
             else:
                 assert args.preflight
-                run(args.output, args.preflight, monitor)
+                if args.device == "cuda":
+                    assert args.gpu_check
+                    check = json.loads((args.gpu_check/"validation.json").read_text())
+                    assert check["passed"] and check["commit"] == head
+                    assert check["cuda_visible_devices"] == os.environ.get("CUDA_VISIBLE_DEVICES")
+                    assert check["protocol_sha256"] == hashlib.sha256(
+                        (HERE/"protocol.json").read_bytes()).hexdigest()
+                    assert check["gpu_backend_sha256"] == hashlib.sha256(
+                        (HERE/"gpu_backend.py").read_bytes()).hexdigest()
+                    import torch
+                    assert check["torch"] == torch.__version__ and check["cuda"] == torch.version.cuda
+                    save(args.output/"gpu-version.json", dict(
+                        validation_sha256=hashlib.sha256(
+                            (args.gpu_check/"validation.json").read_bytes()).hexdigest(),
+                        validation_directory=str(args.gpu_check),
+                        torch=torch.__version__, cuda=torch.version.cuda,
+                        gpu=check["gpu_name"], cuda_visible_devices=os.environ["CUDA_VISIBLE_DEVICES"],
+                        matrix_dtype="complex128", real_dtype="float64",
+                        gpu_reserved_limit_gib=16, temperature_stop=">=80C for three 30s samples"))
+                run(args.output, args.preflight, monitor, args.device)
 
 
 if __name__ == "__main__":

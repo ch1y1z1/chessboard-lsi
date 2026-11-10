@@ -57,6 +57,7 @@ def main():
     p.add_argument("--provenance", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--expected-commit", required=True)
+    p.add_argument("--backend-validation", type=Path)
     args = p.parse_args()
     head = subprocess.check_output(["git", "-C", str(REPO), "rev-parse", "HEAD"], text=True).strip()
     assert head == args.expected_commit
@@ -68,6 +69,16 @@ def main():
         script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         command=sys.argv, python=sys.version, numpy=np.__version__,
         generated_utc=datetime.now(timezone.utc).isoformat()))
+    backend = None
+    if (args.results/"gpu-version.json").exists():
+        assert args.backend_validation
+        backend = read(args.backend_validation/"validation.json")
+        assert backend["passed"]
+        gpu_version = read(args.results/"gpu-version.json")
+        assert gpu_version["validation_sha256"] == hashlib.sha256(
+            (args.backend_validation/"validation.json").read_bytes()).hexdigest()
+        save(args.output/"backend-validation.json", backend)
+        save(args.output/"gpu-version.json", gpu_version)
     rows = read(args.results/"summary.json")["results"]
     assert len(rows) == 112
     flight = read(args.preflight/"preflight.json")
@@ -111,6 +122,14 @@ def main():
         edges = read(args.preflight/f'na{field["na_out"]:.3f}'/"source_edges.json")
         assert len(edges) == 128 and all(x["finite"] for x in edges)
         audit.append(dict(check="128_finite_source_fields", passed=True))
+    if backend:
+        for item in backend["full_comparisons"]:
+            assert item["intensity_relative_l2"] < 1e-9
+            assert item["peak_normalized_maximum_error"] < 1e-9
+            audit.append(dict(check="cpu_cuda_full_operator", passed=True))
+        for item in backend["jacobian_checks"]:
+            assert max(item["jacobian_column_relative_errors"]) < 1e-7
+            audit.append(dict(check="cpu_cuda_all_35_jacobian_columns", passed=True))
     save(args.output/"audit.json", dict(passed=True, checks=len(audit), items=audit,
          description="Independent basis/metric recalculation and saved SHA pairing; not independent physical truth."))
     columns = ["na_out", "source_kind", "method", "condition", "snr_db", "seed",
@@ -396,6 +415,25 @@ def main():
         "## 波前对照", ""]
     for na in bases:
         lines += [f"![NA_out={na:.3f} 真值、恢复与误差](wavefronts_na{na:.3f}.png)", ""]
+    if backend:
+        lines += ["## 计算后端与一致性", "",
+            "逐源预检查采用 CPU 原参考算子。正式反演将同一组可分离传播矩阵的乘法、"
+            "逐源强度累加和解析 Jacobian 移到一张事先核验空闲的 GPU；物理网格、全幅观测和 FT 窗口未缩小。"
+            "矩阵保持 complex128，强度和导数保持 float64，禁用 TF32，并启用确定性算法。", "",
+            f"设备：{backend['gpu_name']}，{backend['cuda_visible_devices']}；"
+            f"PyTorch={backend['torch']}，CUDA={backend['cuda']}；"
+            f"整幅 64 源预测的中位加速比为 {backend['median_full_frame_speedup']:.4g}。", "",
+            "| NA_out | 波前 | CPU 秒 | CUDA 秒 | 光强相对 L2 | 峰值归一化最大差 |",
+            "|---:|---|---:|---:|---:|---:|"]
+        for item in backend["full_comparisons"]:
+            lines.append(f'| {item["na_out"]:.3f} | {item["field"]} | '
+                f'{item["cpu_seconds"]:.5g} | {item["gpu_seconds"]:.5g} | '
+                f'{item["intensity_relative_l2"]:.5g} | {item["peak_normalized_maximum_error"]:.5g} |')
+        lines += ["", "两端 NA 另核对了全部 35 列解析 Jacobian，并对四个模式做有限差分检查。"
+            "完整误差、图像哈希、代码和后端版本见 backend-validation.json。"
+            "这是计算实现的一致性检查，不是独立光学模型或网格收敛验证。"
+            "正式运行限制一张 GPU，显存保留量阈值 16 GiB；每 30 秒检查温度，"
+            "连续三次不低于 80°C 时停止。CPU-only 的中断尝试保留在版本清单中。", ""]
     lines += ["## 结论边界", "",
         "这是原标量 4f/Fresnel 前向模型内的算法比较。NA_out/M 最高为 0.75，"
         "此时近轴传播的物理适用性需要另外验证。本轮没有加入矢量衍射、严格高 NA 物镜模型、"

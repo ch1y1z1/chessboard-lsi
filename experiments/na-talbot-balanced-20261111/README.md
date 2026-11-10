@@ -83,9 +83,21 @@ The three random holdouts test FT calibration generalization separately.
 ## Execution and provenance
 
 Only SJTU may run numerical preflight and production. Use the private Conda
-environment /data/yk/conda/envs/shear-reference-lm-py312, CPU only, one numerical
+environment /data/yk/conda/envs/shear-reference-lm-py312 for CPU preflight, one numerical
 process, sixteen BLAS threads, eight FFT threads, a user-wide study lock, 30-second status/ETA logs,
 SIGTERM preservation, 48 GiB RSS stop and a 20-hour invocation cap.
+
+CUDA production is conditional on check_gpu.py passing against the CPU operator
+at both extreme NA values, including full 64-source frames, all 35 sampled
+Jacobian columns and finite differences. It uses a separate cloned private
+environment /data/yk/conda/envs/shear-reference-lm-gpu312 and one verified idle GPU,
+selected by physical UUID. Both matrices and real quantities retain double
+precision. No detector ROI or grating sampling is reduced. Production checks
+the validation commit, module hash, protocol hash, GPU UUID and Torch/CUDA
+versions. Reserved GPU memory is limited to 16 GiB; three consecutive 30-second
+temperature samples at or above 80 C terminate the process. Do not use GPU 0,
+which was occupied by another user during setup. Recheck availability immediately
+before validation/production.
 
 Before each invocation, commit and push its actual code/config and an immutable
 exp/na-talbot-balanced-20261111/<run-id> tag in each participating repository.
