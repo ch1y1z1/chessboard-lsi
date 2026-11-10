@@ -304,7 +304,7 @@ class Q1Features:
         s = self.settings = FourierSettings(
             carrier_x=self.carrier, carrier_y=self.carrier,
             half_width=int(.4*g["fundamental_bins"]), window_sigma=2,
-            phase_sigma=10/1.8, regression="lstsq", alpha=0)
+            phase_sigma=10*10e-6/PROTOCOL["base_camera_dx_m"], regression="lstsq", alpha=0)
         x = (np.arange(c.n)-c.n//2)*c.dx_cam
         xx, yy = np.meshgrid(x, x)
         rho = np.hypot(xx, yy)/((g["paraxial_radius_m"]+c.z_cam)*c.NA_out*c.f1/c.f2)
