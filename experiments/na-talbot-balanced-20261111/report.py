@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+from zoneinfo import ZoneInfo
 
 import numpy as np
 from scipy import fft
@@ -146,7 +147,7 @@ def main():
     ax[1].legend(fontsize=8)
     finish(fig, "rms_vs_na")
 
-    fig, axes = plt.subplots(2, 2, figsize=(10, 7), constrained_layout=True)
+    fig, axes = plt.subplots(2, 2, figsize=(10, 7), constrained_layout=True, sharey=True)
     for a, na in zip(axes.flat, bases):
         for method in LABELS:
             kind, solver = method.rsplit("_", 1)
@@ -159,6 +160,16 @@ def main():
     axes.flat[0].legend(fontsize=8)
     finish(fig, "radial_40db_seed42")
 
+    global_wave_limit, global_error_limit = 0., 0.
+    for na, (Z, mask, rho) in bases.items():
+        for row in rows:
+            if row["na_out"] != na or row["condition"] != "40db_seed42":
+                continue
+            true = np.tensordot(row["truth"], Z, axes=1)
+            fitted = np.tensordot(row["coefficients"], Z, axes=1)
+            global_wave_limit = max(global_wave_limit, float(abs(true[mask]).max()),
+                                    float(abs(fitted[mask]).max()))
+            global_error_limit = max(global_error_limit, float(abs((fitted-true)[mask]).max()))
     for na, (Z, mask, rho) in bases.items():
         chosen = []
         for method in LABELS:
@@ -167,8 +178,7 @@ def main():
                 and r["method"] == solver and r["condition"] == "40db_seed42"))
         true = np.tensordot(chosen[0]["truth"], Z, axes=1)
         errors = [np.tensordot(np.array(r["coefficients"])-r["truth"], Z, axes=1) for r in chosen]
-        amp = max(float(abs(true[mask]).max()), max(float(abs((true+e)[mask]).max()) for e in errors))
-        errlim = max(float(abs(e[mask]).max()) for e in errors)
+        amp, errlim = global_wave_limit, global_error_limit
         fig, ax = plt.subplots(4, 3, figsize=(9, 10), constrained_layout=True)
         for i, (method, error, row) in enumerate(zip(LABELS, errors, chosen)):
             for j, arr in enumerate((true, true+error, error)):
@@ -181,7 +191,7 @@ def main():
                 if j == 0:
                     ax[i, j].set_ylabel(LABELS[method])
             ax[i, 2].set_xlabel(f'RMS={row["raw_rms_waves"]:.5g} waves')
-        fig.suptitle(f"NA_out={na:.3f}; 40 dB seed 42; shared scales within each group")
+        fig.suptitle(f"NA_out={na:.3f}; 40 dB seed 42; scales shared across all NA/methods")
         finish(fig, f"wavefronts_na{na:.3f}")
 
     fig, ax = plt.subplots(1, 3, figsize=(12, 3.6), constrained_layout=True)
@@ -213,8 +223,14 @@ def main():
          ft_branch_diagnostic_failed=branches))
     prov = read(args.provenance)
     version = read(args.results/"version.json")
+    status = read(args.results/"status.json")
+    zone = ZoneInfo("Asia/Shanghai")
+    started_bj = datetime.fromisoformat(version["start_utc"]).astimezone(zone).isoformat()
+    finished_bj = datetime.fromisoformat(status["timestamp_utc"]).astimezone(zone).isoformat()
     lines = ["# 高 NA 波前恢复：泰伯与视场配平后的四组合实验", "",
         f"生成时间（UTC）：{datetime.now(timezone.utc).isoformat()}", "",
+        f"正式计算（北京时间）：{started_bj}—{finished_bj}；"
+        f"主运行耗时 {status['elapsed_seconds']/60:.3f} 分钟；峰值 RSS {status['peak_rss_gib']:.3f} GiB。", "",
         f"112 条主结果已生成；独立复算与记录核对共 {len(audit)} 项通过。"
         f"LM 未收敛 {len(failures)} 条，FT 主值相位诊断未通过 {len(branches)} 条。", "",
         "## 研究问题与比较范围", "",
@@ -246,8 +262,8 @@ def main():
         lines.append(f'| {na:.3f} | {cfg["grating_period"]*1e6:.10g} | {cfg["z_grating"]*1e6:.10g} | '
             f'{g["paraxial_radius_m"]*1e6:.10g} | {cfg["z_cam"]*1e3:.10g} | '
             f'{cfg["shift_z"]*1e6:.10g} | {cfg["super_lattice_period"]*1e6:.10g} | {g["talbot_ratio"]:.15g} |')
-    lines += ["", "相机和像面为 1680×1680，光栅为 8400×8400；光栅周期 100 点、方孔边长 50 点。"
-        "像面、光栅、相机全宽分别为 9.38 µm/q、56.28 µm/q、28.56 mm/q。"
+    lines += ["", "像面为 1680×1680，相机为 5040×5040，光栅为 13440×13440；光栅周期 160 点、方孔边长 80 点。"
+        "像面、光栅、相机全宽分别为 9.38 µm/q、56.28 µm/q、50.4 mm/q。"
         "相比 11 月 9 日基准，本实验扩大了相机范围并加密光栅采样。", "",
         "## 逐源边界及原算子核对", "",
         "| NA_out | 像面外缘最大 (%) | 光栅外缘最大 (%) | 相机外缘最大 (%) | 光栅几何余量 (µm) | 相机一级包络余量 (mm) | 原参考光强 L2 |",
@@ -262,9 +278,10 @@ def main():
         "几何余量还按 tan(arcsin(NA_out/M)) 计算；这只是一项更严格的包络检查，实际传播仍使用原参考 Fresnel 算子。"
         "所有相机场有限、非零；周期单元复振幅复现检查与原 Stage1/Stage2/Stage3 光强核对分别保存。", "",
         "光栅入射强度的边界诊断使用相同物理范围的独立 3360² 网格，间距小于有限像面支持所决定的强度 Nyquist 间隔。"
-        "每档另以一个角落光源的零波前和目标波前对照 8400² 密网格，外缘能量绝对差须小于 10⁻⁵。"
-        "相机场、正式观测、标定和拟合始终使用 8400² 光栅的精确可分离离散算子；"
-        "原三段 CZT 传播用于逐档独立核对。诊断网格不替换实际光栅掩模。", "",
+        "每档另以一个角落光源的零波前和目标波前对照 13440² 密网格，外缘能量绝对差须小于 10⁻⁵。"
+        "相机场、正式观测、标定和拟合始终使用 13440² 光栅的精确可分离离散算子；"
+        "原三段 CZT 传播用于逐档核对相机中央 1680² 公共坐标。"
+        "独立相机网格另有整幅 CZT 和解析导数的小场景核对。诊断网格不替换实际光栅掩模。", "",
         "有限衍射场有非零尾部，不能保证所有衍射级在有限窗口外严格为零。"
         "这里的“覆盖通过”指几何包络、外缘能量和采样检查通过，不是重建误差上界。"
         "外缘阈值在开跑前固定为像面 0.3%、光栅 0.1%、相机 0.1%。", "",
@@ -273,6 +290,10 @@ def main():
         "FT 使用一倍基频、相邻级次差分 Z(x−s)−Z(x)、相应光瞳交集和独立零波前复参考。"
         "每档每种光源数均重新生成 70 张 ±0.02 waves 单模式标定图。"
         "3 个随机 0.05 waves 混合真值只做留出检验，不参与取窗、标定和参数选择。", "",
+        "这条 FT 流程沿用 11 月 10 日基频匹配诊断的结论；本轮重新构造窗口、差分基和响应矩阵，未复用旧标定。"
+        "干净观测按各自峰值归一化；噪声为独立高斯噪声，σ=10^(−SNR/20)·RMS(clean)。"
+        "FT 与 LM 共用同一观测数组及 SHA256。源数比较采用相同归一化 SNR，"
+        "没有固定总光子数、引入 Poisson 噪声或模拟实际曝光预算，不能据此推断 64 光源的实际光子效率。", "",
         "| NA_out | 光源 | 标定秩 | 条件数 | 训练最大系数误差 | 留出 RMS (3 个) | 主值诊断均通过 |",
         "|---:|---|---:|---:|---:|---|---|"]
     for c in calibration_rows:
@@ -284,6 +305,7 @@ def main():
         "它不代替一般大像差的掩膜相位展开。出现诊断失败时，应将对应结果视为流程适用范围之外。", "",
         "LM 从零波前启动，35 项波前、正增益和常数背景共同拟合；解析 Jacobian，"
         "scipy.optimize.least_squares(method='lm')。4096 个固定随机相机像素参与拟合，"
+        "候选区为按几何参数确定、覆盖全部源偏移光瞳并增加两倍一级剪切余量的圆盘，未用目标波前选择像素。"
         "并另算完整相机图残差。未让全部相机像素参与 LM。"
         "优化器停止标志和波前恢复误差分别记录。", "",
         f"未收敛列表：{json.dumps(failures, ensure_ascii=False)}", "",

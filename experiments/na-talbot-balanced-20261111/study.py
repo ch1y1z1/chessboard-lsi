@@ -29,7 +29,7 @@ sys.path.insert(0, str(REPO))
 from lsi.basis import basis
 from lsi.config import SystemConfig
 from lsi.execution import exclusive_study, interrupt_on_termination
-from lsi.forward import CenteredCZT, DiffractionModel
+from lsi.forward import CenteredCZT, DiffractionModel, grid, tilt_phase
 from lsi.fourier import FourierSettings, spectral_window
 
 HERE = Path(__file__).resolve().parent
@@ -63,12 +63,89 @@ def rms(array):
 @dataclass(frozen=True)
 class BalancedConfig(SystemConfig):
     source_kind: str = "multi64"
+    camera_multiplier: int = 3
+
+    @property
+    def camera_n(self):
+        return self.n*self.camera_multiplier
 
     @property
     def sources(self):
         if self.source_kind == "single":
-            return ((7, 7),)
+            return ((self.N_super_lattice//2, self.N_super_lattice//2),)
         return tuple((i, j) for i in range(3, 11) for j in range(3, 11))
+
+
+class ExtendedCameraModel(DiffractionModel):
+    """Same discrete propagation with independent image and camera dimensions."""
+    def __init__(self, c, indices=INDICES, **kwargs):
+        super().__init__(c, indices, **kwargs)
+        self.object_n = c.n
+        self.prepare_sources()
+        self.n = c.camera_n
+        self.x_cam, self.y_cam = grid(self.n, c.dx_cam)
+        self.post_cam = np.exp(1j*self.k*c.z_cam)/(1j*c.wavelength*c.z_cam)*np.exp(
+            1j*np.pi*(self.x_cam**2+self.y_cam**2)/(c.wavelength*c.z_cam))
+        self.cc = CenteredCZT(self.ng, self.n, c.dx_grating,
+            self.x_cam[0, 0]/(c.wavelength*c.z_cam), c.dx_cam/(c.wavelength*c.z_cam))
+
+    def source_field(self, source):
+        c = self.config
+        field = np.zeros((c.n, c.n), complex)
+        field[c.N_lattice//2, c.N_lattice//2] = 1
+        field = np.roll(field, (source[0]*c.N_lattice, source[1]*c.N_lattice), axis=(1, 0))
+        if c.error_mode == "OFF":
+            return field
+        frequency = 2*np.pi*fft.fftfreq(c.n, self.dx_obj)
+        kx, ky = np.meshgrid(frequency, frequency)
+        valid = kx*kx+ky*ky <= self.k*self.k
+        kz = np.sqrt(np.maximum(self.k*self.k-kx*kx-ky*ky, 0))
+        phase = tilt_phase(self.x_obj, self.y_obj, c.tilted_angle,
+                            c.tilt_axis_x, c.tilt_axis_y, self.k)
+        field = fft.ifft2(fft.fft2(field*phase)*np.where(
+            valid, np.exp(1j*kz*(1e-3-c.shift_z)), 0))
+        return fft.ifft2(fft.fft2(field)*np.where(valid, np.exp(-1j*kz*1e-3), 0))
+
+    def _prepare_separable(self):
+        c = self.config
+        ys, xs = np.nonzero(self.pupil)
+        self.fy_indices = np.arange(ys.min(), ys.max()+1)
+        self.fx_indices = np.arange(xs.min(), xs.max()+1)
+        self.pupil_box = self.pupil[np.ix_(self.fy_indices, self.fx_indices)]
+        z = c.z_grating-c.shift_z_grating
+        period = int(c.grating_period/c.dx_grating)
+        size = int(c.grating_period*c.duty_cycle/100/c.dx_grating)
+        start = (period-size)//2
+        ix = np.arange(self.ng)
+        aperture = ((ix % period >= start) & (ix % period < start+size)).astype(float)
+        xc = (np.arange(c.camera_n)-c.camera_n//2)*c.dx_cam
+        camera_czt = CenteredCZT(self.ng, c.camera_n, c.dx_grating,
+                                xc[0]/(c.wavelength*c.z_cam), c.dx_cam/(c.wavelength*c.z_cam))
+        matrices = []
+        for axis, frequencies in enumerate((self.fx_indices, self.fy_indices)):
+            xi = self.x_img[0] if axis == 0 else self.y_img[:, 0]
+            xg = self.x_g[0] if axis == 0 else self.y_g[:, 0]
+            gp = (-c.tilt_axis_y_grating if axis == 0 else c.tilt_axis_x_grating)/np.hypot(
+                c.tilt_axis_x_grating, c.tilt_axis_y_grating)
+            cp = (-c.tilt_axis_y_cam if axis == 0 else c.tilt_axis_x_cam)/np.hypot(
+                c.tilt_axis_x_cam, c.tilt_axis_y_cam)
+            pre = np.exp(1j*np.pi*xi**2/(c.wavelength*z)-
+                1j*self.k*np.tan(np.deg2rad(c.tilted_angle_grating))*gp*xi)
+            middle = np.exp(1j*np.pi*xg**2/(c.wavelength*z)+
+                1j*np.pi*xg**2/(c.wavelength*c.z_cam)-
+                1j*self.k*np.tan(np.deg2rad(c.tilted_angle_cam))*cp*xg)
+            shift = int((c.shift_x_grating if axis == 0 else c.shift_y_grating)/c.dx_grating)
+            middle *= np.roll(aperture, shift)
+            seeds = np.zeros((len(frequencies), c.n), complex)
+            seeds[np.arange(len(frequencies)), frequencies] = 1
+            image = fft.fftshift(fft.ifft(fft.ifftshift(seeds, axes=-1), axis=-1), axes=-1)
+            grating = self.cg.plan(image*pre, axis=-1)*self.cg.factor
+            camera = camera_czt.plan(grating*middle, axis=-1)*camera_czt.factor
+            camera *= np.exp(1j*np.pi*xc**2/(c.wavelength*c.z_cam))
+            matrices.append(np.ascontiguousarray(camera.T))
+        self.Bx, self.By = matrices
+        self.separable_prefactor = np.exp(1j*self.k*z)/(1j*c.wavelength*z)*np.exp(
+            1j*self.k*c.z_cam)/(1j*c.wavelength*c.z_cam)
 
 
 def config(na, kind="multi64", refine=False):
@@ -88,7 +165,8 @@ def config(na, kind="multi64", refine=False):
         z_cam=distance, dx_grating=float(np.nextafter(
             p["base_grating_dx_m"]/q/(2 if refine else 1), 0)),
         up_sample_grating=p["up_sample_grating"]*(2 if refine else 1),
-        dx_cam=p["base_camera_dx_m"]/q, source_kind=kind)
+        dx_cam=p["base_camera_dx_m"]/q, source_kind=kind,
+        camera_multiplier=p["camera_multiplier"])
 
 
 def geometry(c):
@@ -99,7 +177,7 @@ def geometry(c):
     source_max = 3.5*c.super_lattice_period*m
     image_half = c.n*c.super_lattice_period/c.N_lattice*m/2
     grating_half = c.n*c.up_sample_grating*c.dx_grating/2
-    camera_half = c.n*c.dx_cam/2
+    camera_half = c.camera_n*c.dx_cam/2
     na_image = c.NA_out/m
     angular_radius = na_image/np.sqrt(1-na_image**2)
     center_camera = source_max*(radius+c.z_cam)/radius
@@ -115,6 +193,9 @@ def geometry(c):
         source_pitch_object_m=c.super_lattice_period,
         image_full_width_m=2*image_half, grating_full_width_m=2*grating_half,
         camera_full_width_m=2*camera_half,
+        camera_grid_n=c.camera_n, image_grid_n=c.n,
+        camera_source_center_axis_m=center_camera,
+        camera_pupil_radius_m=pupil_camera, camera_shear_m=shear,
         image_source_margin_m=image_half-source_max,
         grating_paraxial_margin_m=grating_half-source_max-radius*na_image,
         grating_sine_angle_margin_m=grating_half-source_max-radius*angular_radius,
@@ -124,7 +205,7 @@ def geometry(c):
         image_sampling_na_limit=c.wavelength/(2*c.super_lattice_period/c.N_lattice),
         grating_camera_alias_period_m=c.wavelength*c.z_cam/c.dx_grating,
         camera_alias_margin_m=c.wavelength*c.z_cam/(2*c.dx_grating)-camera_half-grating_half,
-        fundamental_bins=c.n*c.dx_cam*radius/(c.grating_period*(radius+c.z_cam)),
+        fundamental_bins=c.camera_n*c.dx_cam*radius/(c.grating_period*(radius+c.z_cam)),
         shear_pixels=shear/c.dx_cam,
         grating_quadratic_phase_nyquist_ratio=(
             c.dx_grating/c.wavelength*(2*grating_half*(1/c.z_grating+1/c.z_cam)
@@ -227,7 +308,8 @@ def preflight(out, reference, monitor):
         c = config(na)
         g = geometry(c)
         assert abs(g["talbot_ratio"]-1) < 1e-11
-        assert g["grating_period_pixels"] == 100
+        assert g["grating_period_pixels"] == round(
+            PROTOCOL["base_period_m"]/PROTOCOL["base_grating_dx_m"])
         assert abs(g["grating_period_pixels"]*c.dx_grating/c.grating_period-1) < 1e-12
         for key in ("grating_sine_angle_margin_m",
                     "camera_sine_angle_first_order_margin_m", "camera_alias_margin_m"):
@@ -237,7 +319,7 @@ def preflight(out, reference, monitor):
         save(folder/"config.json", c.to_dict())
         save(folder/"geometry.json", g)
         monitor.update(stage="preflight", na_out=na, source=0)
-        model = DiffractionModel(c, INDICES, batch_sources=1, workers=1)
+        model = ExtendedCameraModel(c, INDICES, batch_sources=1, workers=1)
         truth = truth_for(model)
         model.prepare_sources()
         # The unmasked incident intensity is band limited by the finite image
@@ -245,7 +327,7 @@ def preflight(out, reference, monitor):
         probe_n = PROTOCOL["grating_intensity_probe_n"]
         probe_dx = model.ng*c.dx_grating/probe_n
         z = c.z_grating-c.shift_z_grating
-        intensity_nyquist_dx = c.wavelength*z/(2*model.n*model.dx_img)
+        intensity_nyquist_dx = c.wavelength*z/(2*model.object_n*model.dx_img)
         assert probe_dx < intensity_nyquist_dx
         probe_x = (np.arange(probe_n)-probe_n//2)*probe_dx
         probe = CenteredCZT(model.n, probe_n, model.dx_img,
@@ -258,7 +340,7 @@ def preflight(out, reference, monitor):
         errors = []
         for number, source in enumerate(c.sources):
             for label, coeff in (("zero", np.zeros(35)), ("truth", truth)):
-                spectrum = np.zeros((model.n, model.n), complex)
+                spectrum = np.zeros((model.object_n, model.object_n), complex)
                 spectrum[model.pupil] = (model.source_spectra[number] *
                     np.exp(2j*np.pi*model.wavefront(coeff)[model.pupil]))
                 image = fft.fftshift(fft.ifft2(fft.ifftshift(spectrum)))
@@ -282,7 +364,8 @@ def preflight(out, reference, monitor):
                     finite=bool(np.isfinite(camera).all()),
                     camera_energy=float(np.sum(abs(camera)**2))))
                 if number == 0 and label == "zero":
-                    first_zero = abs(camera)**2
+                    start = (model.n-c.n)//2
+                    first_zero = abs(camera[start:start+c.n, start:start+c.n])**2
                 del spectrum, image, grating, camera
             monitor.update(source=number+1, source_total=64)
             if (number+1) % 8 == 0:
@@ -295,6 +378,16 @@ def preflight(out, reference, monitor):
         save(folder/"grating_probe_convergence.json", convergence)
         for key, value in maxima.items():
             assert value < PROTOCOL["limits"][key], (na, key, value)
+        period = g["grating_period_pixels"]
+        cell = model.grating[:period, :period].copy()
+        f = fft.fftfreq(period, c.dx_grating)
+        fx, fy = np.meshgrid(f, f)
+        replica = fft.ifft2(fft.fft2(cell)*np.exp(
+            -1j*np.pi*c.wavelength*g["effective_distance_m"]*(fx*fx+fy*fy)))
+        talbot_error = float(np.linalg.norm(replica-cell)/np.linalg.norm(cell))
+        assert talbot_error < 1e-8
+        del model, probe, probe_post, box
+        gc.collect()
         cfg = SimpleNamespace(**{**raw, **c.to_dict()})
         s1 = Stage1(cfg)
         s2 = Stage2_ab(cfg, mode="reference")
@@ -302,14 +395,6 @@ def preflight(out, reference, monitor):
         u = s3.forward(s2.forward(s1.forward(nx=3, ny=3)))
         parity = float(np.linalg.norm(abs(u)**2-first_zero)/np.linalg.norm(first_zero))
         assert parity < PROTOCOL["limits"]["reference_intensity_relative_l2"], parity
-        period = g["grating_period_pixels"]
-        cell = model.grating[:period, :period]
-        f = fft.fftfreq(period, c.dx_grating)
-        fx, fy = np.meshgrid(f, f)
-        replica = fft.ifft2(fft.fft2(cell)*np.exp(
-            -1j*np.pi*c.wavelength*g["effective_distance_m"]*(fx*fx+fy*fy)))
-        talbot_error = float(np.linalg.norm(replica-cell)/np.linalg.norm(cell))
-        assert talbot_error < 1e-8
         result = dict(na_out=na, geometry=g, maxima=maxima,
                       reference_intensity_relative_l2=parity,
                       periodic_cell_field_error=talbot_error,
@@ -319,7 +404,7 @@ def preflight(out, reference, monitor):
         rows.append(result)
         save(out/"preflight.json", dict(passed=True, completed_na=len(rows), rows=rows))
         monitor.event("preflight_na_complete", na_out=na, **maxima, parity=parity)
-        del model, s1, s2, s3, u, first_zero, probe, probe_post, box
+        del s1, s2, s3, u, first_zero
         gc.collect()
 
 
@@ -327,6 +412,7 @@ class Q1Features:
     """Adjacent-order reference-subtracted small-phase Fourier features."""
     def __init__(self, c, zero):
         self.c = c
+        n = c.camera_n
         self.geometry = g = geometry(c)
         self.carrier = round(g["fundamental_bins"])
         self.shear = round(g["shear_pixels"])
@@ -334,7 +420,7 @@ class Q1Features:
             carrier_x=self.carrier, carrier_y=self.carrier,
             half_width=int(.4*g["fundamental_bins"]), window_sigma=2,
             phase_sigma=10*10e-6/PROTOCOL["base_camera_dx_m"], regression="lstsq", alpha=0)
-        x = (np.arange(c.n)-c.n//2)*c.dx_cam
+        x = (np.arange(n)-n//2)*c.dx_cam
         xx, yy = np.meshgrid(x, x)
         rho = np.hypot(xx, yy)/((g["paraxial_radius_m"]+c.z_cam)*c.NA_out*c.f1/c.f2)
         theta = np.arctan2(yy, xx)
@@ -353,9 +439,9 @@ class Q1Features:
         self.windows, self.references = [], []
         spec = self.spectrum(zero)
         for k, axis in enumerate((1, 0)):
-            center = (c.n//2+(self.carrier if axis == 1 else 0),
-                      c.n//2+(self.carrier if axis == 0 else 0))
-            win = spectral_window(c.n, center, s)
+            center = (n//2+(self.carrier if axis == 1 else 0),
+                      n//2+(self.carrier if axis == 0 else 0))
+            win = spectral_window(n, center, s)
             self.windows.append(win)
             self.references.append(fft.ifft2(fft.ifftshift(
                 np.roll(spec*win, -self.carrier, axis))))
@@ -426,8 +512,13 @@ def calibrate(model, feature, folder, monitor):
 
 
 def fit_lm(model, zero, observed, folder, name, monitor):
+    g = geometry(model.config)
+    sampling_radius = (g["camera_pupil_radius_m"]+np.sqrt(2)*g["camera_source_center_axis_m"]+
+                       2*g["camera_shear_m"])
+    candidates = np.flatnonzero(
+        np.hypot(model.x_cam, model.y_cam).ravel() <= sampling_radius)
     rows = np.sort(np.random.default_rng(PROTOCOL["lm_sample_seed"]).choice(
-        observed.size, PROTOCOL["lm_samples"], replace=False))
+        candidates, PROTOCOL["lm_samples"], replace=False))
     np.save(folder/"lm_sample_rows.npy", rows)
     scale = float(zero.max())
     target = observed.ravel()[rows]
@@ -471,6 +562,7 @@ def fit_lm(model, zero, observed, folder, name, monitor):
         projected_rank=int(np.sum(singular > singular[0]*1e-12)),
         projected_condition=float(singular[0]/singular[-1]),
         projected_singular_values=singular.tolist(), sample_count=len(rows),
+        sampling_radius_m=sampling_radius, sampling_candidate_pixels=len(candidates),
         sample_sha256=digest(rows), initial_coefficients=[0.]*35)
     return solution.x[:35], result
 
@@ -485,7 +577,7 @@ def run(out, preflight_dir, monitor):
             folder = out/f"na{na:.3f}_{kind}"
             folder.mkdir(exist_ok=True)
             monitor.update(na_out=na, source_kind=kind, stage="setup")
-            model = DiffractionModel(c, INDICES, batch_sources=1, workers=1)
+            model = ExtendedCameraModel(c, INDICES, batch_sources=1, workers=1)
             truth = truth_for(model)
             zero = model.evaluate(np.zeros(35))
             raw = model.evaluate(truth)

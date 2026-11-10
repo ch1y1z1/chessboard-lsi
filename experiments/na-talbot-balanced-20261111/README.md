@@ -24,8 +24,8 @@ Increasing NA alone does not change this paraxial identity when p, D and the
 axial offset remain fixed; the old baseline was already near a quarter Talbot,
 and changing only p in the second old scan changed that identity again.
 
-Numerics: 1680^2 camera/image and 8400^2 grating, 100 samples per grating period
-and 50 per square aperture side. The camera width is 28.56 mm/q and the grating
+Numerics: 1680^2 image, 5040^2 camera and 13440^2 grating, 160 samples per grating period
+and 80 per square aperture side. The camera width is 50.4 mm/q and the grating
 width 56.28 micrometres/q. These deliberately differ from the 11/9 baseline
 so that high diffraction orders, camera range and Fresnel sampling can be
 checked together. The full camera interval is inside the grating quadrature
@@ -55,7 +55,7 @@ Three random 0.05-wave holdouts (seeds 1807..1809) are not used in calibration.
 The incident grating intensity boundary diagnostic uses a separate 3360^2 grid
 over exactly the same physical window. This unmasked intensity is band limited
 by the finite image support; the probe spacing is below its Nyquist interval.
-Each NA checks a corner source with zero/truth against the dense 8400^2 field
+Each NA checks a corner source with zero/truth against the dense 13440^2 field
 and requires an absolute edge-energy difference below 1e-5. Camera fields for
 all sources use the exact separable composition of the dense sampled operator;
 the original Stage1/Stage2/Stage3 CZT propagation supplies an independent parity
@@ -63,7 +63,10 @@ check per NA. No coarser aperture mask enters any observation or fit.
 
 LM uses scipy least_squares(method="lm") with the analytic sampled-operator
 Jacobian, a zero wavefront initial value, and independent gain/background.
-4096 fixed random camera pixels (seed 62011) enter the objective. A separate
+4096 fixed random camera pixels (seed 62011) enter the objective. Candidates lie
+inside a geometry-only disk enclosing all source-centered paraxial pupils plus
+two first-order shears; no observed truth or fitted result selects the disk.
+A separate
 full-image prediction is used for the reported intensity residual. The report
 must not describe this as all pixels participating in LM.
 
@@ -77,7 +80,7 @@ The three random holdouts test FT calibration generalization separately.
 
 Only SJTU may run numerical preflight and production. Use the private Conda
 environment /data/yk/conda/envs/shear-reference-lm-py312, CPU only, one numerical
-process, four BLAS threads, eight FFT threads, a user-wide study lock, 30-second status/ETA logs,
+process, sixteen BLAS threads, eight FFT threads, a user-wide study lock, 30-second status/ETA logs,
 SIGTERM preservation, 36 GiB RSS stop and a 20-hour invocation cap.
 
 Before each invocation, commit and push its actual code/config and an immutable
