@@ -214,6 +214,7 @@ def main():
         errors = [np.tensordot(np.array(r["coefficients"])-r["truth"], Z, axes=1) for r in chosen]
         amp, errlim = global_wave_limit, global_error_limit
         fig, ax = plt.subplots(4, 3, figsize=(9, 10), constrained_layout=True)
+        maps = []
         for i, (method, error, row) in enumerate(zip(LABELS, errors, chosen)):
             for j, arr in enumerate((true, true+error, error)):
                 im = ax[i, j].imshow(np.where(mask, arr, np.nan), origin="lower", cmap="RdBu_r",
@@ -222,9 +223,12 @@ def main():
                 ax[i, j].set_yticks([])
                 if i == 0:
                     ax[i, j].set_title(("Truth", "Reconstruction", "Error")[j])
+                    maps.append(im)
                 if j == 0:
                     ax[i, j].set_ylabel(LABELS[method])
             ax[i, 2].set_xlabel(f'RMS={row["raw_rms_waves"]:.5g} waves')
+        fig.colorbar(maps[0], ax=ax[:, :2], shrink=.65, label="Wavefront (waves)")
+        fig.colorbar(maps[2], ax=ax[:, 2], shrink=.65, label="Error (waves)")
         fig.suptitle(f"NA_out={na:.3f}; 40 dB seed 42; scales shared across all NA/methods")
         finish(fig, f"wavefronts_na{na:.3f}")
 
@@ -261,7 +265,7 @@ def main():
                     peak_over_dc=float(local[dy, dx]/dc)))
             bound = int(np.ceil(2.4*bins))
             crop = spectrum[n//2-bound:n//2+bound+1, n//2-bound:n//2+bound+1]
-            ax[i, j].imshow(np.log10(np.maximum(crop/dc, 1e-7)), origin="lower",
+            spectral_im = ax[i, j].imshow(np.log10(np.maximum(crop/dc, 1e-7)), origin="lower",
                 extent=(-bound, bound, -bound, bound), cmap="magma", vmin=-7, vmax=0)
             ax[i, j].set(title=f"NA={na:.3f}, {kind}; log10 amplitude / DC",
                           xlabel="Horizontal FFT bin", ylabel="Vertical FFT bin")
@@ -270,6 +274,7 @@ def main():
                 local_peaks=peaks,
                 scope="Local +/-3-bin amplitude/DC diagnostic; not Michelson visibility or a global carrier search."))
             del zero, spectrum, crop
+    fig.colorbar(spectral_im, ax=ax, shrink=.7, label="log10 FFT amplitude / DC")
     finish(fig, "zero_reference_spectra")
     save(args.output/"spectrum_diagnostics.json", spectra)
 
@@ -365,6 +370,8 @@ def main():
         "干净观测按各自峰值归一化；噪声为独立高斯噪声，σ=10^(−SNR/20)·RMS(clean)。"
         "FT 与 LM 共用同一观测数组及 SHA256。源数比较采用相同归一化 SNR，"
         "没有固定总光子数、引入 Poisson 噪声或模拟实际曝光预算，不能据此推断 64 光源的实际光子效率。", "",
+        "本轮相机视场与旧报告不同，基于整幅图 RMS 定义的同名 SNR 也不能直接当作相同曝光条件进行跨报告比较。"
+        "单源位置为 (7,7)，64 源的横纵索引均为 3…10；源坐标约定与基准一致。", "",
         "| NA_out | 光源 | 标定秩 | 条件数 | 训练最大系数误差 | 留出 RMS (3 个) | 主值诊断均通过 |",
         "|---:|---|---:|---:|---:|---|---|"]
     for c in calibration_rows:
