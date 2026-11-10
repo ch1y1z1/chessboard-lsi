@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 import sys
 from zoneinfo import ZoneInfo
 
@@ -55,8 +56,18 @@ def main():
     p.add_argument("--preflight", type=Path, required=True)
     p.add_argument("--provenance", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--expected-commit", required=True)
     args = p.parse_args()
+    head = subprocess.check_output(["git", "-C", str(REPO), "rev-parse", "HEAD"], text=True).strip()
+    assert head == args.expected_commit
+    dirty = subprocess.check_output(["git", "-C", str(REPO), "status", "--porcelain",
+                                    "--untracked-files=no"], text=True)
+    assert not dirty, dirty
     args.output.mkdir(parents=True, exist_ok=True)
+    save(args.output/"analysis-version.json", dict(commit=head,
+        script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        command=sys.argv, python=sys.version, numpy=np.__version__,
+        generated_utc=datetime.now(timezone.utc).isoformat()))
     rows = read(args.results/"summary.json")["results"]
     assert len(rows) == 112
     flight = read(args.preflight/"preflight.json")
@@ -90,6 +101,12 @@ def main():
         assert len(pair) == 2 and pair[0]["observed_sha256"] == pair[1]["observed_sha256"]
         assert {x["method"] for x in pair} == {"ft", "lm"}
         audit.append(dict(check="paired_observation_sha256", passed=True))
+        na, kind, condition = key
+        observed = np.load(args.results/f"na{na:.3f}_{kind}"/f"observation_{condition}.npy")
+        actual = hashlib.sha256(np.ascontiguousarray(observed).tobytes()).hexdigest()
+        assert actual == pair[0]["observed_sha256"]
+        audit.append(dict(check="saved_observation_array_sha256", passed=True))
+        del observed
     for field in flight["rows"]:
         edges = read(args.preflight/f'na{field["na_out"]:.3f}'/"source_edges.json")
         assert len(edges) == 128 and all(x["finite"] for x in edges)
@@ -104,6 +121,23 @@ def main():
         w = csv.DictWriter(f, fieldnames=columns)
         w.writeheader()
         w.writerows({k: r[k] for k in columns} for r in rows)
+    with (args.output/"coefficients.csv").open("w") as f:
+        names = ["na_out", "source_kind", "method", "condition", "mode",
+                 "truth_waves", "estimate_waves", "error_waves"]
+        w = csv.DictWriter(f, fieldnames=names)
+        w.writeheader()
+        for row in rows:
+            for j, (target, estimate) in enumerate(zip(row["truth"], row["coefficients"]), 1):
+                w.writerow(dict({k: row[k] for k in names[:4]}, mode=j,
+                    truth_waves=target, estimate_waves=estimate, error_waves=estimate-target))
+    with (args.output/"radial.csv").open("w") as f:
+        names = ["na_out", "source_kind", "method", "condition",
+                 "low", "high", "pixels", "rms_waves"]
+        w = csv.DictWriter(f, fieldnames=names)
+        w.writeheader()
+        for row in rows:
+            for ring in row["radial"]:
+                w.writerow({**{k: row[k] for k in names[:4]}, **ring})
     stats = []
     for na in bases:
         for method in LABELS:
@@ -206,6 +240,39 @@ def main():
         ax[k].legend(fontsize=8)
     finish(fig, "boundary_diagnostics")
 
+    spectra = []
+    fig, ax = plt.subplots(4, 2, figsize=(10, 13), constrained_layout=True)
+    for i, na in enumerate(bases):
+        for j, kind in enumerate(("single", "multi64")):
+            folder = args.results/f"na{na:.3f}_{kind}"
+            zero = np.load(folder/"zero.npy")
+            n = zero.shape[0]
+            spectrum = abs(fft.fftshift(fft.fft2((zero-zero.min())/zero.max())))
+            dc = float(spectrum[n//2, n//2])
+            bins = read(folder/"geometry.json")["fundamental_bins"]
+            k = round(bins)
+            peaks = []
+            for axis in (1, 0):
+                cy, cx = n//2+(k if axis == 0 else 0), n//2+(k if axis == 1 else 0)
+                local = spectrum[cy-3:cy+4, cx-3:cx+4]
+                dy, dx = np.unravel_index(np.argmax(local), local.shape)
+                peaks.append(dict(axis="x" if axis == 1 else "y",
+                    peak_xy_bins=[cx+int(dx)-3-n//2, cy+int(dy)-3-n//2],
+                    peak_over_dc=float(local[dy, dx]/dc)))
+            bound = int(np.ceil(2.4*bins))
+            crop = spectrum[n//2-bound:n//2+bound+1, n//2-bound:n//2+bound+1]
+            ax[i, j].imshow(np.log10(np.maximum(crop/dc, 1e-7)), origin="lower",
+                extent=(-bound, bound, -bound, bound), cmap="magma", vmin=-7, vmax=0)
+            ax[i, j].set(title=f"NA={na:.3f}, {kind}; log10 amplitude / DC",
+                          xlabel="Horizontal FFT bin", ylabel="Vertical FFT bin")
+            spectra.append(dict(na_out=na, source_kind=kind,
+                geometry_fundamental_bins=bins, geometry_selected_bin=k,
+                local_peaks=peaks,
+                scope="Local +/-3-bin amplitude/DC diagnostic; not Michelson visibility or a global carrier search."))
+            del zero, spectrum, crop
+    finish(fig, "zero_reference_spectra")
+    save(args.output/"spectrum_diagnostics.json", spectra)
+
     calibration_rows = []
     for na in bases:
         for kind in ("single", "multi64"):
@@ -232,7 +299,7 @@ def main():
         f"正式计算（北京时间）：{started_bj}—{finished_bj}；"
         f"主运行耗时 {status['elapsed_seconds']/60:.3f} 分钟；峰值 RSS {status['peak_rss_gib']:.3f} GiB。", "",
         f"112 条主结果已生成；独立复算与记录核对共 {len(audit)} 项通过。"
-        f"LM 未收敛 {len(failures)} 条，FT 主值相位诊断未通过 {len(branches)} 条。", "",
+        f"LM 优化器成功标志未通过 {len(failures)} 条，FT 主值相位诊断未通过 {len(branches)} 条。", "",
         "## 研究问题与比较范围", "",
         "沿用 NA_out=0.020、0.066、0.110、0.150，比较单源 FT、单源 LM、64 源 FT、64 源 LM。"
         "本实验同步配平周期、传播距离、采样及光源间距，比较这一组系统内的恢复表现。"
@@ -248,7 +315,8 @@ def main():
         lines.append(f'| {row["na_out"]:.3f} | {LABELS[row["pipeline"]]} | {row["clean"]:.10g} | '
             f'{row["mean40"]:.10g} ± {row["sd40"]:.4g} | {row["seed42_40"]:.10g} | {row["seed42_30"]:.10g} |')
     lines += ["", "![NA 与重建误差](rms_vs_na.png)", "",
-        "完整 112 条 RMS、PV、nm、系数误差和 SHA256 在 metrics.csv。"
+        "完整 112 条 RMS、PV、nm、系数误差和 SHA256 在 metrics.csv；"
+        "coefficients.csv 保存全部 35 项系数，radial.csv 保存径向分区数值。"
         "statistics.csv 同时列出外圈和共同绝对 NA≤0.020 区域的误差；共同区域的采样点数随档位改变，不能当作相同采样的独立试验。", "",
         "## 参数及泰伯条件", "",
         "R=z_grating−M²·shift_z，M=f2/f1=0.2；z_eff=RD/(R+D)=2p²/λ，D=z_cam。"
@@ -308,8 +376,12 @@ def main():
         "候选区为按几何参数确定、覆盖全部源偏移光瞳并增加两倍一级剪切余量的圆盘，未用目标波前选择像素。"
         "并另算完整相机图残差。未让全部相机像素参与 LM。"
         "优化器停止标志和波前恢复误差分别记录。", "",
-        f"未收敛列表：{json.dumps(failures, ensure_ascii=False)}", "",
+        f"优化器成功标志未通过列表：{json.dumps(failures, ensure_ascii=False)}", "",
         f"FT 观测主值诊断失败列表：{json.dumps(branches, ensure_ascii=False)}", "",
+        "零参考频谱的横纵基频位置按几何计算；图中幅值均除以 DC，"
+        "spectrum_diagnostics.json 记录预期位置附近 ±3 bin 的局部峰。"
+        "该幅值比不等于 Michelson 可见度，也不是全频谱自动选峰。", "",
+        "![零参考频谱](zero_reference_spectra.png)", "",
         "![径向误差](radial_40db_seed42.png)", "",
         "## 波前对照", ""]
     for na in bases:
@@ -328,12 +400,16 @@ def main():
     for item in prov["repositories"]:
         lines += [f"- 仓库：{item['repository']}；用途：{item['purpose']}；完整 commit：`{item['commit']}`；"
                   f"Git tag：`{item['tag']}`；提交：{item['commit_url']}；标签：{item['tag_url']}。"]
+    lines += ["", f"后处理提交：`{head}`；脚本及环境核对见 analysis-version.json。", "",
+              "### 预检查与历史尝试", ""]
+    for attempt in prov.get("attempt_history", []):
+        lines.append(f"- `{attempt['id']}`：{attempt['status']}。")
     lines += ["", "运行命令、配置、源码 SHA256、环境与机器信息见 version.json 和 versions.json。"
         "正式运行前已上传并核对标签；后处理如有改动，另列提交和标签。"
         "历史运行记录保留，未修改 11 月 4 日、9 日、10 日结果。", "",
         "## 文件与复核", "",
         f"- `audit.json`：{len(audit)} 项独立复算和记录核对。独立指从保存系数重新构造基与指标，不是独立物理模型。",
-        "- `metrics.csv`、`statistics.csv`：完整数值及重复噪声统计。",
+        "- `metrics.csv`、`statistics.csv`、`coefficients.csv`、`radial.csv`：完整数值、系数及重复噪声统计。",
         "- `calibration_summary.json`、`limitations.json`：标定、留出检验与失败记录。",
         "- 服务器原始观测、逐源边界明细、标定特征、LM 轨迹与 30 秒状态日志随各运行目录保留。", ""]
     (args.output/"report-draft.md").write_text("\n".join(lines))
