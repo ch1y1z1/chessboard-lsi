@@ -63,11 +63,13 @@ def rms(array):
 @dataclass(frozen=True)
 class BalancedConfig(SystemConfig):
     source_kind: str = "multi64"
-    camera_multiplier: int = 3
+    camera_multiplier: float = 4.5
 
     @property
     def camera_n(self):
-        return self.n*self.camera_multiplier
+        pixels = self.n*self.camera_multiplier
+        assert pixels == round(pixels) and round(pixels) % 2 == 0
+        return round(pixels)
 
     @property
     def sources(self):
@@ -292,6 +294,38 @@ def edge_energy(field):
     intensity = abs(field)**2
     b = max(1, round(.05*field.shape[-1]))
     return float(1-intensity[b:-b, b:-b].sum()/intensity.sum())
+
+
+def pilot(out, monitor):
+    """Check the preceding worst sources before another all-source preflight."""
+    results = []
+    for na in (PROTOCOL["na_values"][0], PROTOCOL["na_values"][-1]):
+        c = config(na)
+        g = geometry(c)
+        assert g["grating_quadratic_phase_nyquist_ratio"] < 1
+        assert g["camera_alias_margin_m"] > 0
+        monitor.update(stage="pilot", na_out=na)
+        model = ExtendedCameraModel(c, INDICES, batch_sources=1, workers=1)
+        truth = truth_for(model)
+        for source in ((3, 3), (4, 4), (7, 7)):
+            number = c.sources.index(source)
+            for label, coeff in (("zero", np.zeros(35)), ("truth", truth)):
+                spectrum = np.zeros(model.pupil_box.shape, complex)
+                spectrum[model.pupil_box] = model.source_spectra[number]*np.exp(
+                    2j*np.pi*model.wavefront(coeff)[model.pupil])
+                camera = model._transfer_spectrum(spectrum)
+                value = edge_energy(camera)
+                row = dict(na_out=na, source=list(source), field=label,
+                           camera_outer5_energy=value, geometry=g)
+                results.append(row)
+                save(out/"pilot.json", dict(rows=results, passed=False))
+                monitor.event("pilot_camera_edge", **row)
+                assert value < PROTOCOL["limits"]["camera_outer5_energy"]
+                del camera, spectrum
+        del model
+        gc.collect()
+    save(out/"pilot.json", dict(rows=results, passed=True,
+        scope="Selected sources at extreme NA values; complete preflight still required."))
 
 
 def preflight(out, reference, monitor):
@@ -640,7 +674,7 @@ def run(out, preflight_dir, monitor):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("stage", choices=("design", "preflight", "run"))
+    parser.add_argument("stage", choices=("design", "pilot", "preflight", "run"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--reference", type=Path)
     parser.add_argument("--preflight", type=Path)
@@ -668,7 +702,9 @@ def main():
     with exclusive_study(), interrupt_on_termination(), threadpool_limits(
             limits=PROTOCOL["blas_threads"]), fft.set_workers(PROTOCOL["fft_threads"]):
         with Monitor(args.output, args.stage) as monitor:
-            if args.stage == "preflight":
+            if args.stage == "pilot":
+                pilot(args.output, monitor)
+            elif args.stage == "preflight":
                 assert args.reference
                 preflight(args.output, args.reference, monitor)
             else:

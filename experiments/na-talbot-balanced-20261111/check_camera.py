@@ -21,7 +21,7 @@ def main():
     args = parser.parse_args()
     cfg = BalancedConfig(N_lattice=20, N_super_lattice=4,
         dx_grating=67e-9, up_sample_grating=2, dx_cam=100e-6,
-        grating_period=670e-9, source_kind="single", camera_multiplier=3)
+        grating_period=670e-9, source_kind="single", camera_multiplier=4.5)
     indices = (7, 25, 11, 15)
     truth = np.array([.001, .003, -.001, .004])
     reference = DiffractionModel(replace(cfg, camera_multiplier=1), indices, batch_sources=1)
