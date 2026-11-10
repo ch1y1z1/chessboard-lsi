@@ -1,0 +1,52 @@
+{
+ "exp_name": "Calculate the aberration basis at the grating plane",
+
+ "wavelength": 6.7e-9,
+ "distance_stage1": 2,
+ "error_mode": "ON",
+
+ "N_lattice": 120,
+ "hole_diameter": 50e-9,
+ "lattice_distance": 150e-9,
+ "N_hole_rows": 1,
+ "N_super_lattice": 14,
+ "super_lattice_period": 3.35e-6,
+
+ "shift_x": 0e-6,
+ "shift_y": 0e-6,
+ "shift_z": -100e-6,
+ "tilted_angle": 0,
+ "tilt_axis_x": 1,
+ "tilt_axis_y": 0,
+
+ "f1": 1.2,
+ "f2": 0.24,
+ "NA_in": 0.00769,
+ "NA_out": 0.02,
+ "Nz": 5,
+ "basis_factor": 0.01,
+ "c_Zernike": [0.25,0.15,0.05,0.2,0.0],
+ "n_radial": [2,5,3,3,1],
+ "l_azimuthal": [1,-5,-1,3,0],
+
+ "grating_type": "Square",
+ "grating_period": 0.670e-6,
+ "duty_cycle": 50,
+ "z_grating": 130.335839599e-6,
+ "dx_grating": 16.75e-9,
+ "up_sample_grating": 2,
+
+ "shift_x_grating": 0e-6,
+ "shift_y_grating": 0e-6,
+ "shift_z_grating": 0e-6,
+ "tilted_angle_grating": 0,
+ "tilt_axis_x_grating": 1,
+ "tilt_axis_y_grating": 0,
+
+ "z_cam": 53.6e-3,
+ "dx_cam": 10e-6,
+
+ "tilted_angle_cam": 0,
+ "tilt_axis_x_cam": 1,
+ "tilt_axis_y_cam": 0
+}

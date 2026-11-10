@@ -1,0 +1,17 @@
+[
+  {
+    "archive": "talbot-reference.tar.gz",
+    "archive_root": "ch1y1z1-shear-reference-lm-71ab81b18c9f017c6ddd3dfc302d18b0a2ba2542",
+    "sha256": "66215e624946b746a329ff4f81fe9523d4af87ddaae764785cd071c1a6a30645"
+  },
+  {
+    "archive": "talbot-chessboard.tar.gz",
+    "archive_root": "ch1y1z1-chessboard-lsi-6da7b93",
+    "sha256": "1fe21da093db6525c259de9a6218975fc802d7ea7c65e8f295f9967e3912194d"
+  },
+  {
+    "archive": "talbot-lm36.tar.gz",
+    "archive_root": "ch1y1z1-shear-reference-lm-0c4a85177270527a2d4aeb804ed011ba1a549a31",
+    "sha256": "9c67f45da3cd48d2f4e24299ac00de400c9ce9c6e4e663edcb6d33611b98a0d2"
+  }
+]

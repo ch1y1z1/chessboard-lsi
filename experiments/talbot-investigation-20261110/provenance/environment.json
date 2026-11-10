@@ -1,0 +1,15 @@
+{
+  "python": "3.12.16 (main, Oct 26 2026, 11:37:43) [GCC 15.3.0]",
+  "executable": "/data/yk/conda/envs/shear-reference-lm-py312/bin/python",
+  "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+  "host": "sjtu-gxyserver",
+  "packages": {
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "sklearn": "1.9.1",
+    "skimage": "0.26.0",
+    "matplotlib": "3.11.2",
+    "psutil": "7.2.2"
+  },
+  "compute": "CPU, one numerical process, at most four BLAS threads, no GPU"
+}

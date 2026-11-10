@@ -1,0 +1,85 @@
+{
+  "executed": [
+    {
+      "path": "code/calibrate_ablation.py",
+      "recorded": "3d41dfa6bdb7792f16417ae69e9e5ea407a397e2727c95963a0bce03820bd686",
+      "current": "3d41dfa6bdb7792f16417ae69e9e5ea407a397e2727c95963a0bce03820bd686",
+      "matches": true
+    },
+    {
+      "path": "code/forward_compare.py",
+      "recorded": "75e9cdc266f59f368c40519e44c43ebc3019401b21fefe7a581a1f51f2b3fbee",
+      "current": "75e9cdc266f59f368c40519e44c43ebc3019401b21fefe7a581a1f51f2b3fbee",
+      "matches": true
+    },
+    {
+      "path": "code/order_mixing.py",
+      "recorded": "4cf7d065364b038668919d954c219842e9685239bb77185a6f76c7b731d2d3e9",
+      "current": "4cf7d065364b038668919d954c219842e9685239bb77185a6f76c7b731d2d3e9",
+      "matches": true
+    },
+    {
+      "path": "code/phase_probe.py",
+      "recorded": "48284fba1b27ce49ef8a7f4b7579a73afaee4cfd50b2c79c3062221284f5ac13",
+      "current": "48284fba1b27ce49ef8a7f4b7579a73afaee4cfd50b2c79c3062221284f5ac13",
+      "matches": true
+    },
+    {
+      "path": "code/validate_ablation.py",
+      "recorded": "be8847c0276b0189aa62dd9ff3b359676b115307f191a12bfff6f1016fb5eb21",
+      "current": "be8847c0276b0189aa62dd9ff3b359676b115307f191a12bfff6f1016fb5eb21",
+      "matches": true
+    }
+  ],
+  "lsi_base_commit": "6da7b93caf426f50f509edfe2dec474d1a5a483d",
+  "lsi_checks": [
+    {
+      "file": "basis.py",
+      "matches": true
+    },
+    {
+      "file": "run.py",
+      "matches": true
+    },
+    {
+      "file": "execution.py",
+      "matches": true
+    },
+    {
+      "file": "config.py",
+      "matches": true
+    },
+    {
+      "file": "io.py",
+      "matches": true
+    },
+    {
+      "file": "__init__.py",
+      "matches": true
+    },
+    {
+      "file": "cli.py",
+      "matches": true
+    },
+    {
+      "file": "forward.py",
+      "matches": true
+    },
+    {
+      "file": "evaluate.py",
+      "matches": true
+    },
+    {
+      "file": "direct.py",
+      "matches": true
+    },
+    {
+      "file": "fourier.py",
+      "matches": true
+    },
+    {
+      "file": "__main__.py",
+      "matches": true
+    }
+  ]
+}
