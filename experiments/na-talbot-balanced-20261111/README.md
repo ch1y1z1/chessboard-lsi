@@ -52,6 +52,15 @@ algorithm. Every NA and source count gets 70 independent +/-0.02-wave single-mod
 calibrations; no test truth is used for selecting the band or fitting the response.
 Three random 0.05-wave holdouts (seeds 1807..1809) are not used in calibration.
 
+The incident grating intensity boundary diagnostic uses a separate 3360^2 grid
+over exactly the same physical window. This unmasked intensity is band limited
+by the finite image support; the probe spacing is below its Nyquist interval.
+Each NA checks a corner source with zero/truth against the dense 8400^2 field
+and requires an absolute edge-energy difference below 1e-5. Camera fields for
+all sources use the exact separable composition of the dense sampled operator;
+the original Stage1/Stage2/Stage3 CZT propagation supplies an independent parity
+check per NA. No coarser aperture mask enters any observation or fit.
+
 LM uses scipy least_squares(method="lm") with the analytic sampled-operator
 Jacobian, a zero wavefront initial value, and independent gain/background.
 4096 fixed random camera pixels (seed 62011) enter the objective. A separate

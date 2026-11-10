@@ -29,7 +29,7 @@ sys.path.insert(0, str(REPO))
 from lsi.basis import basis
 from lsi.config import SystemConfig
 from lsi.execution import exclusive_study, interrupt_on_termination
-from lsi.forward import DiffractionModel
+from lsi.forward import CenteredCZT, DiffractionModel
 from lsi.fourier import FourierSettings, spectral_window
 
 HERE = Path(__file__).resolve().parent
@@ -240,6 +240,21 @@ def preflight(out, reference, monitor):
         model = DiffractionModel(c, INDICES, batch_sources=1, workers=1)
         truth = truth_for(model)
         model.prepare_sources()
+        # The unmasked incident intensity is band limited by the finite image
+        # support. Its diagnostic grid need not resolve the aperture edges.
+        probe_n = PROTOCOL["grating_intensity_probe_n"]
+        probe_dx = model.ng*c.dx_grating/probe_n
+        z = c.z_grating-c.shift_z_grating
+        intensity_nyquist_dx = c.wavelength*z/(2*model.n*model.dx_img)
+        assert probe_dx < intensity_nyquist_dx
+        probe_x = (np.arange(probe_n)-probe_n//2)*probe_dx
+        probe = CenteredCZT(model.n, probe_n, model.dx_img,
+            probe_x[0]/(c.wavelength*z), probe_dx/(c.wavelength*z))
+        px, py = np.meshgrid(probe_x, probe_x)
+        probe_post = np.exp(1j*model.k*z)/(1j*c.wavelength*z)*np.exp(
+            1j*np.pi*(px*px+py*py)/(c.wavelength*z))
+        del px, py
+        convergence = []
         errors = []
         for number, source in enumerate(c.sources):
             for label, coeff in (("zero", np.zeros(35)), ("truth", truth)):
@@ -247,8 +262,19 @@ def preflight(out, reference, monitor):
                 spectrum[model.pupil] = (model.source_spectra[number] *
                     np.exp(2j*np.pi*model.wavefront(coeff)[model.pupil]))
                 image = fft.fftshift(fft.ifft2(fft.ifftshift(spectrum)))
-                grating = model.propagate_image(image, plane="grating")
-                camera = model.cc(grating*model.grating*model.pre_cam)*model.post_cam
+                grating = probe(image*model.pre_g)*probe_post
+                box = np.zeros(model.pupil_box.shape, complex)
+                box[model.pupil_box] = spectrum[model.pupil]
+                camera = model._transfer_spectrum(box)
+                if number == 0:
+                    dense = model.propagate_image(image, plane="grating")
+                    difference = abs(edge_energy(dense)-edge_energy(grating))
+                    convergence.append(dict(field=label, dense_n=model.ng,
+                        probe_n=probe_n, probe_dx_m=probe_dx,
+                        intensity_nyquist_dx_m=intensity_nyquist_dx,
+                        edge_energy_absolute_difference=difference))
+                    assert difference < PROTOCOL["limits"]["grating_edge_probe_absolute_error"]
+                    del dense
                 errors.append(dict(source=list(source), field=label,
                     image_outer5_energy=edge_energy(image),
                     grating_outer5_energy=edge_energy(grating),
@@ -266,6 +292,7 @@ def preflight(out, reference, monitor):
             "image_outer5_energy", "grating_outer5_energy", "camera_outer5_energy")}
         save(folder/"source_edges.json", errors)
         save(folder/"edge_maxima.json", maxima)
+        save(folder/"grating_probe_convergence.json", convergence)
         for key, value in maxima.items():
             assert value < PROTOCOL["limits"][key], (na, key, value)
         cfg = SimpleNamespace(**{**raw, **c.to_dict()})
@@ -286,11 +313,13 @@ def preflight(out, reference, monitor):
         result = dict(na_out=na, geometry=g, maxima=maxima,
                       reference_intensity_relative_l2=parity,
                       periodic_cell_field_error=talbot_error,
+                      grating_intensity_probe_n=probe_n,
+                      grating_probe_convergence=convergence,
                       source_fields_checked=len(errors))
         rows.append(result)
         save(out/"preflight.json", dict(passed=True, completed_na=len(rows), rows=rows))
         monitor.event("preflight_na_complete", na_out=na, **maxima, parity=parity)
-        del model, s1, s2, s3, u, first_zero
+        del model, s1, s2, s3, u, first_zero, probe, probe_post, box
         gc.collect()
 
 

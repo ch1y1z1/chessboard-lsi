@@ -25,11 +25,13 @@
   "lm_max_nfev": 120,
   "blas_threads": 4,
   "fft_threads": 8,
+  "grating_intensity_probe_n": 3360,
   "limits": {
     "image_outer5_energy": 0.003,
     "grating_outer5_energy": 0.001,
     "camera_outer5_energy": 0.001,
     "reference_intensity_relative_l2": 1e-7,
+    "grating_edge_probe_absolute_error": 1e-5,
     "rss_gib": 36,
     "max_runtime_hours": 20
   },
