@@ -51,6 +51,10 @@ and observation. It is not advertised as a general large-aberration unwrapping
 algorithm. Every NA and source count gets 70 independent +/-0.02-wave single-mode
 calibrations; no test truth is used for selecting the band or fitting the response.
 Three random 0.05-wave holdouts (seeds 1807..1809) are not used in calibration.
+The observation FFT and sideband inverse FFT retain the whole camera grid.
+The basis and zero-padded phase smoothing use only a geometry-selected region
+with at least four Gaussian sigmas of padding outside all active pixels.
+check_features.py verifies parity against the full-grid implementation.
 
 The incident grating intensity boundary diagnostic uses a separate 3360^2 grid
 over exactly the same physical window. This unmasked intensity is band limited

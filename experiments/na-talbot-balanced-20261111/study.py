@@ -444,7 +444,7 @@ def preflight(out, reference, monitor):
 
 class Q1Features:
     """Adjacent-order reference-subtracted small-phase Fourier features."""
-    def __init__(self, c, zero):
+    def __init__(self, c, zero, compact=True):
         self.c = c
         n = c.camera_n
         self.geometry = g = geometry(c)
@@ -455,6 +455,11 @@ class Q1Features:
             half_width=int(.4*g["fundamental_bins"]), window_sigma=2,
             phase_sigma=10*10e-6/PROTOCOL["base_camera_dx_m"], regression="lstsq", alpha=0)
         x = (np.arange(n)-n//2)*c.dx_cam
+        radius = int(np.ceil(g["camera_pupil_radius_m"]/c.dx_cam))+abs(self.shear)
+        radius += int(np.ceil(4*s.phase_sigma))+2
+        start, stop = max(0, n//2-radius), min(n, n//2+radius+1)
+        self.roi = (slice(start, stop), slice(start, stop)) if compact else (slice(None), slice(None))
+        x = x[self.roi[0]]
         xx, yy = np.meshgrid(x, x)
         rho = np.hypot(xx, yy)/((g["paraxial_radius_m"]+c.z_cam)*c.NA_out*c.f1/c.f2)
         theta = np.arctan2(yy, xx)
@@ -478,7 +483,7 @@ class Q1Features:
             win = spectral_window(n, center, s)
             self.windows.append(win)
             self.references.append(fft.ifft2(fft.ifftshift(
-                np.roll(spec*win, -self.carrier, axis))))
+                np.roll(spec*win, -self.carrier, axis)))[self.roi].copy())
 
     @staticmethod
     def spectrum(image):
@@ -490,7 +495,7 @@ class Q1Features:
         values, maxima, branch = [], [], []
         for k, axis in enumerate((1, 0)):
             signal_field = fft.ifft2(fft.ifftshift(
-                np.roll(spec*self.windows[k], -self.carrier, axis)))
+                np.roll(spec*self.windows[k], -self.carrier, axis)))[self.roi].copy()
             phase = np.where(self.masks[k], np.angle(
                 signal_field*np.conj(self.references[k])), 0)
             maxima.append(float(abs(phase[self.masks[k]]).max()))
@@ -539,7 +544,8 @@ def calibrate(model, feature, folder, monitor):
         all_small_phase_valid=all(v["diagnostics"]["small_phase_valid"] for v in data.values()),
         seconds=sum(v["seconds"] for v in data.values()),
         dZ_rank=feature.basis_rank, dZ_condition=feature.basis_condition,
-        settings=feature.settings.to_dict(), shear_pixels=feature.shear)
+        settings=feature.settings.to_dict(), shear_pixels=feature.shear,
+        feature_grid_shape=list(feature.masks[0].shape), camera_grid_shape=[model.n, model.n])
     np.savez_compressed(folder/"calibration.npz", response=response, singular_values=singular)
     save(folder/"calibration.json", summary)
     return response, summary
@@ -604,6 +610,7 @@ def fit_lm(model, zero, observed, folder, name, monitor):
 def run(out, preflight_dir, monitor):
     checked = json.loads((preflight_dir/"preflight.json").read_text())
     assert checked["passed"] and checked["completed_na"] == 4
+    assert json.loads((preflight_dir/"version.json").read_text())["protocol"] == PROTOCOL
     results = json.loads((out/"summary.json").read_text())["results"] if (out/"summary.json").exists() else []
     for na in PROTOCOL["na_values"]:
         for kind in ("single", "multi64"):
