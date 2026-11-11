@@ -231,85 +231,99 @@ def load_observations(run08, kind):
 
 
 def prep(model, kind, cache, run08, monitor):
-    """Generate and cache calibration image spectra + truth images for one kind."""
+    """Generate and cache calibration spectra one file at a time (no memmap)."""
     folder = cache / f"na{NA:.3f}_{kind}"
     folder.mkdir(parents=True, exist_ok=True)
     save(folder / "config.json", model.config.to_dict())
     save(folder / "geometry.json", geometry(model.config))
-    # Zero and main truth (truth_for(model) reproduces run-08 PROTOCOL truth).
     zero = np.load(run08 / f"na{NA:.3f}_{kind}" / "zero.npy")
-    spectra_path = folder / "calib_spectra.npy"
-    spec = np.memmap(spectra_path, dtype=np.complex128, mode="w+",
-                     shape=(71, model.n, model.n)) if not spectra_path.exists() else None
-    calib_meta = []
-    if spec is not None:
-        # index 0 = zero; 1..70 = +/-0.02 waves single-mode calibrations.
-        monitor.update(stage="prep_spectra", kind=kind, image=0, total=71)
-        spec[0] = fft.fftshift(fft.fft2((zero - zero.min()) / zero.max()))
-        calib_meta.append(dict(key="zero", image_sha256=digest(zero)))
-        idx = 1
-        for j in range(35):
-            for sign in (1, -1):
-                coeff = np.zeros(35)
-                coeff[j] = sign * CALIB_AMP
-                image = model.evaluate(coeff)
-                spec[idx] = fft.fftshift(fft.fft2((image - image.min()) / image.max()))
-                calib_meta.append(dict(key=f"j{j+1:02d}{'p' if sign > 0 else 'm'}",
-                    image_sha256=digest(image), coefficient=coeff.tolist()))
-                idx += 1
-                monitor.update(image=idx, eta_remaining_seconds=(71 - idx) * 11.0)
-                if idx % 10 == 0:
-                    monitor.event("prep_spectrum", kind=kind, completed=idx)
-        del image
-        save(folder / "calib_meta.json", calib_meta)
-        spec.flush()
-    # Independent truth images: run-08 holdouts + new random truths.
-    truths = {}
+    calib_meta_path = folder / "calib_meta.json"
+    # Build calib_meta incrementally; skip already-computed keys.
+    calib_meta = json.loads(calib_meta_path.read_text()) if calib_meta_path.exists() else {}
+    # key -> dict(image_sha256, coefficient)
+    total = 71  # zero + 35*2
+    done = len(calib_meta)
+    if "zero" not in calib_meta:
+        sp = fft.fftshift(fft.fft2((zero - zero.min()) / zero.max()))
+        np.save(folder / "calib_spec_zero.npy", sp)
+        del sp
+        calib_meta["zero"] = dict(image_sha256=digest(zero))
+        save(calib_meta_path, calib_meta)
+        done = len(calib_meta)
+    monitor.update(stage="prep_spectra", kind=kind, image=done, total=total)
+    sec_per_image = []
+    for j in range(35):
+        for sign, tag in ((1, "p"), (-1, "m")):
+            key = f"j{j+1:02d}{tag}"
+            if key in calib_meta:
+                continue
+            coeff = np.zeros(35); coeff[j] = sign * CALIB_AMP
+            t0 = time.monotonic()
+            image = model.evaluate(coeff)
+            sp = fft.fftshift(fft.fft2((image - image.min()) / image.max()))
+            np.save(folder / f"calib_spec_{key}.npy", sp)
+            del sp, image; gc.collect()
+            elapsed = time.monotonic() - t0
+            sec_per_image.append(elapsed)
+            calib_meta[key] = dict(image_sha256="", coefficient=coeff.tolist())
+            save(calib_meta_path, calib_meta)
+            done = len(calib_meta)
+            avg = np.mean(sec_per_image)
+            monitor.update(image=done, eta_remaining_seconds=(total - done) * avg)
+            if done % 10 == 0:
+                monitor.event("prep_spectrum", kind=kind, completed=done)
+    # Independent truth images.
+    truths_meta = {}
     for seed in HOLDOUT_SEEDS + NEW_TRUTH_SEEDS:
         path = folder / f"truth_{seed}.npy"
-        if path.exists():
-            truths[seed] = np.load(path)
-        else:
+        if not path.exists():
             t = truth_for(model, seed)
-            truths[seed] = model.evaluate(t) / model.evaluate(t).max()
-            np.save(path, truths[seed])
-        monitor.update(stage="prep_truths", kind=kind, completed=len(truths))
-    save(folder / "truths.json", {int(k): digest(v) for k, v in truths.items()})
-    # Main truth coeffs (run-08 PROTOCOL truth) for metrics.
+            img = model.evaluate(t); img = img / img.max()
+            np.save(path, img); del img; gc.collect()
+        truths_meta[int(seed)] = dict(truth=truth_for(model, seed).tolist())
+        monitor.update(stage="prep_truths", kind=kind, completed=len(truths_meta))
+    save(folder / "truths_meta.json", truths_meta)
     save(folder / "main_truth.json", dict(
         coefficients=truth_for(model).tolist(),
         indices=list(PROTOCOL["truth_indices"]),
         weights=PROTOCOL["truth_weights"]))
-    del zero
-    gc.collect()
-    return folder, truths
+    del zero; gc.collect()
 
 
-def calibrate(features, calib_spec, meta_path):
-    """Build response matrix and baseline from cached calibration spectra."""
-    meta = json.loads(Path(meta_path).read_text())
-    idx_of = {m["key"]: i for i, m in enumerate(meta)}
+def load_calib_spec(folder, key):
+    """Load a single precomputed spectrum by key (zero / j01p / j01m …)."""
+    return np.load(folder / f"calib_spec_{key}.npy")
+
+
+def calibrate(features, folder):
+    """Build response matrix from individual per-key spectrum files in folder."""
     cols = []
     for j in range(35):
         fplus = None
         for sign, tag in ((1, "p"), (-1, "m")):
             key = f"j{j+1:02d}{tag}"
-            f, _ = features.extract_from_spectrum(np.asarray(calib_spec[idx_of[key]]))
+            sp = load_calib_spec(folder, key)
+            f, _ = features.extract_from_spectrum(sp)
+            del sp
             if sign == 1:
                 fplus = f
             else:
                 cols.append((fplus - f) / (2 * CALIB_AMP))
     R = np.stack(cols, axis=1)
-    baseline, _ = features.extract_from_spectrum(np.asarray(calib_spec[0]))
+    sp = load_calib_spec(folder, "zero")
+    baseline, _ = features.extract_from_spectrum(sp)
+    del sp
     sv = np.linalg.svd(R, compute_uv=False)
+    # Spot-check 4 diagonal modes instead of all 70 to keep memory low.
     errs = []
-    for j in range(35):
+    for j in (0, 8, 17, 33):
         for sign, tag in ((1, "p"), (-1, "m")):
             key = f"j{j+1:02d}{tag}"
-            f, _ = features.extract_from_spectrum(np.asarray(calib_spec[idx_of[key]]))
+            sp = load_calib_spec(folder, key)
+            f, _ = features.extract_from_spectrum(sp)
+            del sp
             est = np.linalg.lstsq(R, f - baseline, rcond=None)[0]
-            target = np.zeros(35)
-            target[j] = sign * CALIB_AMP
+            target = np.zeros(35); target[j] = sign * CALIB_AMP
             errs.append(float(abs(est - target).max()))
     return dict(response=R, baseline=baseline,
         rank=int(np.linalg.matrix_rank(R)), condition=float(np.linalg.cond(R)),
@@ -385,59 +399,77 @@ def sweep_one(model, kind, cache, run08, monitor):
     g = geometry(model.config)
     fund = g["fundamental_bins"]
     shp = g["shear_pixels"]
-    calib_spec = np.memmap(folder / "calib_spectra.npy", dtype=np.complex128,
-                           mode="r", shape=(71, model.n, model.n))
-    meta_path = folder / "calib_meta.json"
     clean, obs = load_observations(run08, kind)
-    truths = {int(s): np.load(folder / f"truth_{s}.npy")
-              for s in HOLDOUT_SEEDS + NEW_TRUTH_SEEDS}
-    main_truth = np.array(json.loads((folder / "main_truth.json").read_text())["coefficients"])
     zero_image = np.load(run08 / f"na{NA:.3f}_{kind}" / "zero.npy")
+    main_truth = np.array(json.loads((folder / "main_truth.json").read_text())["coefficients"])
     obs_spec = {}
     for name, im in obs.items():
-        im = im - im.min()
-        obs_spec[name] = fft.fftshift(fft.fft2(im / im.max()))
-    truth_spec = {}
-    for s, im in truths.items():
-        im = im - im.min()
-        truth_spec[s] = fft.fftshift(fft.fft2(im / im.max()))
+        im2 = im - im.min()
+        obs_spec[name] = fft.fftshift(fft.fft2(im2 / im2.max()))
+    del obs, clean
+    truth_specs = {}
+    for s in HOLDOUT_SEEDS + NEW_TRUTH_SEEDS:
+        im = np.load(folder / f"truth_{s}.npy")
+        im2 = im - im.min()
+        truth_specs[int(s)] = fft.fftshift(fft.fft2(im2 / im2.max()))
+        del im, im2
+    truth_coeffs = {s: np.array(v["truth"])
+                    for s, v in json.loads((folder / "truths_meta.json").read_text()).items()}
     configs = config_list(fund, shp)
-    rows = []
+    results_path = cache / "sweep_results.json"
+    rows = json.loads(results_path.read_text()) if results_path.exists() else []
+    done_names = {(r["kind"], r["group"], r["name"], r.get("condition")) for r in rows
+                  if "error" not in r}
     total = len(configs)
+    times = []
     for ci, cfg in enumerate(configs):
         monitor.update(stage="sweep", kind=kind, config=f"{ci+1}/{total}",
-                        group=cfg["group"], name=cfg["name"],
-                        eta_remaining_seconds=(total - ci) * 140.0)
+                       group=cfg["group"], name=cfg["name"],
+                       eta_remaining_seconds=(total - ci) * (np.mean(times) if times else 90.0))
         rs = cfg["settings"].resolved(fund, shp)
+        t0 = time.monotonic()
         try:
             feat = RegionFeatures(model.config, zero_image, rs)
-            cal = calibrate(feat, calib_spec, meta_path)
+            cal = calibrate(feat, folder)
         except Exception as exc:
             rows.append(dict(group=cfg["group"], name=cfg["name"], kind=kind,
-                error=repr(exc), settings=asdict(rs)))
-            save(cache / "sweep_results.json", rows)
+                             error=repr(exc), settings=asdict(rs)))
+            save(results_path, rows)
             continue
-        for name in ("clean",) + tuple(f"40db_seed{s}" for s in NOISE_40) + ("30db_seed42",):
-            est, diag = apply_calibration(cal, feat, obs_spec[name], from_spectrum=True)
-            row = dict(group=cfg["group"], name=cfg["name"], kind=kind, condition=name,
-                settings=asdict(rs), cal_rank=cal["rank"], cal_condition=cal["condition"],
-                cal_training_error=cal["training_max_coefficient_error"], **diag,
-                **metrics(model, est, main_truth))
+        obs_conditions = (("clean",) +
+                          tuple(f"40db_seed{s}" for s in NOISE_40) +
+                          ("30db_seed42",))
+        for cond in obs_conditions:
+            if (kind, cfg["group"], cfg["name"], cond) in done_names:
+                continue
+            est, diag = apply_calibration(cal, feat, obs_spec[cond], from_spectrum=True)
+            row = dict(group=cfg["group"], name=cfg["name"], kind=kind, condition=cond,
+                       settings=asdict(rs), cal_rank=cal["rank"],
+                       cal_condition=cal["condition"],
+                       cal_training_error=cal["training_max_coefficient_error"],
+                       **diag, **metrics(model, est, main_truth))
             rows.append(row)
         for s in HOLDOUT_SEEDS + NEW_TRUTH_SEEDS:
-            t = truth_for(model, s)
-            est, diag = apply_calibration(cal, feat, truth_spec[s], from_spectrum=True)
+            cond = f"truth{int(s)}"
+            if (kind, cfg["group"], cfg["name"], cond) in done_names:
+                continue
+            t = np.array(truth_coeffs[str(s)])
+            est, diag = apply_calibration(cal, feat, truth_specs[int(s)], from_spectrum=True)
             row = dict(group=cfg["group"], name=cfg["name"], kind=kind,
-                condition=f"truth{int(s)}", truth_seed=int(s),
-                settings=asdict(rs), cal_rank=cal["rank"], cal_condition=cal["condition"],
-                cal_training_error=cal["training_max_coefficient_error"], **diag,
-                **metrics(model, est, t))
+                       condition=cond, truth_seed=int(s),
+                       settings=asdict(rs), cal_rank=cal["rank"],
+                       cal_condition=cal["condition"],
+                       cal_training_error=cal["training_max_coefficient_error"],
+                       **diag, **metrics(model, est, t))
             rows.append(row)
-        save(cache / "sweep_results.json", rows)
+        save(results_path, rows)
+        elapsed = time.monotonic() - t0
+        times.append(elapsed)
         monitor.event("sweep_config", kind=kind, group=cfg["group"], name=cfg["name"],
-            completed=ci + 1, total=total)
-        del feat
+                      completed=ci + 1, total=total, seconds=elapsed)
+        del feat, cal
         gc.collect()
+    return rows
     return rows
 
 
