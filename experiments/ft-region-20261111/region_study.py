@@ -239,7 +239,7 @@ def prep(model, kind, cache, run08, monitor):
     # Zero and main truth (truth_for(model) reproduces run-08 PROTOCOL truth).
     zero = np.load(run08 / f"na{NA:.3f}_{kind}" / "zero.npy")
     spectra_path = folder / "calib_spectra.npy"
-    spec = np.memmap(spectra_path, dtype=complex128, mode="w+",
+    spec = np.memmap(spectra_path, dtype=np.complex128, mode="w+",
                      shape=(71, model.n, model.n)) if not spectra_path.exists() else None
     calib_meta = []
     if spec is not None:
@@ -385,7 +385,7 @@ def sweep_one(model, kind, cache, run08, monitor):
     g = geometry(model.config)
     fund = g["fundamental_bins"]
     shp = g["shear_pixels"]
-    calib_spec = np.memmap(folder / "calib_spectra.npy", dtype=complex128,
+    calib_spec = np.memmap(folder / "calib_spectra.npy", dtype=np.complex128,
                            mode="r", shape=(71, model.n, model.n))
     meta_path = folder / "calib_meta.json"
     clean, obs = load_observations(run08, kind)
