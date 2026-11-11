@@ -189,7 +189,7 @@ def main():
         for name, item in read("images.json").items():
             anchor = next(b["id"] for b in blocks if text_of(b) == "图：" + name)
             attach(page, Path(item["path"]), "image", item["caption"], anchor)
-        for name in ("overview.html", "report.md", "edge-analysis-data.zip", "versions.json"):
+        for name in ("overview.html", "report.md", "edge-analysis-data.zip", "versions.json", "full-report.html"):
             attach(page, root / name, "file")
 
     def links():
