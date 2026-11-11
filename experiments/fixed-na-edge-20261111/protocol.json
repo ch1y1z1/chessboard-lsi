@@ -1,0 +1,33 @@
+{
+  "experiment_id": "fixed-na-edge-20261111",
+  "run_id": "analysis-01",
+  "parent_experiment": "na-talbot-balanced-20261111",
+  "parent_run": "run-08",
+  "na_out": [0.02, 0.066, 0.11, 0.15],
+  "primary_condition": "40db",
+  "seeds": [41, 42, 43, 44, 45],
+  "primary_outer_pixel_fraction": 0.1,
+  "pixel_fractions": [0.01, 0.02, 0.05, 0.1, 0.15, 0.2, 0.3],
+  "bin_counts": [10, 20, 50, 100],
+  "hot_mask_reference": "absolute clean FT error, separately for single and multi64",
+  "hot_mask_evaluation": "freeze before evaluating noisy results; apply each mask to all four pipelines",
+  "geometric_mask": "outermost radius shells; keep complete equal-radius shells, report actual pixel fraction",
+  "hot_mask_budget": "exactly the same number of pixels as geometric outer mask",
+  "primary_metric": "fraction of total squared wavefront error in outermost 10 percent pixels",
+  "secondary_metrics": [
+    "edge/interior RMS",
+    "RMS after excluding outer pixels",
+    "frozen hot-mask RMS and error concentration",
+    "overlap of frozen hot mask and geometric edge",
+    "minimum outer pixel fraction accounting for 80 percent squared error",
+    "unbinned cumulative RMS as evaluation NA grows",
+    "equal-area versus equal-radius bin sensitivity",
+    "clean bias and finite-seed variance decomposition",
+    "equal-variance modal-error baseline",
+    "24 saved random-truth FT holdouts"
+  ],
+  "primary_comparison": "within each saved fixed system; no refit or propagation",
+  "between_system_comparison": "association within compensated scalar Fresnel family; no causal NA attribution",
+  "uncertainty": "mean and sample SD across 5 noise seeds; paired differences use the same seed; pixels are not independent replicates",
+  "preserve": "raw pupil waves, all 35 nonpiston modes; no piston/tilt/defocus removal; original observations and all historical outputs"
+}
