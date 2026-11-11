@@ -234,13 +234,14 @@ def main():
             ax.set(
                 title=f"Fixed NA_out={na:.3f}",
                 xlim=(cfg["NA_in"], na),
-                ylabel="Wavefront error RMS (waves)",
             )
             ax.grid(alpha=0.18)
         axes_c.flat[panel].set_xlabel("Evaluation cutoff NA (cumulative pupil)")
         axes_r.flat[panel].set_xlabel("Local NA (disjoint annular bins)")
     axes_c.flat[0].legend(fontsize=8)
     axes_r.flat[0].legend(fontsize=8)
+    fig_c.supylabel("Wavefront error RMS (waves)")
+    fig_r.supylabel("Wavefront error RMS (waves)")
     fig_c.suptitle("Fixed-system cumulative RMS; 40 dB, mean +/- sample SD (5 seeds)")
     fig_r.suptitle("Local annular RMS; 40 dB, mean +/- sample SD (5 seeds)")
     figure_done(fig_c, "cumulative_rms_fixed_na")
