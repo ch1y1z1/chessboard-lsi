@@ -183,7 +183,7 @@ class RegionFeatures:
     def extract_from_spectrum(self, spec):
         """Core feature extraction given a precomputed fftshift spectrum."""
         s = self.rs
-        values, maxima, branch = [], [], []
+        values, good_masks, maxima, branch = [], [], [], []
         for k, axis in enumerate((1, 0)):
             cx, cy = self._locate_center(spec, axis)
             ix = int(round(cx - self.centers[k][0]))
@@ -193,11 +193,11 @@ class RegionFeatures:
                 rolled = np.roll(rolled, -iy, axis=(1 - axis))
             signal_field = fft.ifft2(fft.ifftshift(rolled))[self.roi].copy()
             if s.subpixel:
-                n = self.c.camera_n
-                yy, xx = np.indices(rolled.shape)
+                # Use ROI-sized indices, not full-grid indices.
+                yy, xx = np.indices(signal_field.shape)
                 sx = (cx - self.centers[k][0]) - ix
                 sy = (cy - self.centers[k][1]) - iy
-                signal_field *= np.exp(-2j * np.pi * (sx * xx + sy * yy) / n)
+                signal_field *= np.exp(-2j * np.pi * (sx * xx + sy * yy) / self.c.camera_n)
             phase = np.where(self.masks[k], np.angle(
                 signal_field * np.conj(self.references[k])), 0.0)
             maxima.append(float(abs(phase[self.masks[k]]).max()))
@@ -208,8 +208,16 @@ class RegionFeatures:
             if s.amplitude_threshold:
                 amp = abs(signal_field)[self.masks[k]]
                 good = amp >= s.amplitude_threshold * amp.max()
-            values.append(phase[self.masks[k]] if good.all() else phase[self.masks[k]][good])
-        return self.A_pinv @ np.concatenate(values), dict(
+            values.append(phase[self.masks[k]])
+            good_masks.append(good)
+        b = np.concatenate(values)
+        valid = np.concatenate(good_masks)
+        A = self.A_pinv[:, valid] if not valid.all() else self.A_pinv
+        # A_pinv is shape (35, total_pixels); we need (35, valid_pixels) = pinv slice.
+        # Actually A_pinv @ b[valid] where A_pinv maps from pixel-space to coeff-space.
+        # A_pinv columns correspond to pixels; selecting valid columns applies the mask.
+        result = (A @ b[valid]) if not valid.all() else (self.A_pinv @ b)
+        return result, dict(
             max_absolute_phase_rad=maxima, near_branch_fraction=branch,
             small_phase_valid=bool(max(maxima) < 2.8),
             window_metrics=self.window_metrics, basis_rank=self.basis_rank,
