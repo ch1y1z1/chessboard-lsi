@@ -465,7 +465,7 @@ def sweep_one(model, kind, cache, run08, monitor):
         save(results_path, rows)
         elapsed = time.monotonic() - t0
         times.append(elapsed)
-        monitor.event("sweep_config", kind=kind, group=cfg["group"], name=cfg["name"],
+        monitor.event("sweep_config", kind=kind, group=cfg["group"], config_name=cfg["name"],
                       completed=ci + 1, total=total, seconds=elapsed)
         del feat, cal
         gc.collect()
