@@ -119,9 +119,11 @@ def main():
     n_obj = c["N_lattice"] * c["N_super_lattice"]
     step = c["wavelength"] / (n_obj * dx_obj * c["NA_out"])
     extent = int(np.ceil(1 / step))
-    xy = np.arange(-extent, extent + 1) * step
-    xx, yy = np.meshgrid(xy, xy)
-    rho = np.hypot(xx, yy)
+    freq = np.fft.fftshift(np.fft.fftfreq(n_obj, dx_obj))
+    freq = freq[n_obj // 2 - extent:n_obj // 2 + extent + 1]
+    xx, yy = np.meshgrid(freq, freq)
+    rho = c["wavelength"] * np.hypot(xx, yy) / c["NA_out"]
+    xy = freq * c["wavelength"] / c["NA_out"]
     epsilon = c["NA_in"] / c["NA_out"]
     pupil = (rho >= epsilon) & (rho <= 1)
     z = basis(tuple(range(1, 36)), rho, np.arctan2(yy, xx), epsilon, 5)
