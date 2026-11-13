@@ -36,7 +36,7 @@ def main():
     font_manager.fontManager.addfont(args.font)
     font = font_manager.FontProperties(fname=args.font).get_name()
     plt.rcParams.update({
-        "font.family": font, "font.size": 11, "axes.titlesize": 13,
+        "font.family": [font, "DejaVu Sans"], "font.size": 11, "axes.titlesize": 13,
         "axes.labelsize": 11, "figure.facecolor": "#fbfaf7",
         "axes.facecolor": "#fbfaf7", "text.color": "#243343",
         "axes.labelcolor": "#243343", "xtick.color": "#405061",
