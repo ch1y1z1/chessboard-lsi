@@ -18,6 +18,16 @@ REPORT = "4178b24d-37dc-81a5-93c5-e7abd698670a"
 DAILY = "4178b24d-37dc-816f-9f76-ff093f332de1"
 
 
+def command_json(command, attempts=4):
+    for attempt in range(attempts):
+        p = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, text=True)
+        if p.returncode == 0:
+            return json.loads(p.stdout)
+        if attempt + 1 < attempts:
+            time.sleep(1 + attempt)
+    raise RuntimeError(f"{command[:4]}: {p.stderr[:800]}")
+
+
 def api(path, method="GET", body=None):
     command = ["ntn", "api", path, "-X", method]
     tmp = None
@@ -27,10 +37,10 @@ def api(path, method="GET", body=None):
         tmp.close()
         command += ["--data", "@" + tmp.name]
     try:
-        p = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, text=True)
-        if p.returncode:
-            raise RuntimeError(f"{method} {path}: {p.stderr[:800]}")
-        return json.loads(p.stdout)
+        # Appending children is not idempotent. Its caller checks the parent
+        # after a transport error before deciding whether to retry.
+        attempts = 1 if method == "PATCH" and path.endswith("/children") else 4
+        return command_json(command, attempts)
     finally:
         if tmp:
             Path(tmp.name).unlink()
@@ -43,8 +53,7 @@ def children(page):
         command = ["ntn", "api", path, "page_size==100"]
         if cursor:
             command += ["start_cursor==" + cursor]
-        p = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, text=True, check=True)
-        d = json.loads(p.stdout)
+        d = command_json(command)
         all_blocks.extend(d["results"])
         if not d["has_more"]:
             return all_blocks
@@ -141,10 +150,19 @@ def upload(path, receipt, max_size):
     assert path.stat().st_size <= max_size, path
     d = api("v1/file_uploads", "POST", {"mode": "single_part", "filename": path.name,
             "content_type": mimetypes.guess_type(path.name)[0] or "application/octet-stream"})
-    p = subprocess.run(["ntn", "api", f"v1/file_uploads/{d['id']}/send", "-X", "POST",
-                        "--file", str(path)], stdin=subprocess.DEVNULL, capture_output=True,
-                       text=True, check=True)
-    result = json.loads(p.stdout)
+    command = ["ntn", "api", f"v1/file_uploads/{d['id']}/send", "-X", "POST",
+               "--file", str(path)]
+    for attempt in range(4):
+        try:
+            result = command_json(command, attempts=1)
+            break
+        except RuntimeError:
+            result = api(f"v1/file_uploads/{d['id']}")
+            if result["status"] == "uploaded":
+                break
+            if attempt == 3:
+                raise
+            time.sleep(1 + attempt)
     assert result["status"] == "uploaded"
     item = {"id": result["id"], "sha256": sha, "bytes": path.stat().st_size}
     receipt[path.name] = item
@@ -171,8 +189,18 @@ def replace(page, new_blocks, old_blocks, protected_ids):
         before_ids = {b["id"] for b in children(page)}
         position = {"type": "start"} if previous is None else {
             "type": "after_block", "after_block": {"id": previous}}
-        api(f"v1/blocks/{page}/children", "PATCH",
-            {"children": new_blocks[start:start + 60], "position": position})
+        body = {"children": new_blocks[start:start + 60], "position": position}
+        for attempt in range(4):
+            try:
+                api(f"v1/blocks/{page}/children", "PATCH", body)
+                break
+            except RuntimeError:
+                committed = [b for b in children(page) if b["id"] not in before_ids]
+                if len(committed) == len(new_blocks[start:start + 60]):
+                    break
+                if committed or attempt == 3:
+                    raise
+                time.sleep(1 + attempt)
         # Some deployed API versions return sibling blocks and paginate the
         # response. Re-read the parent's direct children and identify new IDs.
         created = [b for b in children(page) if b["id"] not in before_ids]
@@ -182,7 +210,12 @@ def replace(page, new_blocks, old_blocks, protected_ids):
     assert len(added) == len(new_blocks)
     for b in old_blocks:
         if b["id"] not in protected_ids:
-            api(f"v1/blocks/{b['id']}", "DELETE")
+            try:
+                api(f"v1/blocks/{b['id']}", "DELETE")
+            except RuntimeError:
+                state = api(f"v1/blocks/{b['id']}")
+                if not (state.get("archived") or state.get("in_trash")):
+                    raise
     return added
 
 
