@@ -157,7 +157,10 @@ def backup(page, folder):
     for b in top:
         if b.get("has_children"):
             data["nested"][b["id"]] = children(b["id"])
-    (folder / f"{page}-before.json").write_text(json.dumps(data, ensure_ascii=False, indent=2))
+    target = folder / f"{page}-before.json"
+    if target.exists():
+        target = folder / f"{page}-resume-{int(time.time())}.json"
+    target.write_text(json.dumps(data, ensure_ascii=False, indent=2))
     return top
 
 
@@ -165,11 +168,16 @@ def replace(page, new_blocks, old_blocks, protected_ids):
     previous = None
     added = []
     for start in range(0, len(new_blocks), 60):
+        before_ids = {b["id"] for b in children(page)}
         position = {"type": "start"} if previous is None else {
             "type": "after_block", "after_block": {"id": previous}}
-        response = api(f"v1/blocks/{page}/children", "PATCH",
-                       {"children": new_blocks[start:start + 60], "position": position})
-        added.extend(response["results"])
+        api(f"v1/blocks/{page}/children", "PATCH",
+            {"children": new_blocks[start:start + 60], "position": position})
+        # Some deployed API versions return sibling blocks and paginate the
+        # response. Re-read the parent's direct children and identify new IDs.
+        created = [b for b in children(page) if b["id"] not in before_ids]
+        assert len(created) == len(new_blocks[start:start + 60])
+        added.extend(created)
         previous = added[-1]["id"]
     assert len(added) == len(new_blocks)
     for b in old_blocks:
