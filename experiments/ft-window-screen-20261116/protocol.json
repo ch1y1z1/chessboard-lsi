@@ -1,0 +1,23 @@
+{
+  "experiment": "ft-window-screen-20261116",
+  "source_kind": "single",
+  "condition": "40db_seed42",
+  "na_out": 0.02,
+  "half_width_bins": 112,
+  "radial_radius_rule": "2 * half_width / sqrt(pi), matching the archived circle support",
+  "new_windows": [
+    "hann_separable",
+    "hann_radial",
+    "tukey_radial",
+    "gaussian_truncated"
+  ],
+  "tukey_alpha": 0.5,
+  "gaussian_sigma_over_radius": 0.35,
+  "gaussian_edge_alpha": 0.1,
+  "phase_sigma_camera_px": 10.0,
+  "calibration_amplitude_waves": 0.02,
+  "calibration_modes": 35,
+  "threads": 2,
+  "heartbeat_seconds": 30,
+  "scope": "Initial comparison of six concrete window implementations at one condition; no bandwidth matching, width scan, source-count scan, noise repetitions, or new optical propagation."
+}
